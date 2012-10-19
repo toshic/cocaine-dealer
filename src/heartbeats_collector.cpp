@@ -325,8 +325,12 @@ heartbeats_collector_t::get_metainfo_from_endpoint(const inetv4_endpoint_t& endp
 
 	// poll for responce
 	int res = zmq_poll(poll_items, 1, host_socket_ping_timeout * 1000);
-	if (res <= 0) {
+	if (res == 0) {
+		log(PLOG_DEBUG, "heartbeats - did not get response timely from endpoint: " + endpoint.as_string());
 		return false;
+	}
+	if (res < 0) {
+		log(PLOG_DEBUG, "heartbeats - error code %d during polling endpoint: " + endpoint.as_string(), errno);
 	}
 
 	if ((ZMQ_POLLIN & poll_items[0].revents) != ZMQ_POLLIN) {
