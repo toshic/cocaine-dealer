@@ -4,19 +4,21 @@ Priority: extra
 Maintainer: Rim Zaidullin <rimz@yandex-team.ru>
 Build-Depends:
  cdbs,
+ cmake,
+ build-essential,
+ devscripts,
  debhelper (>= 7.0.13),
  libzmq-dev (>= 2.2.0+yandex1),
  libmsgpack-dev,
- libboost-dev,
- libboost-filesystem-dev,
- libboost-thread-dev,
- libboost-program-options-dev,
- libssl-dev,
  uuid-dev,
+ libssl-dev,
+ libcurl4-dev,
  eblob (>= 0.17.2),
- cmake,
- libcurl4-openssl-dev,
- yandex-git-cdbs
+ libboost-dev,
+ libboost-thread-dev,
+ libboost-system-dev,
+ libboost-regex-dev,
+ libboost-program-options-dev
 Standards-Version: 3.9.1
 Vcs-Git: git://github.com/cocaine/cocaine-dealer.git
 Vcs-Browser: https://github.com/cocaine/cocaine-dealer

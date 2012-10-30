@@ -3,7 +3,6 @@ PROJECT(Dealer)
 
 SET(DEALER_VERSION 0.8)
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-#SET(CMAKE_INSTALL_PREFIX /usr)
 
 MESSAGE("-- prefix='${CMAKE_INSTALL_PREFIX}'")
 
@@ -21,6 +20,7 @@ FIND_PACKAGE(CURL REQUIRED)
 
 INCLUDE(cmake/locate_library.cmake)
 
+LOCATE_LIBRARY(LIBEBLOB "eblob/eblob.hpp" "eblob")
 LOCATE_LIBRARY(LIBMSGPACK "msgpack.hpp" "msgpack")
 LOCATE_LIBRARY(LIBZMQ "zmq.hpp" "zmq")
 
