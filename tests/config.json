@@ -24,7 +24,18 @@
 
 	"services" :
 	{
-    	"rimz_app" : {
+		"server_time_2" : {
+			"app" : "cocaine_test2",
+			"autodiscovery" : {
+				"type" : "FILE",
+				"source" : "tests/hosts"
+			},
+			"policy" : {
+				"deadline" : 5.0,
+				"max_retries" : -1
+			}
+		},
+		"rimz_app" : {
 			"app" : "rimz_app@1",
 			"autodiscovery" : {
 				"type" : "FILE",
@@ -65,8 +76,6 @@
 				"deadline" : 5.0,
 				"max_retries" : -1
 			}
-			//"batching_size" : 100,
-			//"ack_timeout" : 100
 		}
 	}
 }

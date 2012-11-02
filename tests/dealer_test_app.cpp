@@ -43,8 +43,7 @@ void worker(dealer_t* d,
 			std::vector<int>* dealer_messages_count,
 			int dealer_index)
 {
-	//message_path_t path("rimz_app", "rimz_func");
-	message_path_t path("dummy", "hash");
+	message_path_t path("server_time_2", "add_time_func");
 	std::string payload = "response chunk: ";
 
 	while ((*dealer_messages_count)[dealer_index] >= 0) {
@@ -133,9 +132,10 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 
 int
 main(int argc, char** argv) {
+	/*
 	dealer_t			d("tests/config.json");
 	message_path_t		path("server_time", "add_time_func");
-	std::string			payload = "server time is: ";
+	std::string			payload = "server time is";
 
 	boost::shared_ptr<response_t> responce;
 	responce = d.send_message(payload.data(), payload.size(), path);
@@ -146,6 +146,7 @@ main(int argc, char** argv) {
 	}
 
 	return EXIT_SUCCESS;
+	*/
 
 	/*
 	dealer_t d("tests/config.json");
@@ -186,17 +187,15 @@ main(int argc, char** argv) {
 
 	return EXIT_SUCCESS;
 	*/
+
 	/*
 	dealer_t			d("tests/config.json");
-	message_path_t		path("rimz.*", "rimz_func");
-	message_policy_t	policy;
-	std::string			payload = "response chunk: ";
-
-	policy.max_retries = -1;
+	message_path_t		path("server_time.*", "add_time_func");
+	std::string			payload = "server time is";
 
 	for (int j = 0; j < 100; ++j) {
 		std::vector<boost::shared_ptr<response_t> > responces_list;
-		responces_list = d.send_messages(payload.data(), payload.size(), path, policy);
+		responces_list = d.send_messages(payload, path);
 
 		data_container data;
 

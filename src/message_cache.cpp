@@ -24,6 +24,7 @@
 #include <map>
 #include <cstring>
 #include <algorithm>
+#include <iostream>
 
 #include <boost/bind.hpp>
 #include <boost/tokenizer.hpp>
@@ -45,6 +46,8 @@ message_cache_t::message_cache_t(const boost::shared_ptr<context_t>& ctx,
 }
 
 message_cache_t::~message_cache_t() {
+	std::cout << "m_sent_messages.size(): " << m_sent_messages.size() << std::endl;
+	std::cout << "m_new_messages.size(): " << m_new_messages->size() << std::endl;
 }
 
 message_cache_t::message_queue_ptr_t

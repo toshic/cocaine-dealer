@@ -46,7 +46,7 @@ public:
     }
 
 	wuuid_t() {
-        memset(m_uuid, sizeof(m_uuid), 0);
+        memset(m_uuid, 0, sizeof(m_uuid));
     }
 
     void generate() {
