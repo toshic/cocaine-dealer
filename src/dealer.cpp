@@ -77,6 +77,36 @@ dealer_t::send_messages(const void* data,
     return m_impl->send_messages(data, size, path);
 }
 
+boost::shared_ptr<response_t>
+dealer_t::send_message(const std::string& data,
+                       const message_path_t& path,
+                       const message_policy_t& policy)
+{
+    return m_impl->send_message(data.data(), data.size(), path, policy);
+}
+
+boost::shared_ptr<response_t>
+dealer_t::send_message(const std::string& data,
+                       const message_path_t& path)
+{
+    return m_impl->send_message(data.data(), data.size(), path);
+}
+
+std::vector<boost::shared_ptr<response_t> >
+dealer_t::send_messages(const std::string& data,
+                        const message_path_t& path,
+                        const message_policy_t& policy)
+{
+    return m_impl->send_messages(data.data(), data.size(), path, policy);
+}
+
+std::vector<boost::shared_ptr<response_t> >
+dealer_t::send_messages(const std::string& data,
+                        const message_path_t& path)
+{
+    return m_impl->send_messages(data.data(), data.size(), path);
+}
+
 message_policy_t
 dealer_t::policy_for_service(const std::string& service_alias) {
     return m_impl->policy_for_service(service_alias);

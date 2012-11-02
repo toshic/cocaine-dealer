@@ -54,6 +54,19 @@
 			}
 			//"batching_size" : 100,
 			//"ack_timeout" : 100
+		},
+		"server_time" : {
+			"app" : "cocaine_test",
+			"autodiscovery" : {
+				"type" : "FILE",
+				"source" : "tests/hosts"
+			},
+			"policy" : {
+				"deadline" : 5.0,
+				"max_retries" : -1
+			}
+			//"batching_size" : 100,
+			//"ack_timeout" : 100
 		}
 	}
 }

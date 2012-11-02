@@ -44,9 +44,11 @@ public:
 	explicit dealer_t(const std::string& config_path = "");
 	virtual ~dealer_t();
 
+	// send manually created message
 	response_ptr_t
 	send_message(const message_t& message);
 
+	// send raw binary data
 	response_ptr_t
 	send_message(const void* data,
 				 size_t size,
@@ -69,6 +71,26 @@ public:
 				  size_t size,
 				  const message_path_t& path);
 
+	// send string
+	response_ptr_t
+	send_message(const std::string& data,
+				 const message_path_t& path,
+				 const message_policy_t& policy);
+
+	response_ptr_t
+	send_message(const std::string& data,
+				 const message_path_t& path);
+
+	responses_list_t
+	send_messages(const std::string& data,
+				  const message_path_t& path,
+				  const message_policy_t& policy);
+
+	responses_list_t
+	send_messages(const std::string& data,
+				  const message_path_t& path);
+
+	// send any object supported by msgpack library
 	template <typename T> response_ptr_t
 	send_message(const T& object,
 				 const message_path_t& path,
