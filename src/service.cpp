@@ -80,7 +80,7 @@ service_t::send_message(cached_message_prt_t message) {
 
 	{
 		boost::mutex::scoped_lock lock(m_responces_mutex);
-		m_responses[message->uuid()] = resp;
+		m_responses[message->uuid().as_string()] = resp;
 	}
 
 
@@ -122,7 +122,7 @@ service_t::enqueue_responce(boost::shared_ptr<response_chunk_t>& response) {
 		}
 
 		// find response object for received chunk
-		it = m_responses.find(response->uuid);
+		it = m_responses.find(response->uuid.as_string());
 
 		// no response object -> discard chunk
 		if (it == m_responses.end()) {
@@ -161,7 +161,7 @@ service_t::enque_to_handle(const cached_message_prt_t& message) {
 		log(PLOG_DEBUG,
 			message_str,
 			message->size(),
-			message->uuid().c_str(),
+			message->uuid().as_human_readable_string().c_str(),
 			message->path().as_string().c_str(),
 			enqued_timestamp_str.c_str());
 	}
@@ -195,7 +195,7 @@ service_t::enque_to_unhandled(const cached_message_prt_t& message) {
 		log(PLOG_DEBUG,
 			message_str,
 			message->size(),
-			message->uuid().c_str(),
+			message->uuid().as_human_readable_string().c_str(),
 			message->path().as_string().c_str(),
 			enqued_timestamp_str.c_str());
 	}
@@ -488,7 +488,7 @@ service_t::check_for_deadlined_messages() {
 
 				log(PLOG_ERROR,
 					log_str,
-					response->uuid.c_str(),
+					response->uuid.as_human_readable_string().c_str(),
 					enqued_timestamp_str.c_str(),
 					sent_timestamp_str.c_str(),
 					curr_timestamp_str.c_str());

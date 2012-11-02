@@ -192,7 +192,7 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 		}
 
 		// send message uuid
-		const std::string& uuid = message->uuid();
+		const std::string& uuid = message->uuid().as_string();
 		msgpack::sbuffer sbuf;
 		msgpack::pack(sbuf, uuid);
 		zmq::message_t uuid_chunk(sbuf.size());

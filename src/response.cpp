@@ -26,7 +26,7 @@
 namespace cocaine {
 namespace dealer {
 
-response_t::response_t(const std::string& uuid, const message_path_t& path) {
+response_t::response_t(const wuuid_t& uuid, const message_path_t& path) {
 	m_impl.reset(new response_impl_t(uuid, path));
 }
 

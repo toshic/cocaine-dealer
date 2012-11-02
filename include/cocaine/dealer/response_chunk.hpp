@@ -24,6 +24,7 @@
 #include <string>
 
 #include <cocaine/dealer/utils/data_container.hpp>
+#include <cocaine/dealer/utils/uuid.hpp>
 #include <cocaine/dealer/types.hpp>
 
 namespace cocaine {
@@ -43,10 +44,10 @@ public:
         rpc_code(SERVER_RPC_MESSAGE_UNKNOWN),
         error_code(-1) {};
 
-	std::string		uuid;
-	std::string		route;
-	data_container	data;
-	timeval			received_timestamp;
+	wuuid_t            uuid;
+	std::string        route;
+	data_container     data;
+	timeval            received_timestamp;
 
 	int			rpc_code;
 	int			error_code;

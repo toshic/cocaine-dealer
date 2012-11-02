@@ -108,7 +108,7 @@ private:
 	// working with responces
 	void enqueue_response(boost::shared_ptr<response_chunk_t>& response);
 	void remove_from_persistent_storage(const boost::shared_ptr<response_chunk_t>& response);
-	void remove_from_persistent_storage(const std::string& uuid,
+	void remove_from_persistent_storage(wuuid_t& uuid,
 										const message_policy_t& policy,
 										const std::string& alias);
 private:

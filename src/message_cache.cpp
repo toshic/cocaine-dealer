@@ -111,8 +111,8 @@ message_cache_t::sent_messages_count() {
 
 bool
 message_cache_t::get_sent_message(const std::string& route,
-								const std::string& uuid,
-								boost::shared_ptr<message_iface>& message) {
+								  wuuid_t& uuid,
+								  boost::shared_ptr<message_iface>& message) {
 
 	boost::mutex::scoped_lock lock(m_mutex);
 
@@ -123,7 +123,7 @@ message_cache_t::get_sent_message(const std::string& route,
 	}
 
 	const sent_messages_map_t& msg_map = it->second;
-	sent_messages_map_t::const_iterator mit = msg_map.find(uuid);
+	sent_messages_map_t::const_iterator mit = msg_map.find(uuid.as_string());
 
 	if (mit == msg_map.end()) {
 		return false;
@@ -145,18 +145,18 @@ message_cache_t::move_new_message_to_sent(const std::string& route) {
 	route_sent_messages_map_t::iterator it = m_sent_messages.find(route);
 	if (it == m_sent_messages.end()) {
 		sent_messages_map_t msg_map;
-		msg_map.insert(std::make_pair(msg->uuid(), msg));
+		msg_map.insert(std::make_pair(msg->uuid().as_string(), msg));
 		m_sent_messages[route] = msg_map;
 	}
 	else {
-		it->second.insert(std::make_pair(msg->uuid(), msg));
+		it->second.insert(std::make_pair(msg->uuid().as_string(), msg));
 	}
 
 	m_new_messages->pop_front();
 }
 
 bool
-message_cache_t::reshedule_message(const std::string& route, const std::string& uuid) {
+message_cache_t::reshedule_message(const std::string& route, wuuid_t& uuid) {
 	boost::mutex::scoped_lock lock(m_mutex);
 
 	route_sent_messages_map_t::iterator it = m_sent_messages.find(route);
@@ -166,7 +166,7 @@ message_cache_t::reshedule_message(const std::string& route, const std::string& 
 	}
 
 	sent_messages_map_t& msg_map = it->second;
-	sent_messages_map_t::iterator mit = msg_map.find(uuid);
+	sent_messages_map_t::iterator mit = msg_map.find(uuid.as_string());
 
 	if (mit == msg_map.end()) {
 		return false;
@@ -194,7 +194,7 @@ message_cache_t::reshedule_message(const std::string& route, const std::string& 
 }
 
 void
-message_cache_t::move_sent_message_to_new(const std::string& route, const std::string& uuid) {
+message_cache_t::move_sent_message_to_new(const std::string& route, wuuid_t& uuid) {
 	boost::mutex::scoped_lock lock(m_mutex);
 
 	route_sent_messages_map_t::iterator it = m_sent_messages.find(route);
@@ -204,7 +204,7 @@ message_cache_t::move_sent_message_to_new(const std::string& route, const std::s
 	}
 
 	sent_messages_map_t& msg_map = it->second;
-	sent_messages_map_t::iterator mit = msg_map.find(uuid);
+	sent_messages_map_t::iterator mit = msg_map.find(uuid.as_string());
 
 	if (mit == msg_map.end()) {
 		return;
@@ -225,7 +225,7 @@ message_cache_t::move_sent_message_to_new(const std::string& route, const std::s
 }
 
 void
-message_cache_t::move_sent_message_to_new_front(const std::string& route, const std::string& uuid) {
+message_cache_t::move_sent_message_to_new_front(const std::string& route, wuuid_t& uuid) {
 	boost::mutex::scoped_lock lock(m_mutex);
 
 	route_sent_messages_map_t::iterator it = m_sent_messages.find(route);
@@ -235,7 +235,7 @@ message_cache_t::move_sent_message_to_new_front(const std::string& route, const 
 	}
 
 	sent_messages_map_t& msg_map = it->second;
-	sent_messages_map_t::iterator mit = msg_map.find(uuid);
+	sent_messages_map_t::iterator mit = msg_map.find(uuid.as_string());
 
 	if (mit == msg_map.end()) {
 		return;
@@ -252,7 +252,7 @@ message_cache_t::move_sent_message_to_new_front(const std::string& route, const 
 }
 
 void
-message_cache_t::remove_message_from_cache(const std::string& route, const std::string& uuid) {
+message_cache_t::remove_message_from_cache(const std::string& route, wuuid_t& uuid) {
 	boost::mutex::scoped_lock lock(m_mutex);
 
 	route_sent_messages_map_t::iterator it = m_sent_messages.find(route);
@@ -262,7 +262,7 @@ message_cache_t::remove_message_from_cache(const std::string& route, const std::
 	}
 
 	sent_messages_map_t& msg_map = it->second;
-	sent_messages_map_t::iterator mit = msg_map.find(uuid);
+	sent_messages_map_t::iterator mit = msg_map.find(uuid.as_string());
 
 	if (mit == msg_map.end()) {
 		return;

@@ -84,8 +84,10 @@ handle_t::kill() {
 }
 
 void
-handle_t::dispatch_messages() {	
-	std::string balancer_ident = m_info.as_string() + "." + wuuid_t().generate();
+handle_t::dispatch_messages() {
+	wuuid_t balancer_uuid;
+	balancer_uuid.generate();
+	std::string balancer_ident = m_info.as_string() + "." + balancer_uuid.as_string();
 	balancer_t balancer(balancer_ident, m_endpoints, context());
 
 	socket_ptr_t control_socket;
@@ -170,7 +172,6 @@ handle_t::remove_from_persistent_storage(const boost::shared_ptr<response_chunk_
 	}
 
 	boost::shared_ptr<message_iface> sent_msg;
-
 	if (false == m_message_cache->get_sent_message(response->route, response->uuid, sent_msg)) {
 		return;
 	}
@@ -181,11 +182,11 @@ handle_t::remove_from_persistent_storage(const boost::shared_ptr<response_chunk_
 
 	// remove message from eblob
 	boost::shared_ptr<eblob_t> eb = context()->storage()->get_eblob(sent_msg->path().service_alias);
-	eb->remove_all(response->uuid);
+	eb->remove_all(response->uuid.as_string());
 }
 
 void
-handle_t::remove_from_persistent_storage(const std::string& uuid,
+handle_t::remove_from_persistent_storage(wuuid_t& uuid,
 										 const message_policy_t& policy,
 										 const std::string& alias)
 {
@@ -199,7 +200,7 @@ handle_t::remove_from_persistent_storage(const std::string& uuid,
 
 	// remove message from eblob
 	boost::shared_ptr<eblob_t> eb = context()->storage()->get_eblob(alias);
-	eb->remove_all(uuid);
+	eb->remove_all(uuid.as_string());
 }
 
 void
@@ -235,7 +236,8 @@ handle_t::dispatch_next_available_response(balancer_t& balancer) {
 			if (response->error_code == resource_error) {
 				if (m_message_cache->reshedule_message(response->route, response->uuid)) {
 					if (log_flag_enabled(PLOG_WARNING)) {
-						std::string message_str = "resheduled message with uuid: " + response->uuid;
+						std::string message_str = "resheduled message with uuid: ";
+						message_str += response->uuid.as_human_readable_string();
 						message_str += " from " + description() + ", reason: error received, error code: %d";
 						message_str += ", error message: " + response->error_message;
 						log(PLOG_WARNING, message_str, response->error_code);
@@ -249,7 +251,8 @@ handle_t::dispatch_next_available_response(balancer_t& balancer) {
 				m_message_cache->remove_message_from_cache(response->route, response->uuid);
 
 				if (log_flag_enabled(PLOG_ERROR)) {
-					std::string message_str = "error received for message with uuid: " + response->uuid;	
+					std::string message_str = "error received for message with uuid: ";
+					message_str += response->uuid.as_human_readable_string();
 					message_str += " from " + description() + ", error code: %d";
 					message_str += ", error message: " + response->error_message;
 					log(PLOG_ERROR, message_str, response->error_code);
@@ -265,7 +268,8 @@ handle_t::dispatch_next_available_response(balancer_t& balancer) {
 			m_message_cache->remove_message_from_cache(response->route, response->uuid);
 
 			if (log_flag_enabled(PLOG_ERROR)) {
-				std::string message_str = "unknown RPC code received for message with uuid: " + response->uuid;
+				std::string message_str = "unknown RPC code received for message with uuid: ";
+				message_str += response->uuid.as_human_readable_string();
 				message_str += " from " + description() + ", code: %d";
 				message_str += ", error message: " + response->error_message;
 				log(PLOG_ERROR, message_str, response->error_code);
@@ -357,7 +361,7 @@ handle_t::process_deadlined_messages() {
 					std::string log_str = "no ACK, resheduled message %s, (enqued: %s, sent: %s, curr: %s)";
 
 					log(PLOG_WARNING, log_str,
-						expired_messages.at(i)->uuid().c_str(),
+						expired_messages.at(i)->uuid().as_human_readable_string().c_str(),
 						enqued_timestamp_str.c_str(),
 						sent_timestamp_str.c_str(),
 						curr_timestamp_str.c_str());
@@ -380,7 +384,7 @@ handle_t::process_deadlined_messages() {
 					log_str += "for %s, (enqued: %s, sent: %s, curr: %s)";
 
 					log(PLOG_WARNING, log_str,
-						expired_messages.at(i)->uuid().c_str(),
+						expired_messages.at(i)->uuid().as_human_readable_string().c_str(),
 						enqued_timestamp_str.c_str(),
 						sent_timestamp_str.c_str(),
 						curr_timestamp_str.c_str());
@@ -404,7 +408,7 @@ handle_t::process_deadlined_messages() {
 
 				log(PLOG_ERROR,
 					log_str,
-					expired_messages.at(i)->uuid().c_str(),
+					expired_messages.at(i)->uuid().as_human_readable_string().c_str(),
 					enqued_timestamp_str.c_str(),
 					sent_timestamp_str.c_str(),
 					curr_timestamp_str.c_str());
@@ -505,7 +509,7 @@ handle_t::dispatch_next_available_message(balancer_t& balancer) {
 
 			log(PLOG_DEBUG,
 				log_msg.c_str(),
-				new_msg->uuid().c_str(),
+				new_msg->uuid().as_human_readable_string().c_str(),
 				endpoint.endpoint.c_str(),
 				description().c_str(),
 				sent_timestamp_str.c_str());

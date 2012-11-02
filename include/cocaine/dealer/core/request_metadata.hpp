@@ -30,6 +30,8 @@
 #include "cocaine/dealer/message_path.hpp"
 #include "cocaine/dealer/utils/time_value.hpp"
 #include "cocaine/dealer/storage/eblob.hpp"
+#include "cocaine/dealer/utils/uuid.hpp"
+
 #include <boost/flyweight.hpp>
 
 #include <msgpack.hpp>
@@ -38,7 +40,7 @@ namespace cocaine {
 namespace dealer {
 
 struct request_metadata_t {
-	request_metadata_t() :
+		request_metadata_t() :
 		data_size(0),
 		ack_received(false),
 		is_sent(false),
@@ -46,12 +48,12 @@ struct request_metadata_t {
 
 	virtual ~request_metadata_t() {}
 
-	std::string as_string() const {
+	std::string as_string() {
 		std::stringstream s;
 		s << std::boolalpha;
 		s << "service: "<< path().service_alias << ", handle: ";
 		s << path().handle_name + "\n";
-        s << "uuid: " << uuid << "\n";
+        s << "uuid: " << uuid.as_human_readable_string() << "\n";
         s << "policy [urgent]: " << policy.urgent << "\n";
         s << "policy [persistent]: " << policy.persistent << "\n";
         s << "policy [timeout]: " << policy.timeout << "\n";
@@ -70,7 +72,7 @@ struct request_metadata_t {
 		path_ = path;
 	}
 
-	std::string			uuid;
+	wuuid_t				uuid;
 	message_policy_t	policy;
 	std::string			destination_endpoint;
 	uint64_t			data_size;
@@ -112,7 +114,11 @@ struct persistent_request_metadata_t : public request_metadata_t {
 		path = path;
 
 		unpack_next_value(pac, policy);
-		unpack_next_value(pac, uuid);
+
+		std::string tmp_uuid;
+		unpack_next_value(pac, tmp_uuid);
+		uuid = wuuid_t(tmp_uuid);
+
 		unpack_next_value(pac, data_size);
 		unpack_next_value(pac, enqued_timestamp);
 	}
@@ -123,12 +129,12 @@ struct persistent_request_metadata_t : public request_metadata_t {
 		msgpack::packer<msgpack::sbuffer> pk(&buffer);
     	pk.pack(path());
     	pk.pack(policy);
-    	pk.pack(uuid);
+    	pk.pack(uuid.as_string());
     	pk.pack(data_size);
     	pk.pack(enqued_timestamp);
 
     	// write to eblob_t with uuid as key
-		blob->write(uuid, buffer.data(), buffer.size(), EBLOB_COLUMN);
+		blob->write(uuid.as_string(), buffer.data(), buffer.size(), EBLOB_COLUMN);
 	}
 
 private:

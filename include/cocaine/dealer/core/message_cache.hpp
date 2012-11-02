@@ -35,6 +35,7 @@
 #include "cocaine/dealer/core/context.hpp"
 #include "cocaine/dealer/core/dealer_object.hpp"
 #include "cocaine/dealer/core/message_iface.hpp"
+#include "cocaine/dealer/utils/uuid.hpp"
 
 namespace cocaine {
 namespace dealer {
@@ -48,14 +49,14 @@ public:
 	typedef std::vector<message_data_t> expired_messages_data_t;
 
 	// <uuid, sent message>
-	typedef std::map<std::string, cached_message_ptr_t> sent_messages_map_t;
+	typedef std::map<std::string, cached_message_ptr_t> sent_messages_map_t; 
 
 	// <route, sent messages map>
 	typedef std::map<std::string, sent_messages_map_t> route_sent_messages_map_t;
 
 public:
 	message_cache_t(const boost::shared_ptr<context_t>& ctx,
-				  bool logging_enabled = true);
+					bool logging_enabled = true);
 
 	virtual ~message_cache_t();
 
@@ -65,24 +66,23 @@ public:
 	size_t new_messages_count();
 	size_t sent_messages_count();
 
-
 	void enqueue_with_priority(const boost::shared_ptr<message_iface>& message);
 	cached_message_ptr_t get_new_message();
 	
 	bool get_sent_message(const std::string& route,
-						  const std::string& uuid,
+						  wuuid_t& uuid,
 						  boost::shared_ptr<message_iface>& message);
 
 	message_queue_ptr_t new_messages();
 	void move_new_message_to_sent(const std::string& route);
-	void move_sent_message_to_new(const std::string& route, const std::string& uuid);
-	void move_sent_message_to_new_front(const std::string& route, const std::string& uuid);
-	void remove_message_from_cache(const std::string& route, const std::string& uuid);
+	void move_sent_message_to_new(const std::string& route, wuuid_t& uuid);
+	void move_sent_message_to_new_front(const std::string& route, wuuid_t& uuid);
+	void remove_message_from_cache(const std::string& route, wuuid_t& uuid);
 	void make_all_messages_new();
 	void get_expired_messages(message_queue_t& expired_messages);
 	void make_all_messages_new_for_route(const std::string& route);
 
-	bool reshedule_message(const std::string& route, const std::string& uuid);
+	bool reshedule_message(const std::string& route, wuuid_t& uuid);
 
 	void lock();
 

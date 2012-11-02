@@ -289,7 +289,9 @@ dealer_impl_t::create_message(const void* data,
 	{
 		boost::shared_ptr<eblob_t> eb = context()->storage()->get_eblob(path.service_alias);
 		msg->commit_to_eblob(eb);
-		log(PLOG_DEBUG, "commited message with uuid: " + msg->uuid() + " to persistent storage.");
+		log(PLOG_DEBUG,
+			"commited message with uuid: %s to persistent storage.",
+			msg->uuid().as_human_readable_string().c_str());
 	}
 
 	return msg;

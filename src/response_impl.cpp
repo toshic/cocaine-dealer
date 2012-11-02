@@ -32,7 +32,7 @@
 namespace cocaine {
 namespace dealer {
 
-response_impl_t::response_impl_t(const std::string& uuid, const message_path_t& path) :
+response_impl_t::response_impl_t(const wuuid_t& uuid, const message_path_t& path) :
 	m_uuid(uuid),
 	m_path(path),
 	m_response_finished(false),

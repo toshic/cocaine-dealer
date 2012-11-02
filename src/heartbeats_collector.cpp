@@ -24,7 +24,6 @@
 #include "cocaine/dealer/heartbeats/file_hosts_fetcher.hpp"
 #include "cocaine/dealer/heartbeats/http_hosts_fetcher.hpp"
 #include "cocaine/dealer/cocaine_node_info/cocaine_node_info_parser.hpp"
-#include "cocaine/dealer/utils/uuid.hpp"
 
 namespace cocaine {
 namespace dealer {
@@ -33,7 +32,7 @@ heartbeats_collector_t::heartbeats_collector_t(const boost::shared_ptr<context_t
 											   bool logging_enabled) :
 	dealer_object_t(ctx, logging_enabled)
 {
-	m_uuid = wuuid_t().generate();
+	m_uuid.generate();
 }
 
 heartbeats_collector_t::~heartbeats_collector_t() {
@@ -284,7 +283,7 @@ heartbeats_collector_t::get_metainfo_from_endpoint(const inetv4_endpoint_t& endp
 
 	int timeout = 0;
 	zmq_socket->setsockopt(ZMQ_LINGER, &timeout, sizeof(timeout));
-	zmq_socket->setsockopt(ZMQ_IDENTITY, m_uuid.c_str(), m_uuid.length());
+	zmq_socket->setsockopt(ZMQ_IDENTITY, m_uuid.as_string().c_str(), m_uuid.as_string().length());
 	zmq_socket->connect(connection_str.c_str());
 
 	// send request for cocaine metadata

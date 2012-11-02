@@ -24,6 +24,7 @@
 #include <string>
 
 #include "cocaine/dealer/utils/time_value.hpp"
+#include "cocaine/dealer/utils/uuid.hpp"
 #include "cocaine/dealer/message_path.hpp"
 #include "cocaine/dealer/message_policy.hpp"
 #include "cocaine/dealer/storage/eblob.hpp"
@@ -46,7 +47,7 @@ public:
 
 	virtual const message_path_t& path() const = 0;
 	virtual const message_policy_t& policy() const = 0;
-	virtual const std::string& uuid() const = 0;
+	virtual wuuid_t& uuid() = 0;
 
 	virtual bool is_sent() const = 0;
 	virtual const time_value& sent_timestamp() const = 0;
@@ -73,7 +74,6 @@ public:
 	virtual bool operator != (const message_iface& rhs) const = 0;
 
 	static const size_t MAX_MESSAGE_DATA_SIZE = 2147483648; // 2 gb
-	static const size_t UUID_SIZE = 36; // bytes
 	static const size_t ACK_TIMEOUT = 1000; // millisecs
 };
 

@@ -27,6 +27,7 @@
 
 #include <cocaine/dealer/forwards.hpp>
 #include <cocaine/dealer/utils/data_container.hpp>
+#include <cocaine/dealer/utils/uuid.hpp>
 #include <cocaine/dealer/response_chunk.hpp>
 #include <cocaine/dealer/message_path.hpp>
 
@@ -35,7 +36,7 @@ namespace dealer {
 
 class response_t {
 public:
-	response_t(const std::string& uuid, const message_path_t& path);
+	response_t(const wuuid_t& uuid, const message_path_t& path);
 
 	virtual ~response_t();
 

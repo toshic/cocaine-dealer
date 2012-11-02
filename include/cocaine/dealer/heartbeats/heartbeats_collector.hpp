@@ -41,6 +41,7 @@
 #include "cocaine/dealer/defaults.hpp"
 #include "cocaine/dealer/utils/error.hpp"
 #include "cocaine/dealer/utils/refresher.hpp"
+#include "cocaine/dealer/utils/uuid.hpp"
 #include "cocaine/dealer/core/handle_info.hpp"
 #include "cocaine/dealer/core/inetv4_host.hpp"
 #include "cocaine/dealer/core/dealer_object.hpp"
@@ -94,7 +95,7 @@ private:
 
 	// synchronization
 	boost::mutex m_mutex;
-	std::string m_uuid;
+	wuuid_t m_uuid;
 };
 
 } // namespace dealer

@@ -27,17 +27,18 @@
 
 #include <list>
 
-#include <cocaine/dealer/forwards.hpp>
-#include <cocaine/dealer/utils/data_container.hpp>
-#include <cocaine/dealer/response_chunk.hpp>
-#include <cocaine/dealer/utils/error.hpp>
+#include "cocaine/dealer/forwards.hpp"
+#include "cocaine/dealer/utils/data_container.hpp"
+#include "cocaine/dealer/response_chunk.hpp"
+#include "cocaine/dealer/utils/error.hpp"
+#include "cocaine/dealer/utils/uuid.hpp"
 
 namespace cocaine {
 namespace dealer {
 
 class response_impl_t {
 public:
-	response_impl_t(const std::string& uuid,
+	response_impl_t(const wuuid_t& uuid,
 					const message_path_t& path);
 
 	~response_impl_t();
@@ -75,7 +76,7 @@ private:
 	}
 
 	std::list<boost::shared_ptr<response_chunk_t> > m_chunks;
-	std::string					m_uuid;
+	wuuid_t						m_uuid;
 	const message_path_t		m_path;
 
 	bool m_response_finished;

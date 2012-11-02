@@ -68,7 +68,7 @@ public:
 
 	const message_path_t& path() const;
 	const message_policy_t& policy() const;
-	const std::string& uuid() const;
+	wuuid_t& uuid();
 
 	bool is_sent() const;
 	const time_value& sent_timestamp() const;
@@ -125,12 +125,12 @@ cached_message_t<DataContainer, MetadataContainer>::commit_to_eblob(boost::share
 	msgpack::packer<msgpack::sbuffer> pk(&buffer);
 	pk.pack(m_metadata.path());
 	pk.pack(m_metadata.policy);
-	pk.pack(m_metadata.uuid);
+	pk.pack(m_metadata.uuid.as_string());
 	pk.pack_raw(m_data.size());
 	pk.pack_raw_body((const char*)m_data.data(), m_data.size());
 
 	// write to eblob_t with uuid as key
-	blob->write(m_metadata.uuid, buffer.data(), buffer.size(), 0);
+	blob->write(m_metadata.uuid.as_string(), buffer.data(), buffer.size(), 0);
 }
 
 template<typename DataContainer, typename MetadataContainer>
@@ -162,7 +162,7 @@ cached_message_t<DataContainer, MetadataContainer>::~cached_message_t() {
 
 template<typename DataContainer, typename MetadataContainer> void
 cached_message_t<DataContainer, MetadataContainer>::init() {
-	m_metadata.uuid = wuuid_t().generate();
+	m_metadata.uuid.generate();
 	m_metadata.enqued_timestamp.init_from_current_time();
 }
 
@@ -264,8 +264,8 @@ cached_message_t<DataContainer, MetadataContainer>::operator != (const message_i
 	return !(*this == rhs);
 }
 
-template<typename DataContainer, typename MetadataContainer> const std::string&
-cached_message_t<DataContainer, MetadataContainer>::uuid() const {
+template<typename DataContainer, typename MetadataContainer> wuuid_t&
+cached_message_t<DataContainer, MetadataContainer>::uuid() {
 	return m_metadata.uuid;
 }
 
