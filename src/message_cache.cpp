@@ -46,8 +46,6 @@ message_cache_t::message_cache_t(const boost::shared_ptr<context_t>& ctx,
 }
 
 message_cache_t::~message_cache_t() {
-	std::cout << "m_sent_messages.size(): " << m_sent_messages.size() << std::endl;
-	std::cout << "m_new_messages.size(): " << m_new_messages->size() << std::endl;
 }
 
 message_cache_t::message_queue_ptr_t
@@ -115,8 +113,8 @@ message_cache_t::sent_messages_count() {
 bool
 message_cache_t::get_sent_message(const std::string& route,
 								  wuuid_t& uuid,
-								  boost::shared_ptr<message_iface>& message) {
-
+								  boost::shared_ptr<message_iface>& message)
+{
 	boost::mutex::scoped_lock lock(m_mutex);
 
 	route_sent_messages_map_t::const_iterator it = m_sent_messages.find(route);
@@ -272,6 +270,11 @@ message_cache_t::remove_message_from_cache(const std::string& route, wuuid_t& uu
 	}
 
 	msg_map.erase(mit);
+
+	// check whether route is empty, erase if it is
+	if (msg_map.empty()) {
+		m_sent_messages.erase(it);
+	}
 }
 
 void
@@ -306,7 +309,6 @@ message_cache_t::make_all_messages_new() {
 
 void
 message_cache_t::make_all_messages_new_for_route(const std::string& route) {
-	log(PLOG_DEBUG, "make_all_messages_new_for_route");
 	boost::mutex::scoped_lock lock(m_mutex);
 
 	route_sent_messages_map_t::iterator it = m_sent_messages.find(route);

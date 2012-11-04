@@ -317,6 +317,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 	if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
 		return false;
 	}
+
 	obj.convert(&uuid);
 
 	// init response
@@ -380,36 +381,70 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 	switch (rpc_code) {
 		case SERVER_RPC_MESSAGE_ACK: {
 			if (log_flag_enabled(PLOG_DEBUG)) {
+				wuuid_t id(uuid);
+				std::string readable_uuid = id.as_human_readable_string();
+				
 				std::string times = time_value::get_current_time().as_string();
 				message += "ACK (%s)";
-				log(PLOG_DEBUG, message, route.c_str(), uuid.c_str(), times.c_str());
+
+				log(PLOG_DEBUG,
+					message,
+					route.c_str(),
+					readable_uuid.c_str(),
+					times.c_str());
 			}
 		}
 		break;
 
 		case SERVER_RPC_MESSAGE_CHUNK: {
 			if (log_flag_enabled(PLOG_DEBUG)) {
+				wuuid_t id(uuid);
+				std::string readable_uuid = id.as_human_readable_string();
+
 				std::string times = time_value::get_current_time().as_string();
 				message += "CHUNK (%s)";
-				log(PLOG_DEBUG, message, route.c_str(), uuid.c_str(), times.c_str());
+
+				log(PLOG_DEBUG,
+					message,
+					route.c_str(),
+					readable_uuid.c_str(),
+					times.c_str());
 			}
 		}
 		break;
 
 		case SERVER_RPC_MESSAGE_CHOKE: {
 			if (log_flag_enabled(PLOG_DEBUG)) {
+				wuuid_t id(uuid);
+				std::string readable_uuid = id.as_human_readable_string();
+
 				std::string times = time_value::get_current_time().as_string();
 				message += "CHOKE (%s)";
-				log(PLOG_DEBUG, message, route.c_str(), uuid.c_str(), times.c_str());
+
+				log(PLOG_DEBUG,
+					message,
+					route.c_str(),
+					readable_uuid.c_str(),
+					times.c_str());
 			}
 		}
 		break;
 
 		case SERVER_RPC_MESSAGE_ERROR: {
 			if (log_flag_enabled(PLOG_ERROR)) {
+				wuuid_t id(uuid);
+				std::string readable_uuid = id.as_human_readable_string();
+
 				std::string times = time_value::get_current_time().as_string();
 				message += "ERROR (%s), error message: %s, error code: %d";
-				log(PLOG_ERROR, message, route.c_str(), uuid.c_str(), times.c_str(), error_message.c_str(), error_code);
+
+				log(PLOG_ERROR,
+					message,
+					route.c_str(),
+					readable_uuid.c_str(),
+					times.c_str(),
+					error_message.c_str(),
+					error_code);
 			}
 		}
 		break;

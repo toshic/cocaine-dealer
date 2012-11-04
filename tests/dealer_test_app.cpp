@@ -43,7 +43,7 @@ void worker(dealer_t* d,
 			std::vector<int>* dealer_messages_count,
 			int dealer_index)
 {
-	message_path_t path("server_time_2", "add_time_func");
+	message_path_t path("server_time", "add_time_func");
 	std::string payload = "response chunk: ";
 
 	while ((*dealer_messages_count)[dealer_index] >= 0) {
@@ -128,6 +128,8 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 	std::cout << "approx performance: " << sent_messages / timer.elapsed().as_double() << " rps." << std::endl;
 	
 	std::cout << "----------------------------------- shutting dealers down -------------------------------\n";
+
+	sleep(3.0);
 }
 
 int

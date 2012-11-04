@@ -24,48 +24,6 @@
 
 	"services" :
 	{
-		"server_time_2" : {
-			"app" : "cocaine_test2",
-			"autodiscovery" : {
-				"type" : "FILE",
-				"source" : "tests/hosts"
-			},
-			"policy" : {
-				"deadline" : 5.0,
-				"max_retries" : -1
-			}
-		},
-		"rimz_app" : {
-			"app" : "rimz_app@1",
-			"autodiscovery" : {
-				"type" : "FILE",
-				"source" : "tests/hosts"
-			},
-			"policy" : {
-				"urgent" : 0,
-				"persistent" : true,
-				"deadline" : 5.0,
-				"timeout" : 3.000,
-				"max_retries" : 13
-			}
-			//"batching_size" : 100,
-			//"ack_timeout" : 100
-		},
-    	"dummy" : {
-			"app" : "dummy",
-			"autodiscovery" : {
-				"type" : "FILE",
-				"source" : "tests/hosts"
-			},
-			"policy" : {
-				"urgent" : 0,
-				"deadline" : 5.0,
-				"timeout" : 3.000,
-				"max_retries" : 13
-			}
-			//"batching_size" : 100,
-			//"ack_timeout" : 100
-		},
 		"server_time" : {
 			"app" : "cocaine_test",
 			"autodiscovery" : {

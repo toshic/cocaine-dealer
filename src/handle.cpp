@@ -87,7 +87,7 @@ void
 handle_t::dispatch_messages() {
 	wuuid_t balancer_uuid;
 	balancer_uuid.generate();
-	std::string balancer_ident = m_info.as_string() + "." + balancer_uuid.as_string();
+	std::string balancer_ident = m_info.as_string() + "." + balancer_uuid.as_human_readable_string();
 	balancer_t balancer(balancer_ident, m_endpoints, context());
 
 	socket_ptr_t control_socket;

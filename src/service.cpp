@@ -59,6 +59,24 @@ service_t::~service_t() {
 
 	m_is_running = false;
 
+
+	// detach processed responces
+	{
+		boost::mutex::scoped_lock lock(m_responces_mutex);
+
+		std::map<std::string, boost::shared_ptr<response_t> >::iterator it;
+		it = m_responses.begin();
+
+		while (it != m_responses.end()) {
+			if (it->second.unique()) {
+				m_responses.erase(it++);
+			}
+			else {
+				++it;
+			}
+		}
+	}
+
 	log(PLOG_INFO, "FINISHED SERVICE [%s]", m_info.name.c_str());
 }
 
@@ -106,7 +124,7 @@ service_t::enqueue_responce(boost::shared_ptr<response_chunk_t>& response) {
 		std::map<std::string, boost::shared_ptr<response_t> >::iterator it;
 
 		// check for unique responses and remove them
-		if (m_responces_cleanup_timer.elapsed().as_double() > 5.0f) {
+		if (m_responces_cleanup_timer.elapsed().as_double() > 1.0f) {
 			it = m_responses.begin();
 
 			while (it != m_responses.end()) {
