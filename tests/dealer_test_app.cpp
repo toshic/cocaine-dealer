@@ -31,6 +31,7 @@
 #include "cocaine/dealer/utils/error.hpp"
 #include "cocaine/dealer/utils/refresher.hpp"
 #include "cocaine/dealer/utils/networking.hpp"
+#include "cocaine/dealer/utils/math.hpp"
 
 #include <eblob/eblob.hpp>
 

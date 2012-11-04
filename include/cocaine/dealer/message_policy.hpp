@@ -15,7 +15,7 @@
     GNU Lesser General Public License for more details.
 
     You should have received a copy of the GNU Lesser General Public License
-    along with this program. If not, see <http://www.gnu.org/licenses/>. 
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef _COCAINE_DEALER_MESSAGE_POLICY_HPP_INCLUDED_
@@ -28,7 +28,8 @@
 #include <msgpack.hpp>
 
 #include <cocaine/dealer/types.hpp>
-    
+#include <cocaine/dealer/utils/math.hpp>
+
 namespace cocaine {
 namespace dealer {
 
@@ -37,17 +38,20 @@ struct message_policy_t {
         urgent(false),
         persistent(false),
         timeout(0.0f),
+        ack_timeout(0.0f),
         deadline(0.0f),
         max_retries(0) {}
 
     message_policy_t(bool urgent_,
                      bool persistent_,
                      float timeout_,
+                     float ack_timeout_,
                      float deadline_,
                      int max_retries_) :
         urgent(urgent_),
         persistent(persistent_),
         timeout(timeout_),
+        ack_timeout(ack_timeout_),
         deadline(deadline_),
         max_retries(max_retries_) {}
 
@@ -63,6 +67,7 @@ struct message_policy_t {
         urgent = rhs.urgent;
         persistent = rhs.persistent;
         timeout = rhs.timeout;
+        ack_timeout = rhs.ack_timeout;
         deadline = rhs.deadline;
         max_retries = rhs.max_retries;
 
@@ -72,8 +77,9 @@ struct message_policy_t {
     bool operator == (const message_policy_t& rhs) const {
         return (urgent      == rhs.urgent &&
                 persistent  == rhs.persistent &&
-                timeout     == rhs.timeout &&
-                deadline    == rhs.deadline &&
+                math::compare_floats(timeout, rhs.timeout) &&
+                math::compare_floats(ack_timeout, rhs.ack_timeout) &&
+                math::compare_floats(deadline, rhs.deadline) &&
                 max_retries == rhs.max_retries);
     }
 
@@ -96,6 +102,7 @@ struct message_policy_t {
         sstream << "urgent: " << urgent << ", ";
         sstream << "persistent: " << persistent << ", ";
         sstream << "timeout: " << timeout << ", ";
+        sstream << "ack_timeout: " << ack_timeout << ", ";
         sstream << "deadline: " << deadline << ", ";
         sstream << "max_retries: " << max_retries;
 
@@ -105,11 +112,13 @@ struct message_policy_t {
     bool        urgent;
     bool        persistent;
     double      timeout;
+    double      ack_timeout;
     double      deadline;
     int         max_retries;
 
     MSGPACK_DEFINE(urgent,
                    timeout,
+                   ack_timeout,
                    deadline,
                    max_retries);
 };

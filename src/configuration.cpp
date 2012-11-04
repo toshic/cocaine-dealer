@@ -34,7 +34,6 @@ namespace cocaine {
 namespace dealer {
 
 configuration_t::configuration_t() :
-	m_default_message_deadline(defaults_t::default_message_deadline),
 	m_message_cache_type(defaults_t::message_cache_type),
 	m_logger_type(defaults_t::logger_type),
 	m_logger_flags(defaults_t::logger_flags),
@@ -52,7 +51,6 @@ configuration_t::configuration_t() :
 
 configuration_t::configuration_t(const std::string& path) :
 	m_path(path),
-	m_default_message_deadline(defaults_t::default_message_deadline),
 	m_message_cache_type(defaults_t::message_cache_type),
 	m_logger_type(defaults_t::logger_type),
 	m_logger_flags(defaults_t::logger_flags),
@@ -348,13 +346,6 @@ configuration_t::parse_basic_settings(const Json::Value& config_value) {
 		throw internal_error("Unsupported config version: %d, current version: %d", file_version, current_config_version);
 	}
 
-	// parse message_deadline
-	const Json::Value deadline_value = config_value.get("default_message_deadline",
-														static_cast<int>(defaults_t::default_message_deadline));
-
-	m_default_message_deadline = static_cast<unsigned long long>(deadline_value.asInt());
-
-
 	bool use_persistense = config_value.get("use_persistense", false).asBool();
 	
 	if (use_persistense) {
@@ -373,11 +364,6 @@ configuration_t::config_path() const {
 unsigned int
 configuration_t::config_version() const {
 	return current_config_version;
-}
-
-unsigned long long
-configuration_t::default_message_deadline() const {
-	return m_default_message_deadline;
 }
 
 enum e_message_cache_type
@@ -483,7 +469,6 @@ configuration_t::as_string() const {
 	// basic
 	out << "basic settings\n";
 	out << "\tconfig version: " << configuration_t::current_config_version << "\n";
-	out << "\tdefault message deadline: " << c.m_default_message_deadline << "\n";
 	
 	// logger
 	out << "\nlogger\n";

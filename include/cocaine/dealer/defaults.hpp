@@ -62,8 +62,7 @@ struct defaults_t {
 
 	// the rest
 	static const int protocol_version = 1;
-	static const unsigned long long default_message_deadline = 500;	// milliseconds
-	static const unsigned long long socket_ping_timeout = 1000; // milliseconds
+	static const unsigned long long ack_timeout = 1000; // milliseconds
 
 	static const std::string eblob_path;
 	static const size_t eblob_blob_size = 2147483648; // 2 gb

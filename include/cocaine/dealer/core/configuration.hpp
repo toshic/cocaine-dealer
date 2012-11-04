@@ -56,8 +56,6 @@ public:
 	
 	const std::string& config_path() const;
 	unsigned int config_version() const;
-	unsigned long long default_message_deadline() const;
-	unsigned long long socket_poll_timeout() const;
 	enum e_message_cache_type message_cache_type() const;
 	
 	enum e_logger_type logger_type() const;
