@@ -36,6 +36,7 @@
 
 #include "json/json.h"
 
+#include "cocaine/dealer/defaults.hpp"
 #include "cocaine/dealer/core/message_iface.hpp"
 #include "cocaine/dealer/utils/error.hpp"
 #include "cocaine/dealer/utils/uuid.hpp"
@@ -143,7 +144,7 @@ cached_message_t<DataContainer, MetadataContainer>::cached_message_t(const messa
 	m_metadata.policy = policy;
 	m_metadata.enqued_timestamp.init_from_current_time();
 
-	if (data_size > MAX_MESSAGE_DATA_SIZE) {
+	if (data_size > defaults_t::max_message_size) {
 		throw dealer_error(resource_error, "can't create message, message data too big.");
 	}
 
@@ -334,7 +335,7 @@ cached_message_t<DataContainer, MetadataContainer>::is_expired() {
 	if (m_metadata.is_sent && !ack_received()) {
 		time_value elapsed_from_sent = curr_time.distance(m_metadata.sent_timestamp);
 
-		if (elapsed_from_sent.as_double() > (ACK_TIMEOUT / 1000.0f)) {
+		if (elapsed_from_sent.as_double() > m_metadata.policy.ack_timeout) {
 			return true;
 		}
 	}

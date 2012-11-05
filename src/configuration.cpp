@@ -269,11 +269,12 @@ configuration_t::parse_services_settings(const Json::Value& config_value) {
 		// default message policy
 		const Json::Value mpolicy = service_data["policy"];
 		if (mpolicy.isObject()) {
-			si.policy.urgent = mpolicy.get("urgent", si.policy.urgent).asBool();
-			si.policy.persistent = mpolicy.get("persistent", si.policy.persistent).asBool();
-			si.policy.timeout = mpolicy.get("timeout", si.policy.timeout).asFloat();
-			si.policy.deadline = mpolicy.get("deadline", si.policy.deadline).asFloat();
-			si.policy.max_retries = mpolicy.get("max_retries", si.policy.max_retries).asInt();
+			si.policy.urgent = mpolicy.get("urgent", defaults_t::policy_urgent).asBool();
+			si.policy.persistent = mpolicy.get("persistent", defaults_t::policy_persistent).asBool();
+			si.policy.timeout = mpolicy.get("timeout", defaults_t::policy_chunk_timeout).asFloat();
+			si.policy.ack_timeout = mpolicy.get("ack_timeout", defaults_t::policy_ack_timeout).asFloat();
+			si.policy.deadline = mpolicy.get("deadline", defaults_t::policy_message_deadline).asFloat();
+			si.policy.max_retries = mpolicy.get("max_retries", defaults_t::policy_max_retries).asInt();
 		}
 
 		// check for duplicate services

@@ -72,9 +72,6 @@ public:
 	virtual message_iface& operator = (const message_iface& rhs) = 0;
 	virtual bool operator == (const message_iface& rhs) const = 0;
 	virtual bool operator != (const message_iface& rhs) const = 0;
-
-	static const size_t MAX_MESSAGE_DATA_SIZE = 2147483648; // 2 gb
-	static const size_t ACK_TIMEOUT = 1000; // millisecs
 };
 
 } // namespace dealer

@@ -6,7 +6,7 @@
 	"logger" :
 	{
 		"type" : "STDOUT_LOGGER",
-		"flags" : "PLOG_INTRO | PLOG_INFO"
+		"flags" : "PLOG_INTRO | PLOG_ALL"
 
 		//"type" : "FILE_LOGGER",
 		//"file" : "/home/rimz/dealer.log",
@@ -31,9 +31,9 @@
 				"source" : "tests/hosts"
 			},
 			"policy" : {
-				"deadline" : 5.0,
-				"max_retries" : -1,
-				"ack_timeout" : 3.0
+				"deadline" : 1.0,
+				"max_retries" : 3,
+				"ack_timeout" : 0.5
 			}
 		}
 	}
