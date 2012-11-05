@@ -1,3 +1,17 @@
+cocaine-dealer (0.9.6) lucid; urgency=low
+
+  * this build breaks binary compatibility!!! must rebuild depending packages
+  * new uuid class, stores uuid themselves, unparsing them in lazy on-demand fashion. codebase was updated accordingly
+  * you can now send plain strings with dealer
+  * cleaner shut-down
+  * new message policy with ack_timeout param
+  * ack_timeout is now per-message and is configurable
+  * defaults class cleanup
+  * merged pull-request from mxposed (jay), more logging in heartbeats collector
+  * merged pull-request from bogdad, storage_iteration_callback, msgpack mem corruption fix
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Mon, 5 Nov 2012 16:22:31 +0400
+
 cocaine-dealer (0.9.5) lucid; urgency=low
 
   * bugfix in balancer, method update_endpoints didn't handle endpoints correctly 
