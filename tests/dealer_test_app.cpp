@@ -133,6 +133,58 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 
 int
 main(int argc, char** argv) {
+	zmq::context_t context(1);
+	zmq::socket_t zmq_socket(context, ZMQ_SUB);
+	
+	int timeout = 0;
+	zmq_socket.setsockopt(ZMQ_LINGER, &timeout, sizeof(timeout));
+
+	std::string ident = "sjfknsdkjfnlsdf";
+	zmq_socket.setsockopt(ZMQ_IDENTITY, ident.c_str(), ident.length());
+
+	std::string subscription_filter = "";
+	zmq_socket.setsockopt(ZMQ_SUBSCRIBE, subscription_filter.c_str(), subscription_filter.length());
+
+	zmq_socket.connect("epgm://239.0.0.1:5555");
+
+		// create polling structure
+	zmq_pollitem_t poll_items[1];
+	poll_items[0].socket = zmq_socket;
+	poll_items[0].fd = 0;
+	poll_items[0].events = ZMQ_POLLIN;
+	poll_items[0].revents = 0;
+
+	std::cout << "waiting for response from endpoint...\n";
+
+	// poll for responce
+	while (true) {
+		int res = zmq_poll(poll_items, 1, -1);
+		if (res == 0) {
+			std::cout << "did not get response timely from endpoint\n";
+			continue;
+		}
+
+		if (res < 0) {
+			std::cout << "error code: " << errno << " while polling endpoint\n";
+		}
+
+		if ((ZMQ_POLLIN & poll_items[0].revents) != ZMQ_POLLIN) {
+			std::cout << "not ZMQ_POLLIN from endpoint\n";
+			continue;
+		}
+		
+		zmq::message_t reply;
+		bool received_response_ok = true;
+		std::string response_string;
+
+		while (zmq_socket.recv(&reply)) {
+			response_string = std::string(static_cast<char*>(reply.data()), reply.size());
+
+			std::cout << "received something!\n";
+			std::cout << "\"" << response_string << "\"" << std::endl;
+		}
+	}
+
 	/*
 	dealer_t			d("tests/config.json");
 	message_path_t		path("server_time", "add_time_func");
