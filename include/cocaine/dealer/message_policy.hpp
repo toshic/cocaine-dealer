@@ -28,6 +28,7 @@
 #include <msgpack.hpp>
 
 #include <cocaine/dealer/types.hpp>
+#include <cocaine/dealer/defaults.hpp>
 #include <cocaine/dealer/utils/math.hpp>
 
 namespace cocaine {
@@ -35,12 +36,12 @@ namespace dealer {
 
 struct message_policy_t {
     message_policy_t() :
-        urgent(false),
-        persistent(false),
-        timeout(0.0f),
-        ack_timeout(0.0f),
-        deadline(0.0f),
-        max_retries(0) {}
+        urgent(defaults_t::policy_urgent),
+        persistent(defaults_t::policy_persistent),
+        timeout(defaults_t::policy_chunk_timeout),
+        ack_timeout(defaults_t::policy_ack_timeout),
+        deadline(defaults_t::policy_message_deadline),
+        max_retries(defaults_t::policy_max_retries) {}
 
     message_policy_t(bool urgent_,
                      bool persistent_,
