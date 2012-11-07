@@ -24,6 +24,8 @@
 namespace cocaine {
 namespace dealer {
 
+std::map<std::string, std::string> nutils::resolved_hostnames_cache;
+
 int
 nutils::str_to_ipv4(const std::string& str) {
     int addr;
@@ -48,12 +50,22 @@ nutils::ipv4_to_str(int ip) {
 
 std::string
 nutils::hostname_for_ipv4(const std::string& ip) {
+    std::map<std::string, std::string>::iterator it;
+    it = resolved_hostnames_cache.find(ip);
+
+    if (it != resolved_hostnames_cache.end()) {
+        return it->second;
+    }
+
 	in_addr_t data = inet_addr(ip.c_str());
 	const hostent* host_info = gethostbyaddr(&data, 4, AF_INET);
 
 	if (host_info) {
+        resolved_hostnames_cache[ip] = std::string(host_info->h_name);
 		return std::string(host_info->h_name);
 	}
+
+    resolved_hostnames_cache[ip] = "";
 
 	return "";
 }

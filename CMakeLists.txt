@@ -93,6 +93,7 @@ ADD_EXECUTABLE(overseer
     src/cocaine_node_info.cpp
     src/cocaine_node_app_info.cpp
     src/cocaine_node_task_info.cpp
+    src/inetv4_endpoint.cpp
     src/progress_timer.cpp
     src/time_value.cpp
     src/networking.cpp)

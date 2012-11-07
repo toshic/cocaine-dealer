@@ -62,17 +62,16 @@ protected:
                 }
 
                 // get transport type
+                enum transport_type transport;
                 std::string transport_suffix = "://";
                 size_t where = line.find_first_of(transport_suffix);
 
                 if (where != std::string::npos) {
-                    std::string transport = line.substr(0, where);
-                    std::cout << "transport: " << transport << std::endl;
+                    std::string transport_str = line.substr(0, where);
+                    transport = inetv4_endpoint_t::transport_from_string(transport_str);
                     size_t head_size = where + transport_suffix.length();
                     line = line.substr(head_size, line.length() - head_size);
                 }
-
-                std::cout << "rest: " << line << std::endl;
 
                 // look for ip/port parts
                 std::string port_suffix = ":";
@@ -86,9 +85,7 @@ protected:
                         continue;
                     }
                     
-                    std::cout << "ip: " << line << std::endl;
-
-                    endpoints.push_back(inetv4_endpoint_t(ip, default_control_port));
+                    endpoints.push_back(inetv4_endpoint_t(ip, default_control_port, transport));
                 }
                 else {
                     std::string host_str = line.substr(0, where);
@@ -100,8 +97,7 @@ protected:
                         continue;
                     }
 
-                    std::cout << "port: " << port << std::endl;
-                    endpoints.push_back(inetv4_endpoint_t(ip, port));
+                    endpoints.push_back(inetv4_endpoint_t(ip, port, transport));
                 }
             }
             catch (...) {

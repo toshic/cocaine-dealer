@@ -59,6 +59,10 @@ public:
         memcpy(&object, msg.data(), msg.size());
         return true;
     }
+
+private:
+    // <ip, hostname>
+    static std::map<std::string, std::string> resolved_hostnames_cache;
 };
 
 } // namespace dealer
