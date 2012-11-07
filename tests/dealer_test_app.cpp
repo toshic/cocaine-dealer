@@ -33,6 +33,8 @@
 #include "cocaine/dealer/utils/networking.hpp"
 #include "cocaine/dealer/utils/math.hpp"
 
+#include "cocaine/dealer/heartbeats/overseer.hpp"
+
 #include <eblob/eblob.hpp>
 
 using namespace cocaine::dealer;
@@ -133,6 +135,17 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 
 int
 main(int argc, char** argv) {
+	boost::shared_ptr<cocaine::dealer::context_t> ctx;
+	ctx.reset(new cocaine::dealer::context_t("/home/rimz/cocaine-dealer/tests/config.json"));
+	ctx->create_storage();
+
+	overseer_t overseer(ctx);
+	overseer.run();
+
+	sleep(10);
+	return EXIT_SUCCESS;
+
+	/*
 	zmq::context_t context(1);
 	zmq::socket_t zmq_socket(context, ZMQ_SUB);
 	
@@ -146,6 +159,7 @@ main(int argc, char** argv) {
 	zmq_socket.setsockopt(ZMQ_SUBSCRIBE, subscription_filter.c_str(), subscription_filter.length());
 
 	zmq_socket.connect("epgm://239.0.0.1:5555");
+	zmq_socket.connect("tcp://elisto02f.dev.yandex.net:5554");
 
 		// create polling structure
 	zmq_pollitem_t poll_items[1];
@@ -179,11 +193,14 @@ main(int argc, char** argv) {
 
 		while (zmq_socket.recv(&reply)) {
 			response_string = std::string(static_cast<char*>(reply.data()), reply.size());
-
-			std::cout << "received something!\n";
-			std::cout << "\"" << response_string << "\"" << std::endl;
+			
+			if (!response_string.empty()) {
+				std::cout << "received something!\n";
+				std::cout << "\"" << response_string << "\"" << std::endl;
+			}
 		}
 	}
+	*/
 
 	/*
 	dealer_t			d("tests/config.json");

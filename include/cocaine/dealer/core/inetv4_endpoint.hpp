@@ -22,6 +22,7 @@
 #define _COCAINE_DEALER_INETV4_ENDPOINT_HPP_INCLUDED_
 
 #include <string>
+#include <map>
 
 #include "boost/lexical_cast.hpp"
 
@@ -30,42 +31,58 @@
 namespace cocaine {
 namespace dealer {
 
- // predeclaration
+enum transport_type {
+	TRANSPORT_UNDEFINED = 0,
+	TRANSPORT_INPROC,
+	TRANSPORT_IPC,
+	TRANSPORT_TCP,
+	TRANSPORT_PGM,
+	TRANSPORT_EPGM
+};
+
 class inetv4_endpoint_t {
 public:
 	inetv4_endpoint_t() : port(0) {
 	}
 
-	explicit inetv4_endpoint_t(const inetv4_host_t& host_) :
+	inetv4_endpoint_t(const inetv4_host_t& host_) :
+		transport(TRANSPORT_UNDEFINED),
 		host(host_),
 		port(0) {}
 
+	inetv4_endpoint_t(const inetv4_endpoint_t& rhs) :
+		transport(rhs.transport),
+		host(rhs.host),
+		port(rhs.port) {}
+
 	inetv4_endpoint_t(const inetv4_host_t& host_, unsigned short port_) :
+		transport(TRANSPORT_UNDEFINED),
 		host(host_),
 		port(port_) {}
 
 	inetv4_endpoint_t(unsigned int ip_, unsigned short port_) :
+		transport(TRANSPORT_UNDEFINED),
 		host(inetv4_host_t(ip_)),
 		port(port_) {}
 
 	inetv4_endpoint_t(const std::string& ip_, const std::string& port_) :
+		transport(TRANSPORT_UNDEFINED),
 		host(inetv4_host_t(ip_))
 	{
 		port = boost::lexical_cast<unsigned short>(port_);
 	}
 
 	inetv4_endpoint_t(unsigned int ip_, const std::string& port_) :
+		transport(TRANSPORT_UNDEFINED),
 		host(inetv4_host_t(ip_))
 	{
 		port = boost::lexical_cast<unsigned short>(port_);
 	}
 
-	inetv4_endpoint_t(const inetv4_endpoint_t& rhs) :
-		host(rhs.host),
-		port(rhs.port) {}
-
 	bool operator == (const inetv4_endpoint_t& rhs) const {
-		return (host == rhs.host && port == rhs.port);
+		return (host == rhs.host &&
+				port == rhs.port &&
+				transport == rhs.transport);
 	}
 
 	bool operator != (const inetv4_endpoint_t& rhs) const {
@@ -82,8 +99,59 @@ public:
 		return ip_port + " (" + host.hostname + ")";
 	}
 
-	inetv4_host_t	host;
-	unsigned short	port;
+	std::string as_connection_string() const {
+		std::string connection_string = transport_literals[transport];
+		connection_string += nutils::ipv4_to_str(host.ip);
+		connection_string += ":" + boost::lexical_cast<std::string>(port);
+
+		return connection_string;
+	}
+
+	static enum transport_type transport_from_string(const std::string& transport_string) {
+		std::map<std::string, enum transport_type>::iterator it;
+		it = transport_back_literals.find(transport_string);
+
+		if (it != transport_back_literals.end()) {
+			return it->second;
+		}
+
+		return TRANSPORT_UNDEFINED;
+	}
+
+	static std::string string_from_transport(enum transport_type type) {
+		std::map<enum transport_type, std::string>::iterator it;
+		it = transport_literals.find(type);
+
+		if (it != transport_literals.end()) {
+			return it->second;
+		}
+
+		return "";
+	}
+
+	enum transport_type transport;
+	inetv4_host_t		host;
+	unsigned short		port;
+
+private:
+	void init_transport_literals() {
+		transport_literals[TRANSPORT_UNDEFINED]	= "";
+		transport_literals[TRANSPORT_INPROC]	= "inproc";
+		transport_literals[TRANSPORT_IPC]		= "ipc";
+		transport_literals[TRANSPORT_TCP]		= "tcp";
+		transport_literals[TRANSPORT_PGM]		= "pgm";
+		transport_literals[TRANSPORT_EPGM]		= "epgm";
+
+		transport_back_literals[""]			= TRANSPORT_UNDEFINED;
+		transport_back_literals["inproc"]	= TRANSPORT_INPROC;
+		transport_back_literals["ipc"]		= TRANSPORT_IPC;
+		transport_back_literals["tcp"]		= TRANSPORT_TCP;
+		transport_back_literals["pgm"]		= TRANSPORT_PGM;
+		transport_back_literals["epgm"]		= TRANSPORT_EPGM;
+	}
+
+	std::map<enum transport_type, std::string> transport_literals;
+	std::map<std::string, enum transport_type> transport_back_literals;
 };
 
 } // namespace dealer
