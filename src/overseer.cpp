@@ -78,10 +78,7 @@ overseer_t::run() {
 }
 
 void
-overseer_t::update_connection_to_endpoints() {
-	bool found_missing_endpoints = fetch_endpoints();
-
-	/*
+overseer_t::print_all_fetched_endpoints() {
 	std::map<std::string, std::set<inetv4_endpoint_t> >::iterator it;
 	it = m_endpoints.begin();
 
@@ -95,15 +92,17 @@ overseer_t::update_connection_to_endpoints() {
 			std::cout << "\thost: " << its->as_string() << std::endl;
 		}
 	}
-	*/
+}
+
+void
+overseer_t::update_connection_to_endpoints() {
+	bool found_missing_endpoints = fetch_endpoints();
 
 	if (found_missing_endpoints) {
-		std::cout << "found_missing_endpoints\n";
 		kill_sockets();
 		create_sockets();
 	}
 
-	std::cout << "connect_to_endpoints\n";
 	connect_sockets();	
 }
 
@@ -171,7 +170,33 @@ overseer_t::kill_sockets() {
 
 void
 overseer_t::connect_sockets() {
+	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
+	
+	// create sockets
+	for (; it != m_sockets.end(); ++it) {
+		std::set<inetv4_endpoint_t>& service_endpoints = m_endpoints[it->first];
+		socket_ptr sock = m_sockets[it->first];
 
+		if (sock) {
+			std::set<inetv4_endpoint_t>::iterator sit = service_endpoints.begin();
+			for (; sit != service_endpoints.end(); ++sit) {
+				try {
+					sock->connect(sit->as_connection_string().c_str());
+				}
+				catch (const std::exception& ex) {
+					log(PLOG_ERROR,
+						"heartbeats - could not connect overseer socket for service %s, details: %s",
+						it->first.c_str(),
+						ex.what());
+				}
+			}
+		}
+		else {
+			log(PLOG_ERROR,
+				"heartbeats - invalid overseer socket for service %s",
+				it->first.c_str());
+		}
+	}
 }
 
 bool

@@ -72,6 +72,8 @@ private:
     void kill_sockets();
     void main_loop();
 
+    void print_all_fetched_endpoints(); // used for debug only
+
     std::vector<hosts_fetcher_ptr> m_endpoints_fetchers;
     std::map<std::string, std::set<inetv4_endpoint_t> > m_endpoints; // <service, endpoints>
 
