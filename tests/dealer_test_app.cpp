@@ -161,7 +161,7 @@ main(int argc, char** argv) {
 	zmq_socket.connect("epgm://239.0.0.1:5555");
 	zmq_socket.connect("tcp://elisto02f.dev.yandex.net:5554");
 
-		// create polling structure
+	// create polling structure
 	zmq_pollitem_t poll_items[1];
 	poll_items[0].socket = zmq_socket;
 	poll_items[0].fd = 0;

@@ -61,16 +61,20 @@ public:
 	void run();
 	void stop();
 
+    static const int socket_poll_timeout = 6000000; // seconds
 private:
     typedef boost::shared_ptr<hosts_fetcher_iface> hosts_fetcher_ptr;
     typedef boost::shared_ptr<zmq::socket_t> socket_ptr;
 
-    void update_connection_to_endpoints();
     bool fetch_endpoints();
+    void main_loop();
+
     void create_sockets();
     void connect_sockets();
     void kill_sockets();
-    void main_loop();
+
+    std::vector<std::string> poll_sockets();
+    void read_from_sockets(const std::vector<std::string>& responded_sockets_ids);
 
     void print_all_fetched_endpoints(); // used for debug only
 

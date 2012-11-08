@@ -39,12 +39,12 @@ overseer_t::overseer_t(const boost::shared_ptr<context_t>& ctx,
 
 overseer_t::~overseer_t() {
 	stop();
-	log(PLOG_DEBUG, "overseer killed.");
+	log(PLOG_DEBUG, "overseer — killed.");
 }
 
 void
 overseer_t::run() {
-	log(PLOG_DEBUG, "overseer started.");
+	log(PLOG_DEBUG, "overseer — started.");
 
 	const std::map<std::string, service_info_t>& services_list = config()->services_list();
 	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
@@ -95,39 +95,109 @@ overseer_t::print_all_fetched_endpoints() {
 }
 
 void
-overseer_t::update_connection_to_endpoints() {
-	bool found_missing_endpoints = fetch_endpoints();
-
-	if (found_missing_endpoints) {
-		kill_sockets();
-		create_sockets();
-	}
-
-	connect_sockets();	
-}
-
-void
 overseer_t::main_loop() {
 	// init
 	m_last_fetch_timer.reset();
-	update_connection_to_endpoints();
+
+	create_sockets();
+	fetch_endpoints();
+	connect_sockets();
 
 	while (!m_stopping) {
-		if (m_last_fetch_timer.elapsed().as_double() > 5.0) {
-			update_connection_to_endpoints();
+		if (m_last_fetch_timer.elapsed().as_double() > 15.0) {
+			bool found_missing_endpoints = fetch_endpoints();
+
+			if (found_missing_endpoints) {
+				kill_sockets();
+				create_sockets();
+			}
+
+			connect_sockets();
 			m_last_fetch_timer.reset();
 		}
 
-		// poll endpoints
+		std::vector<std::string> responded_sockets_ids = poll_sockets();
+		
+		if (!responded_sockets_ids.empty()) {
+			read_from_sockets(responded_sockets_ids);
+		}
+
 		// parse results
 		// track changes
 		// update dealer services if results changed
 		// check for endpoints timeouts
 		// update dealer services if results changed
 
-		sleep(1);
-		log(PLOG_DEBUG, "work...");
+		//sleep(1);
+		//log(PLOG_DEBUG, "work...");
 	}
+}
+
+void
+overseer_t::read_from_sockets(const std::vector<std::string>& responded_sockets_ids) {
+	for (size_t i = 0; i < responded_sockets_ids.size(); ++i) {
+		socket_ptr sock_ptr = m_sockets[responded_sockets_ids[i]];
+
+		zmq::message_t reply;
+		std::string enpoint_info_string;
+
+		while (sock_ptr->recv(&reply)) {
+			enpoint_info_string = std::string(static_cast<char*>(reply.data()), reply.size());
+			
+			if (!enpoint_info_string.empty()) {
+				//enpoint_info_string
+			}
+		}
+	}
+}
+
+std::vector<std::string>
+overseer_t::poll_sockets() {
+	zmq_pollitem_t* poll_items = NULL;
+	poll_items = new zmq_pollitem_t[m_sockets.size()];
+
+	std::vector<std::string> responded_sockets_ids;
+
+	if (!poll_items) {
+		return responded_sockets_ids;
+	}
+
+	size_t counter = 0;
+	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
+	for (; it != m_sockets.end(); ++it) {
+		socket_ptr sock = it->second;
+		poll_items[counter].socket = *sock;
+		poll_items[counter].fd = 0;
+		poll_items[counter].events = ZMQ_POLLIN;
+		poll_items[counter].revents = 0;
+		++counter;
+	}
+
+	int res = zmq_poll(poll_items, m_sockets.size(), socket_poll_timeout);
+	if (res == 0) {
+		log(PLOG_DEBUG, "overseer - did not get response timely from endpoints");
+		delete[] poll_items;
+		return responded_sockets_ids;
+	}
+	else if (res < 0) {
+		log(PLOG_DEBUG, "overseer - error code: %d while polling sockets", errno);
+		delete[] poll_items;
+		return responded_sockets_ids;
+	}
+
+	counter = 0;
+	it = m_sockets.begin();
+	for (; it != m_sockets.end(); ++it) {
+		if ((ZMQ_POLLIN & poll_items[counter].revents) != ZMQ_POLLIN) {
+			continue;
+		}
+
+		responded_sockets_ids.push_back(it->first);
+		++counter;
+	}
+
+	delete[] poll_items;
+	return responded_sockets_ids;
 }
 
 void
@@ -151,8 +221,8 @@ overseer_t::create_sockets() {
 
 		std::string subscription_filter = "";
 		sock->setsockopt(ZMQ_SUBSCRIBE, subscription_filter.c_str(), subscription_filter.length());
-
-		m_sockets[it->second.name].reset(sock);
+		socket_ptr sock_ptr(sock);
+		m_sockets[it->second.name] = sock_ptr;
 	}
 }
 
@@ -171,7 +241,7 @@ overseer_t::kill_sockets() {
 void
 overseer_t::connect_sockets() {
 	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
-	
+
 	// create sockets
 	for (; it != m_sockets.end(); ++it) {
 		std::set<inetv4_endpoint_t>& service_endpoints = m_endpoints[it->first];
@@ -185,7 +255,7 @@ overseer_t::connect_sockets() {
 				}
 				catch (const std::exception& ex) {
 					log(PLOG_ERROR,
-						"heartbeats - could not connect overseer socket for service %s, details: %s",
+						"overseer - could not connect socket for service %s, details: %s",
 						it->first.c_str(),
 						ex.what());
 				}
@@ -193,7 +263,7 @@ overseer_t::connect_sockets() {
 		}
 		else {
 			log(PLOG_ERROR,
-				"heartbeats - invalid overseer socket for service %s",
+				"overseer - invalid socket for service %s",
 				it->first.c_str());
 		}
 	}
@@ -212,7 +282,7 @@ overseer_t::fetch_endpoints() {
 			// get service endpoints list
 			if (m_endpoints_fetchers[i]->get_hosts(endpoints, service_info)) {
 				if (endpoints.empty()) {
-					std::string error_msg = "heartbeats - fetcher returned no endpoints for service %s";
+					std::string error_msg = "overseer - fetcher returned no endpoints for service %s";
 					log(PLOG_ERROR, error_msg.c_str(), service_info.name.c_str());
 					continue;
 				}
@@ -257,11 +327,11 @@ overseer_t::fetch_endpoints() {
 			}
 		}
 		catch (const std::exception& ex) {
-			std::string error_msg = "heartbeats - failed fo retrieve hosts list, details: %s";
+			std::string error_msg = "overseer - failed fo retrieve hosts list, details: %s";
 			log(PLOG_ERROR, error_msg.c_str(), ex.what());
 		}
 		catch (...) {
-			std::string error_msg = "heartbeats - failed fo retrieve hosts list, no further details available.";
+			std::string error_msg = "overseer - failed fo retrieve hosts list, no further details available.";
 			log(PLOG_ERROR, error_msg.c_str());
 		}
 	}
@@ -271,7 +341,7 @@ overseer_t::fetch_endpoints() {
 
 void
 overseer_t::stop() {
-	log(PLOG_DEBUG, "overseer stopped.");
+	log(PLOG_DEBUG, "overseer — stopped.");
 
 	kill_sockets();
 
