@@ -117,36 +117,43 @@ overseer_t::main_loop() {
 		}
 
 		std::vector<std::string> responded_sockets_ids = poll_sockets();
-		
+		std::map<std::string, std::vector<std::string> > responces;
+
 		if (!responded_sockets_ids.empty()) {
-			read_from_sockets(responded_sockets_ids);
+			read_from_sockets(responded_sockets_ids, responces);
 		}
 
 		// parse results
+
 		// track changes
 		// update dealer services if results changed
 		// check for endpoints timeouts
 		// update dealer services if results changed
-
-		//sleep(1);
-		//log(PLOG_DEBUG, "work...");
 	}
 }
 
 void
-overseer_t::read_from_sockets(const std::vector<std::string>& responded_sockets_ids) {
+overseer_t::read_from_sockets(const std::vector<std::string>& responded_sockets_ids,
+							  std::map<std::string, std::vector<std::string> >& responces)
+{
 	for (size_t i = 0; i < responded_sockets_ids.size(); ++i) {
 		socket_ptr sock_ptr = m_sockets[responded_sockets_ids[i]];
 
 		zmq::message_t reply;
 		std::string enpoint_info_string;
 
+		std::vector<std::string> socket_responces;
+
 		while (sock_ptr->recv(&reply)) {
 			enpoint_info_string = std::string(static_cast<char*>(reply.data()), reply.size());
 			
 			if (!enpoint_info_string.empty()) {
-				//enpoint_info_string
+				socket_responces.push_back(enpoint_info_string);
 			}
+		}
+
+		if (!socket_responces.empty()) {
+			responces[responded_sockets_ids[i]] = socket_responces;
 		}
 	}
 }

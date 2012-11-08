@@ -74,7 +74,8 @@ private:
     void kill_sockets();
 
     std::vector<std::string> poll_sockets();
-    void read_from_sockets(const std::vector<std::string>& responded_sockets_ids);
+    void read_from_sockets(const std::vector<std::string>& responded_sockets_ids,
+                           std::map<std::string, std::vector<std::string> >& responces);
 
     void print_all_fetched_endpoints(); // used for debug only
 
