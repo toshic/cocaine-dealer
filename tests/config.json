@@ -6,7 +6,7 @@
 	"logger" :
 	{
 		"type" : "STDOUT_LOGGER",
-		"flags" : "PLOG_INTRO | PLOG_INFO"
+		"flags" : "PLOG_INTRO | PLOG_ALL"
 
 		//"type" : "FILE_LOGGER",
 		//"file" : "/home/rimz/dealer.log",
@@ -24,16 +24,15 @@
 
 	"services" :
 	{
-		"server_time" : {
+		"cocaine_test" : {
 			"app" : "cocaine_test",
 			"autodiscovery" : {
 				"type" : "FILE",
 				"source" : "tests/hosts"
 			},
 			"policy" : {
-				"deadline" : 1.0,
-				"max_retries" : 3,
-				"ack_timeout" : 0.5
+				"deadline" : 10.0,
+				"max_retries" : -1
 			}
 		}
 	}
