@@ -40,20 +40,20 @@ enum e_message_cache_type {
 
 struct defaults_t {
 	// common
-	static const int				protocol_version	= 1;
-	static const unsigned short		control_port		= 5000;
+	static const int		protocol_version	= 1;
+	static const unsigned short	control_port		= 5000;
 	static const unsigned long long	heartbeat_interval	= 2;	// seconds
-	static const size_t 			max_message_size	= 2147483648; // 2 gb (bytes)
+	static const size_t 		max_message_size	= 2147483648; // 2 gb (bytes)
 
 	// logger
 	static const enum e_logger_type	logger_type 	= STDOUT_LOGGER;
-	static const unsigned int		logger_flags	= PLOG_NONE;
+	static const unsigned int	logger_flags	= PLOG_NONE;
 
 	// policy defaults
-	static const bool	policy_urgent			= false;
-	static const bool	policy_persistent		= false;
-	static const int	policy_max_retries		= 0;
-	static const float	policy_ack_timeout		= 10.0; // seconds
+	static const bool	policy_urgent		= false;
+	static const bool	policy_persistent	= false;
+	static const int	policy_max_retries	= 0;
+	static const float	policy_ack_timeout	= 0.05; // seconds
 	static const float 	policy_chunk_timeout	= 0.0;	// seconds
 	static const float	policy_message_deadline	= 0.0;	// seconds
 
@@ -61,13 +61,13 @@ struct defaults_t {
 	static const enum e_message_cache_type message_cache_type = RAM_ONLY;
 
 	static const std::string	eblob_path;
-	static const size_t			eblob_blob_size			= 2147483648; // 2 gb
-	static const int			eblob_sync_interval		= 2;
+	static const size_t			eblob_blob_size		= 2147483648; // 2 gb
+	static const int			eblob_sync_interval	= 2;
 	static const int			eblob_thread_pool_size	= 16;
 	static const int			eblob_defrag_timeout	= 9999999;
 
-	static const unsigned short statistics_port				= 3333;
-	static const int			statistics_protocol_version = 1;
+	static const unsigned short	statistics_port			= 3333;
+	static const int		statistics_protocol_version	= 1;
 };
 
 } // namespace dealer
