@@ -178,6 +178,8 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 	try {
 		// send ident
 		endpoint = get_next_endpoint();
+		message->set_destination_endpoint(endpoint.as_string());
+
 		zmq::message_t ident_chunk(endpoint.route.size());
 		memcpy((void *)ident_chunk.data(), endpoint.route.data(), endpoint.route.size());
 

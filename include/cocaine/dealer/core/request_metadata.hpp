@@ -29,8 +29,9 @@
 
 #include "cocaine/dealer/message_path.hpp"
 #include "cocaine/dealer/utils/time_value.hpp"
-#include "cocaine/dealer/storage/eblob.hpp"
 #include "cocaine/dealer/utils/uuid.hpp"
+#include "cocaine/dealer/storage/eblob.hpp"
+#include "cocaine/dealer/core/cocaine_endpoint.hpp"
 
 #include <boost/flyweight.hpp>
 

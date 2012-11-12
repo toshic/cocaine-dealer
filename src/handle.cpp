@@ -122,7 +122,7 @@ handle_t::dispatch_messages() {
 		if (m_is_running && m_is_connected) {
 			for (int i = 0; i < 100; ++i) { // batching
 				if (m_message_cache->new_messages_count() == 0) {
-					break;	
+					break;
 				}
 
 				dispatch_next_available_message(balancer);

@@ -95,6 +95,20 @@ overseer_t::print_all_fetched_endpoints() {
 }
 
 void
+overseer_t::stop() {
+	log(PLOG_DEBUG, "overseer — stopping...");
+
+	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
+		m_endpoints_fetchers[i].reset();
+	}
+
+	m_stopping = true;
+	m_thread.join();
+
+	log(PLOG_DEBUG, "overseer — stopped.");
+}
+
+void
 overseer_t::main_loop() {
 	// init
 	m_last_fetch_timer.reset();
@@ -104,6 +118,8 @@ overseer_t::main_loop() {
 	connect_sockets();
 
 	while (!m_stopping) {
+
+		// process endpoints connections
 		if (m_last_fetch_timer.elapsed().as_double() > 15.0) {
 			bool found_missing_endpoints = fetch_endpoints();
 
@@ -116,6 +132,7 @@ overseer_t::main_loop() {
 			m_last_fetch_timer.reset();
 		}
 
+		// gather announced responces
 		std::vector<std::string> responded_sockets_ids = poll_sockets();
 		std::map<std::string, std::vector<std::string> > responces;
 
@@ -123,12 +140,57 @@ overseer_t::main_loop() {
 			read_from_sockets(responded_sockets_ids, responces);
 		}
 
-		// parse results
+		// parse nodes responses
+		std::map<std::string, std::vector<cocaine_node_info_t> > parsed_responses;
+		parse_responces(responces, parsed_responses);
 
 		// track changes
+		// map <service, map<handle / pair<endpoint, weight>> >
+
+		/*
+		std::map<std::string, std::vector<cocaine_node_info_t> >::iterator it = parsed_responses.begin();
+
+		for (; it != parsed_responses.end(); ++it) {
+			for (size_t i = 0; i < it->second.size(); ++i) {
+				std::cout << it->second[i] << std::endl;
+			}
+		}
+		*/
+
 		// update dealer services if results changed
 		// check for endpoints timeouts
 		// update dealer services if results changed
+	}
+
+	kill_sockets();
+}
+
+void
+overseer_t::parse_responces(const std::map<std::string, std::vector<std::string> >& responces,
+							std::map<std::string, std::vector<cocaine_node_info_t> >& parsed_responses)
+{
+	std::map<std::string, std::vector<std::string> >::const_iterator it = responces.begin();
+
+	for (; it != responces.end(); ++it) {
+		std::vector<cocaine_node_info_t> parsed_nodes_for_service;
+
+		for (size_t i = 0; i < it->second.size(); ++i) {
+			cocaine_node_info_t node_info;
+			cocaine_node_info_parser_t parser(context());
+
+			if (!parser.parse(it->second[i], node_info)) {
+				std::string error_msg = "overseer - could not parse metainfo for service: %s";
+				log(PLOG_WARNING, error_msg, it->first.c_str());
+
+				continue;
+			}
+
+			parsed_nodes_for_service.push_back(node_info);
+		}
+
+		if (!parsed_nodes_for_service.empty()) {
+			parsed_responses[it->first] = parsed_nodes_for_service;
+		}
 	}
 }
 
@@ -144,9 +206,9 @@ overseer_t::read_from_sockets(const std::vector<std::string>& responded_sockets_
 
 		std::vector<std::string> socket_responces;
 
-		while (sock_ptr->recv(&reply)) {
+		while (sock_ptr->recv(&reply, ZMQ_NOBLOCK)) {
 			enpoint_info_string = std::string(static_cast<char*>(reply.data()), reply.size());
-			
+
 			if (!enpoint_info_string.empty()) {
 				socket_responces.push_back(enpoint_info_string);
 			}
@@ -344,20 +406,6 @@ overseer_t::fetch_endpoints() {
 	}
 
 	return found_missing_endpoints;
-}
-
-void
-overseer_t::stop() {
-	log(PLOG_DEBUG, "overseer — stopped.");
-
-	kill_sockets();
-
-	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
-		m_endpoints_fetchers[i].reset();
-	}
-	
-	m_stopping = true;
-	m_thread.join();
 }
 
 } // namespace dealer

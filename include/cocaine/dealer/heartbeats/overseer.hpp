@@ -62,6 +62,8 @@ public:
 	void stop();
 
     static const int socket_poll_timeout = 6000000; // seconds
+    //typedef std::pair<endpoint, weight>
+
 private:
     typedef boost::shared_ptr<hosts_fetcher_iface> hosts_fetcher_ptr;
     typedef boost::shared_ptr<zmq::socket_t> socket_ptr;
@@ -74,22 +76,28 @@ private:
     void kill_sockets();
 
     std::vector<std::string> poll_sockets();
+
     void read_from_sockets(const std::vector<std::string>& responded_sockets_ids,
                            std::map<std::string, std::vector<std::string> >& responces);
 
+    void parse_responces(const std::map<std::string, std::vector<std::string> >& responces,
+                         std::map<std::string, std::vector<cocaine_node_info_t> >& parsed_responses);
+
     void print_all_fetched_endpoints(); // used for debug only
 
+private:
     std::vector<hosts_fetcher_ptr> m_endpoints_fetchers;
     std::map<std::string, std::set<inetv4_endpoint_t> > m_endpoints; // <service, endpoints>
 
     progress_timer m_last_fetch_timer;
 
     std::map<std::string, socket_ptr> m_sockets; // <service, socket>
+    //std::map<service, map<handle / pair<endpoint, weight>> >
 
     boost::mutex m_mutex;
     boost::thread m_thread;
 	wuuid_t m_uuid;
-    bool m_stopping;
+    volatile bool m_stopping;
 };
 
 } // namespace dealer
