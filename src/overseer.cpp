@@ -260,6 +260,8 @@ overseer_t::update_routing_table(const std::map<std::string, cocaine_node_list_t
 											task_it->second.route,
 											weight);
 
+				endpoint.announce_stamp = time_value::get_current_time();
+
 				// find specific service->handle routing table:
 				// first, find service
 				routing_table_t::iterator rit = m_routing_table.find(service_name);
