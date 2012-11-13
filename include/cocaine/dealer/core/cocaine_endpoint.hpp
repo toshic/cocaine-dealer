@@ -23,6 +23,8 @@
 
 #include <string>
 
+#include "cocaine/dealer/utils/time_value.hpp"
+
 namespace cocaine {
 namespace dealer {
 
@@ -72,6 +74,7 @@ public:
 	std::string endpoint;
 	std::string route;
 	int			weight;
+	time_value  announce_stamp;
 };
 
 } // namespace dealer
