@@ -20,6 +20,8 @@
 
 #include <memory>
 
+#include <boost/tuple/tuple.hpp>
+
 #include "cocaine/dealer/heartbeats/overseer.hpp"
 #include "cocaine/dealer/heartbeats/file_hosts_fetcher.hpp"
 #include "cocaine/dealer/heartbeats/http_hosts_fetcher.hpp"
@@ -70,6 +72,13 @@ overseer_t::run() {
 		}
 
 		m_endpoints_fetchers.push_back(fetcher);
+	}
+
+	// prepare routing table
+	it = services_list.begin();
+	for (; it != services_list.end(); ++it) {
+		handle_endpoints_t handle_endpoints;
+		m_routing_table[it->second.name] = handle_endpoints;
 	}
 
 	// create main overseer loop
@@ -144,8 +153,9 @@ overseer_t::main_loop() {
 		std::map<std::string, cocaine_node_list_t> parsed_responses;
 		parse_responces(responces, parsed_responses);
 
-		// update routing table and push events to subscriber
 		update_routing_table(parsed_responses);
+
+		print_routing_table();
 
 		/*
 		std::map<std::string, cocaine_node_list_t>::iterator it = parsed_responses.begin();
@@ -238,107 +248,67 @@ overseer_t::update_routing_table(const std::map<std::string, cocaine_node_list_t
 					continue;
 			}
 
+			// insert endpoints into routing table
 			cocaine_node_app_info_t::application_tasks::const_iterator task_it;
 			task_it = app.tasks.begin();
 
 			for (; task_it != app.tasks.end(); ++task_it) {
+				std::string handle_name = task_it->second.name;
+
+				// create endpoint
 				cocaine_endpoint_t endpoint(task_it->second.endpoint,
 											task_it->second.route,
 											weight);
 
-				process_endpoint(endpoint);
-			}
-		}
-	}
-}
+				// find specific service->handle routing table:
+				// first, find service
+				routing_table_t::iterator rit = m_routing_table.find(service_name);
 
-void
-overseer_t::process_endpoint(const cocaine_endpoint_t& endpoint) {
-	/*
-	handles_endpoints_t::iterator hit = handles_endpoints.find(task_it->second.name);
-	if (hit != handles_endpoints.end()) {
-		hit->second.push_back(ce);
-	}
-	else {
-		std::vector<cocaine_endpoint_t> endpoints_vec;
-		endpoints_vec.push_back(ce);
-		handles_endpoints[task_it->second.name] = endpoints_vec;
-	}
-	*/
-}
+				if (rit == m_routing_table.end()) {
+					log(PLOG_ERROR,
+						"overseer is terribly broken! service %s is missing in routing table",
+						service_name.c_str());
+				}
 
-/*
-void
-heartbeats_collector_t::process_alive_endpoints() {
-	const std::map<std::string, service_info_t>& services_list = config()->services_list();
-	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
-	
-	for (; it != services_list.end(); ++it) {
-		// <handle name, endpoints list>
-		handles_endpoints_t handles_endpoints;
+				// secondly find handle
+				handle_endpoints_t& handle_endpoints = rit->second;
+				handle_endpoints_t::iterator hit = handle_endpoints.find(handle_name);
 
-		std::vector<cocaine_endpoint_t> endpoints;
-		const std::string& service_name = it->first;
-		const service_info_t& service_info = it->second;
+				endpoints_set_t endpoints_set;
+				endpoints_set.insert(endpoint);
 
-		// collect alive endpoints for service
-		std::map<std::string, inetv4_endpoints_t>::const_iterator sit;
-		sit = m_services_endpoints.find(service_name);
-
-		if (sit == m_services_endpoints.end()) {
-			continue;
-		}
-
-		const inetv4_endpoints_t& service_endpoints = sit->second;
-
-		// for each service endpoint obtain metadata if possible
-		for (size_t i = 0; i < service_endpoints.size(); ++i) {
-			std::map<inetv4_endpoint_t, cocaine_node_info_t>::const_iterator eit;
-			eit = m_endpoints_metadata.find(service_endpoints[i]);
-
-			if (eit == m_endpoints_metadata.end()) {
-				continue;
-			}
-
-			const cocaine_node_info_t& node_info = eit->second;
-			cocaine_node_app_info_t app;
-			
-			// no such app at endpoint
-			if (!node_info.app_by_name(service_info.app, app)) {
-				continue;
-			}
-
-			// app stoped or no handles at endpoint's app
-			if (app.status == APP_STATUS_STOPPED ||
-				app.status == APP_STATUS_UNKNOWN ||
-				app.tasks.size() == 0)
-			{
-				continue;
-			}
-
-			cocaine_node_app_info_t::application_tasks::const_iterator task_it = app.tasks.begin();
-			for (; task_it != app.tasks.end(); ++task_it) {
-				cocaine_endpoint_t ce(task_it->second.endpoint, task_it->second.route);
-				
-				handles_endpoints_t::iterator hit = handles_endpoints.find(task_it->second.name);
-				if (hit != handles_endpoints.end()) {
-					hit->second.push_back(ce);
+				if (hit == handle_endpoints.end()) {
+					handle_endpoints[handle_name] = endpoints_set;
 				}
 				else {
-					std::vector<cocaine_endpoint_t> endpoints_vec;
-					endpoints_vec.push_back(ce);
-					handles_endpoints[task_it->second.name] = endpoints_vec;
+					handle_endpoints[handle_name].insert(endpoints_set.begin(), endpoints_set.end());
 				}
 			}
 		}
-
-		log_responded_hosts_handles(service_info, handles_endpoints);
-
-		// pass collected data to callback
-		m_callback(service_info, handles_endpoints);
 	}
 }
-*/
+
+void
+overseer_t::print_routing_table() {
+	routing_table_t::iterator it = m_routing_table.begin();
+	for (; it != m_routing_table.end(); ++it) {
+		std::cout << "service: " << it->first << std::endl;
+
+		handle_endpoints_t& handle_endpoints = it->second;
+		handle_endpoints_t::iterator hit = handle_endpoints.begin();
+
+		for (; hit != handle_endpoints.end(); ++hit) {
+			std::cout << "\thandle: " << hit->first << std::endl;
+
+			endpoints_set_t& endpoints_set = hit->second;
+			endpoints_set_t::iterator eit = endpoints_set.begin();
+
+			for (; eit != endpoints_set.end(); ++eit) {
+				std::cout << "\t\t" << eit->as_string() << std::endl;
+			}
+		}
+	}
+}
 
 void
 overseer_t::parse_responces(const std::map<std::string, std::vector<announce_t> >& responces,

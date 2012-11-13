@@ -33,7 +33,6 @@
 #include <boost/tokenizer.hpp>
 #include <boost/function.hpp>
 #include <boost/lexical_cast.hpp>
-#include <boost/tuple/tuple.hpp>
 
 #include "json/json.h"
 
@@ -69,9 +68,10 @@ public:
 	static const int socket_poll_timeout = 6000000; // seconds
 
 	typedef std::vector<cocaine_node_info_t> cocaine_node_list_t;
+	typedef std::set<cocaine_endpoint_t> endpoints_set_t;
 
 	// <handle name, endpoint>
-	typedef std::multimap<std::string, cocaine_endpoint_t> handle_endpoints_t;
+	typedef std::map<std::string, endpoints_set_t> handle_endpoints_t;
 
 	// <service name, handles endpoints>
 	typedef std::map<std::string, handle_endpoints_t> routing_table_t;
@@ -97,10 +97,9 @@ private:
 
 	void update_routing_table(const std::map<std::string, cocaine_node_list_t>& parsed_responses);
 
-	void process_endpoint(const cocaine_endpoint_t& endpoint);
-
 	// used for debug only
 	void print_all_fetched_endpoints();
+	void print_routing_table();
 
 private:
 	std::vector<hosts_fetcher_ptr> m_endpoints_fetchers;
