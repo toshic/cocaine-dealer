@@ -155,6 +155,8 @@ overseer_t::main_loop() {
 
 		update_routing_table(parsed_responses);
 
+		check_for_timedout_endpoints();
+
 		print_routing_table();
 
 		/*
@@ -167,13 +169,14 @@ overseer_t::main_loop() {
 			}
 		}
 		*/
-
-		// update dealer services if results changed
-		// check for endpoints timeouts
-		// update dealer services if results changed
 	}
 
 	kill_sockets();
+}
+
+void
+overseer_t::check_for_timedout_endpoints() {
+
 }
 
 void

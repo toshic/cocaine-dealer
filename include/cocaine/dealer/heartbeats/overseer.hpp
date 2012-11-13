@@ -97,6 +97,8 @@ private:
 
 	void update_routing_table(const std::map<std::string, cocaine_node_list_t>& parsed_responses);
 
+	void check_for_timedout_endpoints();
+	
 	// used for debug only
 	void print_all_fetched_endpoints();
 	void print_routing_table();
