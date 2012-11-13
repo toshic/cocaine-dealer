@@ -53,6 +53,11 @@
 namespace cocaine {
 namespace dealer {
 
+struct announce_t {
+	std::string hostname;
+	std::string info;
+};
+
 class overseer_t : private boost::noncopyable, public dealer_object_t {
 public:
 	overseer_t(const boost::shared_ptr<context_t>& ctx, bool logging_enabled = true);
@@ -61,43 +66,58 @@ public:
 	void run();
 	void stop();
 
-    static const int socket_poll_timeout = 6000000; // seconds
-    //typedef std::pair<endpoint, weight>
+	static const int socket_poll_timeout = 6000000; // seconds
+
+	typedef std::vector<cocaine_node_info_t> cocaine_node_list_t;
+
+	// <handle name, endpoint>
+	typedef std::multimap<std::string, cocaine_endpoint_t> handle_endpoints_t;
+
+	// <service name, handles endpoints>
+	typedef std::map<std::string, handle_endpoints_t> routing_table_t;
 
 private:
-    typedef boost::shared_ptr<hosts_fetcher_iface> hosts_fetcher_ptr;
-    typedef boost::shared_ptr<zmq::socket_t> socket_ptr;
+	typedef boost::shared_ptr<hosts_fetcher_iface> hosts_fetcher_ptr;
+	typedef boost::shared_ptr<zmq::socket_t> socket_ptr;
 
-    bool fetch_endpoints();
-    void main_loop();
+	bool fetch_endpoints();
+	void main_loop();
 
-    void create_sockets();
-    void connect_sockets();
-    void kill_sockets();
+	void create_sockets();
+	void connect_sockets();
+	void kill_sockets();
 
-    std::vector<std::string> poll_sockets();
+	std::vector<std::string> poll_sockets();
 
-    void read_from_sockets(const std::vector<std::string>& responded_sockets_ids,
-                           std::map<std::string, std::vector<std::string> >& responces);
+	void read_from_sockets(const std::vector<std::string>& responded_sockets_ids,
+						   std::map<std::string, std::vector<announce_t> >& responces);
 
-    void parse_responces(const std::map<std::string, std::vector<std::string> >& responces,
-                         std::map<std::string, std::vector<cocaine_node_info_t> >& parsed_responses);
+	void parse_responces(const std::map<std::string, std::vector<announce_t> >& responces,
+						 std::map<std::string, std::vector<cocaine_node_info_t> >& parsed_responses);
 
-    void print_all_fetched_endpoints(); // used for debug only
+	void update_routing_table(const std::map<std::string, cocaine_node_list_t>& parsed_responses);
+
+	void process_endpoint(const cocaine_endpoint_t& endpoint);
+
+	// used for debug only
+	void print_all_fetched_endpoints();
 
 private:
-    std::vector<hosts_fetcher_ptr> m_endpoints_fetchers;
-    std::map<std::string, std::set<inetv4_endpoint_t> > m_endpoints; // <service, endpoints>
+	std::vector<hosts_fetcher_ptr> m_endpoints_fetchers;
 
-    progress_timer m_last_fetch_timer;
+	// <service, endpoints>
+	std::map<std::string, std::set<inetv4_endpoint_t> > m_endpoints;
 
-    std::map<std::string, socket_ptr> m_sockets; // <service, socket>
-    //std::map<service, map<handle / pair<endpoint, weight>> >
+	// <service, socket>
+	std::map<std::string, socket_ptr>	m_sockets;
+	routing_table_t						m_routing_table;
 
-    boost::mutex m_mutex;
-    boost::thread m_thread;
-	wuuid_t m_uuid;
-    volatile bool m_stopping;
+	boost::mutex		m_mutex;
+	boost::thread		m_thread;
+	wuuid_t				m_uuid;
+	volatile bool		m_stopping;
+
+	progress_timer		m_last_fetch_timer;
 };
 
 } // namespace dealer

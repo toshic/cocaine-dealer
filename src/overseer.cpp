@@ -134,25 +134,26 @@ overseer_t::main_loop() {
 
 		// gather announced responces
 		std::vector<std::string> responded_sockets_ids = poll_sockets();
-		std::map<std::string, std::vector<std::string> > responces;
+		std::map<std::string, std::vector<announce_t> > responces;
 
 		if (!responded_sockets_ids.empty()) {
 			read_from_sockets(responded_sockets_ids, responces);
 		}
 
 		// parse nodes responses
-		std::map<std::string, std::vector<cocaine_node_info_t> > parsed_responses;
+		std::map<std::string, cocaine_node_list_t> parsed_responses;
 		parse_responces(responces, parsed_responses);
 
-		// track changes
-		// map <service, map<handle / pair<endpoint, weight>> >
+		// update routing table and push events to subscriber
+		update_routing_table(parsed_responses);
 
 		/*
-		std::map<std::string, std::vector<cocaine_node_info_t> >::iterator it = parsed_responses.begin();
-
+		std::map<std::string, cocaine_node_list_t>::iterator it = parsed_responses.begin();
 		for (; it != parsed_responses.end(); ++it) {
+			std::cout << "service: " << it->first << std::endl;
+
 			for (size_t i = 0; i < it->second.size(); ++i) {
-				std::cout << it->second[i] << std::endl;
+				std::cout << "\tinfo: " << it->second[i] << std::endl;
 			}
 		}
 		*/
@@ -166,10 +167,184 @@ overseer_t::main_loop() {
 }
 
 void
-overseer_t::parse_responces(const std::map<std::string, std::vector<std::string> >& responces,
-							std::map<std::string, std::vector<cocaine_node_info_t> >& parsed_responses)
+overseer_t::update_routing_table(const std::map<std::string, cocaine_node_list_t>& parsed_responses) {
+	const std::map<std::string, service_info_t>& services_list = config()->services_list();
+	std::map<std::string, cocaine_node_list_t>::const_iterator it = parsed_responses.begin();
+
+	// for each <service / nodes list>
+	for (; it != parsed_responses.end(); ++it) {
+		std::string 		service_name;
+		std::string			app_name;
+		handle_endpoints_t	handle_endpoints;
+
+		{
+			// get app name from service info
+			service_name = it->first;
+			std::map<std::string, service_info_t>::const_iterator its = services_list.find(service_name);
+
+			if (its == services_list.end()) {
+				continue;
+			}
+
+			app_name = its->second.app;
+		}
+
+		// process service nodes
+		const cocaine_node_list_t& service_node_list = it->second;
+		for (size_t i = 0; i < service_node_list.size(); ++i) {
+			// find app in node
+			cocaine_node_app_info_t app;
+			if (!service_node_list[i].app_by_name(app_name, app)) {
+				continue;
+			}
+
+			// verify app tasks
+			std::string app_info_at_host = "overseer — service: " + service_name + ", app: ";
+			app_info_at_host += app_name + " at host: " + service_node_list[i].hostname;
+
+			if (app.tasks.size() == 0) {
+				log(PLOG_WARNING, app_info_at_host + " has no tasks!");
+				continue;
+			}
+
+			int weight = 0;
+
+			// verify app status
+			switch (app.status) {
+				case APP_STATUS_UNKNOWN:
+					log(PLOG_WARNING, app_info_at_host + " has unknown status!");
+					continue;
+					break;
+
+				case APP_STATUS_RUNNING:
+					weight = 1;
+					break;
+
+				case APP_STATUS_STOPPING:
+					weight = 0;
+					break;
+
+				case APP_STATUS_STOPPED:
+					log(PLOG_WARNING, app_info_at_host + " is stopped!");
+					continue;
+					break;
+
+				case APP_STATUS_BROKEN:
+					log(PLOG_WARNING, app_info_at_host + " is broken!");
+					continue;
+					break;
+
+				default:
+					continue;
+			}
+
+			cocaine_node_app_info_t::application_tasks::const_iterator task_it;
+			task_it = app.tasks.begin();
+
+			for (; task_it != app.tasks.end(); ++task_it) {
+				cocaine_endpoint_t endpoint(task_it->second.endpoint,
+											task_it->second.route,
+											weight);
+
+				process_endpoint(endpoint);
+			}
+		}
+	}
+}
+
+void
+overseer_t::process_endpoint(const cocaine_endpoint_t& endpoint) {
+	/*
+	handles_endpoints_t::iterator hit = handles_endpoints.find(task_it->second.name);
+	if (hit != handles_endpoints.end()) {
+		hit->second.push_back(ce);
+	}
+	else {
+		std::vector<cocaine_endpoint_t> endpoints_vec;
+		endpoints_vec.push_back(ce);
+		handles_endpoints[task_it->second.name] = endpoints_vec;
+	}
+	*/
+}
+
+/*
+void
+heartbeats_collector_t::process_alive_endpoints() {
+	const std::map<std::string, service_info_t>& services_list = config()->services_list();
+	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
+	
+	for (; it != services_list.end(); ++it) {
+		// <handle name, endpoints list>
+		handles_endpoints_t handles_endpoints;
+
+		std::vector<cocaine_endpoint_t> endpoints;
+		const std::string& service_name = it->first;
+		const service_info_t& service_info = it->second;
+
+		// collect alive endpoints for service
+		std::map<std::string, inetv4_endpoints_t>::const_iterator sit;
+		sit = m_services_endpoints.find(service_name);
+
+		if (sit == m_services_endpoints.end()) {
+			continue;
+		}
+
+		const inetv4_endpoints_t& service_endpoints = sit->second;
+
+		// for each service endpoint obtain metadata if possible
+		for (size_t i = 0; i < service_endpoints.size(); ++i) {
+			std::map<inetv4_endpoint_t, cocaine_node_info_t>::const_iterator eit;
+			eit = m_endpoints_metadata.find(service_endpoints[i]);
+
+			if (eit == m_endpoints_metadata.end()) {
+				continue;
+			}
+
+			const cocaine_node_info_t& node_info = eit->second;
+			cocaine_node_app_info_t app;
+			
+			// no such app at endpoint
+			if (!node_info.app_by_name(service_info.app, app)) {
+				continue;
+			}
+
+			// app stoped or no handles at endpoint's app
+			if (app.status == APP_STATUS_STOPPED ||
+				app.status == APP_STATUS_UNKNOWN ||
+				app.tasks.size() == 0)
+			{
+				continue;
+			}
+
+			cocaine_node_app_info_t::application_tasks::const_iterator task_it = app.tasks.begin();
+			for (; task_it != app.tasks.end(); ++task_it) {
+				cocaine_endpoint_t ce(task_it->second.endpoint, task_it->second.route);
+				
+				handles_endpoints_t::iterator hit = handles_endpoints.find(task_it->second.name);
+				if (hit != handles_endpoints.end()) {
+					hit->second.push_back(ce);
+				}
+				else {
+					std::vector<cocaine_endpoint_t> endpoints_vec;
+					endpoints_vec.push_back(ce);
+					handles_endpoints[task_it->second.name] = endpoints_vec;
+				}
+			}
+		}
+
+		log_responded_hosts_handles(service_info, handles_endpoints);
+
+		// pass collected data to callback
+		m_callback(service_info, handles_endpoints);
+	}
+}
+*/
+
+void
+overseer_t::parse_responces(const std::map<std::string, std::vector<announce_t> >& responces,
+							std::map<std::string, cocaine_node_list_t>& parsed_responses)
 {
-	std::map<std::string, std::vector<std::string> >::const_iterator it = responces.begin();
+	std::map<std::string, std::vector<announce_t> >::const_iterator it = responces.begin();
 
 	for (; it != responces.end(); ++it) {
 		std::vector<cocaine_node_info_t> parsed_nodes_for_service;
@@ -178,13 +353,14 @@ overseer_t::parse_responces(const std::map<std::string, std::vector<std::string>
 			cocaine_node_info_t node_info;
 			cocaine_node_info_parser_t parser(context());
 
-			if (!parser.parse(it->second[i], node_info)) {
-				std::string error_msg = "overseer - could not parse metainfo for service: %s";
-				log(PLOG_WARNING, error_msg, it->first.c_str());
+			if (!parser.parse(it->second[i].info, node_info)) {
+				std::string error_msg = "overseer - could not parse metainfo for service: %s from node: %s";
+				log(PLOG_WARNING, error_msg, it->first.c_str(), node_info.hostname.c_str());
 
 				continue;
 			}
 
+			node_info.hostname = it->second[i].hostname;
 			parsed_nodes_for_service.push_back(node_info);
 		}
 
@@ -196,7 +372,7 @@ overseer_t::parse_responces(const std::map<std::string, std::vector<std::string>
 
 void
 overseer_t::read_from_sockets(const std::vector<std::string>& responded_sockets_ids,
-							  std::map<std::string, std::vector<std::string> >& responces)
+							  std::map<std::string, std::vector<announce_t> >& responces)
 {
 	for (size_t i = 0; i < responded_sockets_ids.size(); ++i) {
 		socket_ptr sock_ptr = m_sockets[responded_sockets_ids[i]];
@@ -204,15 +380,25 @@ overseer_t::read_from_sockets(const std::vector<std::string>& responded_sockets_
 		zmq::message_t reply;
 		std::string enpoint_info_string;
 
-		std::vector<std::string> socket_responces;
+		std::vector<announce_t> socket_responces;
 
-		while (sock_ptr->recv(&reply, ZMQ_NOBLOCK)) {
-			enpoint_info_string = std::string(static_cast<char*>(reply.data()), reply.size());
+		announce_t announce;
 
-			if (!enpoint_info_string.empty()) {
-				socket_responces.push_back(enpoint_info_string);
-			}
+		if (sock_ptr->recv(&reply, ZMQ_NOBLOCK)) {
+			announce.hostname = std::string(static_cast<char*>(reply.data()), reply.size());
 		}
+		else {
+			return;
+		}
+
+		if (sock_ptr->recv(&reply, ZMQ_NOBLOCK)) {
+			announce.info = std::string(static_cast<char*>(reply.data()), reply.size());
+		}
+		else {
+			return;
+		}
+
+		socket_responces.push_back(announce);
 
 		if (!socket_responces.empty()) {
 			responces[responded_sockets_ids[i]] = socket_responces;

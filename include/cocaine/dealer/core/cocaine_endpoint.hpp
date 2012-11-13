@@ -31,15 +31,17 @@ struct cocaine_endpoint_t {
 public:
 	cocaine_endpoint_t() {}
 
-	cocaine_endpoint_t(const std::string& endpoint_, const std::string& route_) :
+	cocaine_endpoint_t(const std::string& endpoint_, const std::string& route_, int weight_ = 0) :
 		endpoint(endpoint_),
-		route(route_) {}
+		route(route_),
+		weight(weight_) {}
 
 	~cocaine_endpoint_t() {}
 
 	cocaine_endpoint_t(const cocaine_endpoint_t& rhs) :
 		endpoint(rhs.endpoint),
-		route(rhs.route) {}
+		route(rhs.route),
+		weight(rhs.weight) {}
 
 	cocaine_endpoint_t& operator = (const cocaine_endpoint_t& rhs) {
 		if (this != &rhs) {
@@ -69,6 +71,7 @@ public:
 
 	std::string endpoint;
 	std::string route;
+	int			weight;
 };
 
 } // namespace dealer

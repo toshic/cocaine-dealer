@@ -76,7 +76,7 @@ public:
 	    	node_info.processed_jobs = jobs_props.get("processed", 0).asInt();
 	    }
 
-	    node_info.route = root.get("route", "").asString();
+	    node_info.hostname = root.get("hostname", "").asString();
 		node_info.uptime = root.get("uptime", 0.0f).asDouble();
 		node_info.ip_address = m_node_ip_address;
 		node_info.port = m_node_port;

@@ -36,7 +36,8 @@ enum app_status {
 	APP_STATUS_UNKNOWN = 1,
 	APP_STATUS_RUNNING,
 	APP_STATUS_STOPPING,
-	APP_STATUS_STOPPED
+	APP_STATUS_STOPPED,
+	APP_STATUS_BROKEN
 };
 
 struct cocaine_node_app_info_t {
