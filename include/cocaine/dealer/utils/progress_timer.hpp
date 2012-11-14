@@ -32,6 +32,7 @@ public:
 	progress_timer();
 	virtual ~progress_timer();
 
+    time_value started_at() const;
 	void reset();
 	time_value elapsed();
 

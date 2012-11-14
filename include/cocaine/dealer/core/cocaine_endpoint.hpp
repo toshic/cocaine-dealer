@@ -23,7 +23,9 @@
 
 #include <string>
 
-#include "cocaine/dealer/utils/time_value.hpp"
+#include <boost/lexical_cast.hpp>
+
+#include "cocaine/dealer/utils/progress_timer.hpp"
 
 namespace cocaine {
 namespace dealer {
@@ -43,12 +45,15 @@ public:
 	cocaine_endpoint_t(const cocaine_endpoint_t& rhs) :
 		endpoint(rhs.endpoint),
 		route(rhs.route),
-		weight(rhs.weight) {}
+		weight(rhs.weight),
+		announce_timer(rhs.announce_timer) {}
 
 	cocaine_endpoint_t& operator = (const cocaine_endpoint_t& rhs) {
 		if (this != &rhs) {
 			endpoint = rhs.endpoint;
 			route = rhs.route;
+			weight = rhs.weight;
+			announce_timer = rhs.announce_timer;
 		}
 
 		return *this;
@@ -68,13 +73,19 @@ public:
 	}
 
 	std::string as_string() const {
-		return "endpoint: " + endpoint + ", route: " + route;
+		std::string str;
+		str += "endpoint: " + endpoint + ", ";
+		str += "route: " + route + ", ";
+		str += "weight: " + boost::lexical_cast<std::string>(weight) + ", ";
+		str += "announce: " + announce_timer.started_at().as_string();
+
+		return str;
 	}
 
-	std::string endpoint;
-	std::string route;
-	int			weight;
-	time_value  announce_stamp;
+	std::string		endpoint;
+	std::string		route;
+	int				weight;
+	progress_timer	announce_timer;
 };
 
 } // namespace dealer

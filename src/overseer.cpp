@@ -154,7 +154,6 @@ overseer_t::main_loop() {
 		parse_responces(responces, parsed_responses);
 
 		update_routing_table(parsed_responses);
-
 		check_for_timedout_endpoints();
 
 		print_routing_table();
@@ -176,7 +175,36 @@ overseer_t::main_loop() {
 
 void
 overseer_t::check_for_timedout_endpoints() {
+	// service
+	routing_table_t::iterator it = m_routing_table.begin();
+	for (; it != m_routing_table.end(); ++it) {
 
+		handle_endpoints_t& handle_endpoints = it->second;
+		handle_endpoints_t::iterator hit = handle_endpoints.begin();
+
+		// handle
+		for (; hit != handle_endpoints.end(); ++hit) {
+
+			// endpoints set
+			endpoints_set_t updated_endpoints_set;
+			endpoints_set_t& endpoints_set = hit->second;
+			endpoints_set_t::iterator eit = endpoints_set.begin();
+			
+			for (; eit != endpoints_set.end(); ++eit) {
+				cocaine_endpoint_t endpoint = *eit;
+				double elapsed = endpoint.announce_timer.elapsed().as_double();
+
+				if (elapsed > config()->endpoint_timeout()) {
+					endpoint.weight = 0;
+				}
+
+				updated_endpoints_set.insert(endpoint);
+			}
+
+			endpoints_set.clear();
+			endpoints_set.insert(updated_endpoints_set.begin(), updated_endpoints_set.end());
+		}
+	}
 }
 
 void
@@ -263,8 +291,6 @@ overseer_t::update_routing_table(const std::map<std::string, cocaine_node_list_t
 											task_it->second.route,
 											weight);
 
-				endpoint.announce_stamp = time_value::get_current_time();
-
 				// find specific service->handle routing table:
 				// first, find service
 				routing_table_t::iterator rit = m_routing_table.find(service_name);
@@ -286,7 +312,10 @@ overseer_t::update_routing_table(const std::map<std::string, cocaine_node_list_t
 					handle_endpoints[handle_name] = endpoints_set;
 				}
 				else {
-					handle_endpoints[handle_name].insert(endpoints_set.begin(), endpoints_set.end());
+					std::pair<endpoints_set_t::iterator, bool> res;
+					res = hit->second.insert(endpoint);
+					hit->second.erase(res.first);
+					hit->second.insert(endpoint);
 				}
 			}
 		}

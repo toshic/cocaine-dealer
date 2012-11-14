@@ -49,6 +49,11 @@ progress_timer::elapsed() {
 	time_value retval(curr_time.distance(begin_));
 	return retval;
 }
+
+time_value
+progress_timer::started_at() const {
+    return begin_;
+}
 	
 } // namespace dealer
 } // namespace cocaine

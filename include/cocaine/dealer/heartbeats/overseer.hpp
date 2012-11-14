@@ -65,7 +65,7 @@ public:
 	void run();
 	void stop();
 
-	static const int socket_poll_timeout = 6000000; // seconds
+	static const int socket_poll_timeout = 500000; // seconds
 
 	typedef std::vector<cocaine_node_info_t> cocaine_node_list_t;
 	typedef std::set<cocaine_endpoint_t> endpoints_set_t;
