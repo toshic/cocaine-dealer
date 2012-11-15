@@ -74,16 +74,25 @@ overseer_t::run() {
 		m_endpoints_fetchers.push_back(fetcher);
 	}
 
-	// prepare routing table
-	it = services_list.begin();
-	for (; it != services_list.end(); ++it) {
-		handle_endpoints_t handle_endpoints;
-		m_routing_table[it->second.name] = handle_endpoints;
-	}
+	reset_routing_table(m_routing_table);
 
 	// create main overseer loop
 	boost::function<void()> f = boost::bind(&overseer_t::main_loop, this);
 	m_thread = boost::thread(f);
+}
+
+void
+overseer_t::reset_routing_table(routing_table_t& routing_table) {
+	m_routing_table.clear();
+
+	const std::map<std::string, service_info_t>& services_list = config()->services_list();
+	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
+
+	// prepare routing table
+	for (; it != services_list.end(); ++it) {
+		handle_endpoints_t handle_endpoints;
+		m_routing_table[it->second.name] = handle_endpoints;
+	}
 }
 
 void
@@ -153,21 +162,21 @@ overseer_t::main_loop() {
 		std::map<std::string, cocaine_node_list_t> parsed_responses;
 		parse_responces(responces, parsed_responses);
 
-		update_routing_table(parsed_responses);
+		// get update
+		routing_table_t routing_table_update;
+		reset_routing_table(routing_table_update);
+		routing_table_from_responces(parsed_responses, routing_table_update);
+
+		// merge update with routing table, gen create/update handle events
+		update_main_routing_table(routing_table_update);
+
+		// check for non responding hosts
 		check_for_timedout_endpoints();
 
+		// check whether there are handles with missing hosts, gen remove/update handle events
+
+
 		print_routing_table();
-
-		/*
-		std::map<std::string, cocaine_node_list_t>::iterator it = parsed_responses.begin();
-		for (; it != parsed_responses.end(); ++it) {
-			std::cout << "service: " << it->first << std::endl;
-
-			for (size_t i = 0; i < it->second.size(); ++i) {
-				std::cout << "\tinfo: " << it->second[i] << std::endl;
-			}
-		}
-		*/
 	}
 
 	kill_sockets();
@@ -207,8 +216,85 @@ overseer_t::check_for_timedout_endpoints() {
 	}
 }
 
+bool
+overseer_t::handle_exists_for_service(routing_table_t& routing_table,
+									  const std::string& service_name,
+									  const std::string& handle_name,
+									  handle_endpoints_t::iterator& it)
+{
+	routing_table_t::iterator sit;
+	if (service_from_table(routing_table, service_name, sit)) {
+		handle_endpoints_t& handle_endpoints = sit->second;
+
+		endpoints_set_t::iterator eit = handle_endpoints.find(handle_name);
+		if (eit != handle_endpoints.end()) {
+			it = eit;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool
+overseer_t::service_from_table(routing_table_t& routing_table,
+							   const std::string& service_name,
+							   routing_table_t::iterator& it)
+{
+	routing_table_t::iterator fit = routing_table.find(service_name);
+	if (fit != routing_table.end()) {
+		it = fit;
+		return true;
+	}
+	else {
+		log(PLOG_ERROR,
+			"overseer is terribly broken! service %s is missing in routing table",
+			service_name.c_str());
+	}
+}
+
 void
-overseer_t::update_routing_table(const std::map<std::string, cocaine_node_list_t>& parsed_responses) {
+overseer_t::update_main_routing_table(routing_table_t& routing_table_update) {
+	// for each service in update
+	routing_table_t::iterator it = routing_table_update.begin();
+	for (; it != routing_table_update.end(); ++it) {
+
+		std::string						service_name = it->first;
+		handle_endpoints_t& 			handle_endpoints = it->second;
+
+		// get handle in update, see whether it exists in main table
+		handle_endpoints_t::iterator 	hit = handle_endpoints.begin();
+		for (; hit != handle_endpoints.end(); ++hit) {
+			std::string 					handle_name = hit->first;
+			endpoints_set_t					new_endpoints_set = hit->second;
+			handle_endpoints_t::iterator 	main_table_hit;
+
+			//  - if yes - merge new hosts, UPDATE HANDLE event with hosts
+			if (handle_exists_for_service(m_routing_table,
+										  service_name,
+										  handle_name,
+										  main_table_hit))
+			{
+				new_endpoints_set.insert(main_table_hit->second.begin(), main_table_hit->second.end());
+				main_table_hit->second.clear();
+				main_table_hit->second.insert(new_endpoints_set.begin(), new_endpoints_set.end());
+				// callback with UPDATE HANDLE, service name, handle name, main_table_hit->second
+			}
+			else { //  — if not - assign new hosts, CREATE HANDLE event with hosts
+				routing_table_t::iterator sit;
+				if (service_from_table(m_routing_table, service_name, sit)) {
+					sit->second[handle_name] = new_endpoints_set;
+				}
+				// callback with CREATE HANDLE, service name, handle name, new_endpoints_set
+			}
+		}
+	}
+}
+
+void
+overseer_t::routing_table_from_responces(const std::map<std::string, cocaine_node_list_t>& parsed_responses,
+										 routing_table_t& routing_table)
+{
 	const std::map<std::string, service_info_t>& services_list = config()->services_list();
 	std::map<std::string, cocaine_node_list_t>::const_iterator it = parsed_responses.begin();
 
@@ -293,9 +379,9 @@ overseer_t::update_routing_table(const std::map<std::string, cocaine_node_list_t
 
 				// find specific service->handle routing table:
 				// first, find service
-				routing_table_t::iterator rit = m_routing_table.find(service_name);
+				routing_table_t::iterator rit = routing_table.find(service_name);
 
-				if (rit == m_routing_table.end()) {
+				if (rit == routing_table.end()) {
 					log(PLOG_ERROR,
 						"overseer is terribly broken! service %s is missing in routing table",
 						service_name.c_str());

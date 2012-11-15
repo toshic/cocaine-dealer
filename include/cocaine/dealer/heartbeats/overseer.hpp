@@ -95,13 +95,27 @@ private:
 	void parse_responces(const std::map<std::string, std::vector<announce_t> >& responces,
 						 std::map<std::string, std::vector<cocaine_node_info_t> >& parsed_responses);
 
-	void update_routing_table(const std::map<std::string, cocaine_node_list_t>& parsed_responses);
+	void routing_table_from_responces(const std::map<std::string, cocaine_node_list_t>& parsed_responses,
+									  routing_table_t& routing_table);
+	
+	void update_main_routing_table(routing_table_t& routing_table_update);
+
+	bool handle_exists_for_service(routing_table_t& routing_table,
+								   const std::string& service_name,
+								   const std::string& handle_name,
+								   handle_endpoints_t::iterator& it);
+
+	bool service_from_table(routing_table_t& routing_table,
+							const std::string& service_name,
+							routing_table_t::iterator& it);
 
 	void check_for_timedout_endpoints();
 	
 	// used for debug only
 	void print_all_fetched_endpoints();
 	void print_routing_table();
+
+	void reset_routing_table(routing_table_t& routing_table);
 
 private:
 	std::vector<hosts_fetcher_ptr> m_endpoints_fetchers;
