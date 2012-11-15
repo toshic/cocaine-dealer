@@ -57,6 +57,12 @@ struct announce_t {
 	std::string info;
 };
 
+enum e_overseer_event {
+	CREATE_HANDLE = 1,
+	UPDATE_HANDLE,
+	DELETE_HANDLE
+};
+
 class overseer_t : private boost::noncopyable, public dealer_object_t {
 public:
 	overseer_t(const boost::shared_ptr<context_t>& ctx, bool logging_enabled = true);
