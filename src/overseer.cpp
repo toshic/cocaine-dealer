@@ -170,11 +170,8 @@ overseer_t::main_loop() {
 		// merge update with routing table, gen create/update handle events
 		update_main_routing_table(routing_table_update);
 
-		// check for non responding hosts
+		// check whether there are handles with timed out hosts, gen remove/update handle events
 		check_for_timedout_endpoints();
-
-		// check whether there are handles with missing hosts, gen remove/update handle events
-
 
 		print_routing_table();
 	}
@@ -188,23 +185,31 @@ overseer_t::check_for_timedout_endpoints() {
 	routing_table_t::iterator it = m_routing_table.begin();
 	for (; it != m_routing_table.end(); ++it) {
 
-		handle_endpoints_t& handle_endpoints = it->second;
-		handle_endpoints_t::iterator hit = handle_endpoints.begin();
+		std::string						service_name = it->first;
+		handle_endpoints_t&				handle_endpoints = it->second;
+		handle_endpoints_t::iterator	hit = handle_endpoints.begin();
 
 		// handle
 		for (; hit != handle_endpoints.end(); ++hit) {
 
-			// endpoints set
-			endpoints_set_t updated_endpoints_set;
-			endpoints_set_t& endpoints_set = hit->second;
-			endpoints_set_t::iterator eit = endpoints_set.begin();
+			std::string 				handle_name = hit->first;
+			endpoints_set_t&			endpoints_set = hit->second;
+			endpoints_set_t				updated_endpoints_set;
+			endpoints_set_t::iterator	eit = endpoints_set.begin();
+			
+			bool some_timed_out_endpoints_found = false;
+			bool all_endpoints_are_timed_out = true;
 			
 			for (; eit != endpoints_set.end(); ++eit) {
-				cocaine_endpoint_t endpoint = *eit;
-				double elapsed = endpoint.announce_timer.elapsed().as_double();
+				cocaine_endpoint_t	endpoint = *eit;
+				double				elapsed = endpoint.announce_timer.elapsed().as_double();
 
 				if (elapsed > config()->endpoint_timeout()) {
+					some_timed_out_endpoints_found = true;
 					endpoint.weight = 0;
+				}
+				else {
+					all_endpoints_are_timed_out = false;
 				}
 
 				updated_endpoints_set.insert(endpoint);
@@ -212,6 +217,13 @@ overseer_t::check_for_timedout_endpoints() {
 
 			endpoints_set.clear();
 			endpoints_set.insert(updated_endpoints_set.begin(), updated_endpoints_set.end());
+
+			if (all_endpoints_are_timed_out) {
+				// gen DELETE HANDLE event
+			}
+			else if (some_timed_out_endpoints_found) {
+				// gen UPDATE HANDLE event with service_name, handle_name, endpoints_set
+			}
 		}
 	}
 }
