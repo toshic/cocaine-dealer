@@ -32,16 +32,17 @@ namespace cocaine {
 namespace dealer {
 
 handle_t::handle_t(const handle_info_t& info,
-				   const endpoints_list_t& endpoints,
+				   const std::set<cocaine_endpoint_t>& endpoints,
 				   const boost::shared_ptr<context_t>& ctx,
 				   bool logging_enabled) :
 	dealer_object_t(ctx, logging_enabled),
 	m_info(info),
-	m_endpoints(endpoints),
+	//m_endpoints(endpoints),
 	m_is_running(false),
 	m_is_connected(false),
 	m_receiving_control_socket_ok(false)
 {
+	/*
 	log(PLOG_DEBUG, "CREATED HANDLE " + description());
 
 	// create message cache
@@ -61,11 +62,34 @@ handle_t::handle_t(const handle_info_t& info,
 
 	// connect to hosts 
 	connect();
+	*/
 }
 
 handle_t::~handle_t() {
 	kill();
 }
+
+void
+handle_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints) {
+	/*
+	if (!m_is_running || endpoints.empty()) {
+		return;
+	}
+
+	boost::mutex::scoped_lock lock(m_mutex);
+	m_endpoints = endpoints;
+	lock.unlock();
+
+	log(PLOG_DEBUG, "UPDATE HANDLE " + description());
+
+	// connect to hosts
+	int control_message = CONTROL_MESSAGE_UPDATE;
+	zmq::message_t message(sizeof(int));
+	memcpy((void *)message.data(), &control_message, sizeof(int));
+	m_zmq_control_socket->send(message);
+	*/
+}
+
 
 void
 handle_t::kill() {
@@ -546,25 +570,6 @@ handle_t::connect() {
 
 	// connect to hosts
 	int control_message = CONTROL_MESSAGE_CONNECT;
-	zmq::message_t message(sizeof(int));
-	memcpy((void *)message.data(), &control_message, sizeof(int));
-	m_zmq_control_socket->send(message);
-}
-
-void
-handle_t::update_endpoints(const std::vector<cocaine_endpoint_t>& endpoints) {
-	if (!m_is_running || endpoints.empty()) {
-		return;
-	}
-
-	boost::mutex::scoped_lock lock(m_mutex);
-	m_endpoints = endpoints;
-	lock.unlock();
-
-	log(PLOG_DEBUG, "UPDATE HANDLE " + description());
-
-	// connect to hosts
-	int control_message = CONTROL_MESSAGE_UPDATE;
 	zmq::message_t message(sizeof(int));
 	memcpy((void *)message.data(), &control_message, sizeof(int));
 	m_zmq_control_socket->send(message);

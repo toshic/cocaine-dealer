@@ -66,7 +66,7 @@ public:
 
 public:
 	handle_t(const handle_info_t& info,
-			 const endpoints_list_t& endpoints,
+			 const std::set<cocaine_endpoint_t>& endpoints,
 			 const boost::shared_ptr<context_t>& context,
 			 bool logging_enabled = true);
 
@@ -74,7 +74,7 @@ public:
 
 	// networking
 	void connect();
-	void update_endpoints(const std::vector<cocaine_endpoint_t>& endpoints);
+	void update_endpoints(const std::set<cocaine_endpoint_t>& endpoints);
 
 	// responses consumer
 	void set_responce_callback(responce_callback_t callback);

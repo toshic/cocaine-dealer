@@ -90,6 +90,43 @@ dealer_impl_t::~dealer_impl_t() {
 	log(PLOG_INFO, "dealer destroyed.");
 }
 
+void
+dealer_impl_t::process_overseer_event(e_overseer_event event_type,
+									  const std::string& service_name,
+									  const std::string& handle_name,
+									  const std::set<cocaine_endpoint_t>& endpoints)
+{
+	// find corresponding service
+	services_map_t::iterator it = m_services.find(service_name);
+
+	// populate service with pinged hosts and handles
+	if (it != m_services.end()) {
+		service_ptr_t service = it->second;
+		assert(service);
+		
+		handle_info_t info(handle_name, service->info().app, service_name);
+
+		switch (event_type) {
+			case CREATE_HANDLE:
+				service->create_handle(info, endpoints);
+				break;
+
+			case UPDATE_HANDLE:
+				service->update_handle(info, endpoints);
+				break;
+
+			case DESTROY_HANDLE:
+				service->destroy_handle(info);
+				break;
+		}
+	}
+	else {
+		std::string error_msg = "service with name " + service_name;
+		error_msg += " was not found in services. at: ";
+		throw internal_error(error_msg);
+	}
+}
+
 boost::shared_ptr<service_t>
 dealer_impl_t::get_service(const std::string& service_alias) {
 	const static std::string error_str = "can't sent message. no service with name %s found.";
@@ -231,17 +268,17 @@ dealer_impl_t::regex_match(const std::string& regex_str, const std::string& valu
 void
 dealer_impl_t::connect() {
 	log(PLOG_DEBUG, "creating heartbeats collector");
-	m_heartbeats_collector.reset(new heartbeats_collector_t(context()));
-	m_heartbeats_collector->set_callback(boost::bind(&dealer_impl_t::service_hosts_pinged_callback, this, _1, _2));
-	m_heartbeats_collector->run();
+	m_overseer.reset(new overseer_t(context()));
+	m_overseer->set_callback(boost::bind(&dealer_impl_t::process_overseer_event, this, _1, _2, _3, _4));
+	m_overseer->run();
 }
 
 void
 dealer_impl_t::disconnect() {
-	assert(m_heartbeats_collector.get());
+	assert(m_overseer.get());
 
 	// stop collecting heartbeats
-	m_heartbeats_collector.reset();
+	m_overseer.reset();
 
 	// stop services
 	services_map_t::iterator it = m_services.begin();
@@ -251,25 +288,6 @@ dealer_impl_t::disconnect() {
 	}
 
 	m_services.clear();
-}
-
-void
-dealer_impl_t::service_hosts_pinged_callback(const service_info_t& service_info,
-											 const handles_endpoints_t& endpoints_for_handles)
-{
-	// find corresponding service
-	services_map_t::iterator it = m_services.find(service_info.name);
-
-	// populate service with pinged hosts and handles
-	if (it != m_services.end()) {
-		assert(it->second);
-		it->second->refresh_handles(endpoints_for_handles);
-	}
-	else {
-		std::string error_msg = "service with name " + service_info.name;
-		error_msg += " was not found in services. at: " + std::string(BOOST_CURRENT_FUNCTION);
-		throw internal_error(error_msg);
-	}
 }
 
 boost::shared_ptr<message_iface>
