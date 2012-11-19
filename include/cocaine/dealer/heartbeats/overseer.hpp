@@ -72,7 +72,7 @@ public:
 	void run();
 	void stop();
 
-	static const int socket_poll_timeout = 500000; // seconds
+	//typedef boost::function<void(const service_info_t&, const handles_endpoints_t&)> callback_t;
 
 	typedef std::vector<cocaine_node_info_t> cocaine_node_list_t;
 	typedef std::set<cocaine_endpoint_t> endpoints_set_t;
@@ -93,8 +93,6 @@ private:
 	void create_sockets();
 	void connect_sockets();
 	void kill_sockets();
-
-	std::vector<std::string> poll_sockets();
 
 	void read_from_sockets(std::map<std::string, std::vector<announce_t> >& responces);
 

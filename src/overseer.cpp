@@ -528,55 +528,6 @@ overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& r
 	}
 }
 
-std::vector<std::string>
-overseer_t::poll_sockets() {
-	zmq_pollitem_t* poll_items = NULL;
-	poll_items = new zmq_pollitem_t[m_sockets.size()];
-
-	std::vector<std::string> responded_sockets_ids;
-
-	if (!poll_items) {
-		return responded_sockets_ids;
-	}
-
-	size_t counter = 0;
-	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
-	for (; it != m_sockets.end(); ++it) {
-		socket_ptr sock = it->second;
-		poll_items[counter].socket = *sock;
-		poll_items[counter].fd = 0;
-		poll_items[counter].events = ZMQ_POLLIN;
-		poll_items[counter].revents = 0;
-		++counter;
-	}
-
-	int res = zmq_poll(poll_items, m_sockets.size(), socket_poll_timeout);
-	if (res == 0) {
-		log(PLOG_DEBUG, "overseer - did not get response timely from endpoints");
-		delete[] poll_items;
-		return responded_sockets_ids;
-	}
-	else if (res < 0) {
-		log(PLOG_DEBUG, "overseer - error code: %d while polling sockets", errno);
-		delete[] poll_items;
-		return responded_sockets_ids;
-	}
-
-	counter = 0;
-	it = m_sockets.begin();
-	for (; it != m_sockets.end(); ++it) {
-		if ((ZMQ_POLLIN & poll_items[counter].revents) != ZMQ_POLLIN) {
-			continue;
-		}
-
-		responded_sockets_ids.push_back(it->first);
-		++counter;
-	}
-
-	delete[] poll_items;
-	return responded_sockets_ids;
-}
-
 void
 overseer_t::create_sockets() {
 	const std::map<std::string, service_info_t>& services_list = config()->services_list();
