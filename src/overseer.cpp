@@ -225,9 +225,12 @@ overseer_t::check_for_timedout_endpoints(ev::timer& timer, int type) {
 				cocaine_endpoint_t	endpoint = *eit;
 				double				elapsed = endpoint.announce_timer.elapsed().as_double();
 
-				if (elapsed > config()->endpoint_timeout()) {
+				if (endpoint.weight > 0 &&
+					elapsed > config()->endpoint_timeout())
+				{
 					some_timed_out_endpoints_found = true;
 					endpoint.weight = 0;
+					std::cout << "timed out: " << endpoint.as_string() << std::endl;
 				}
 				else {
 					all_endpoints_are_timed_out = false;
@@ -236,15 +239,32 @@ overseer_t::check_for_timedout_endpoints(ev::timer& timer, int type) {
 				updated_endpoints_set.insert(endpoint);
 			}
 
-			endpoints_set.clear();
-			endpoints_set.insert(updated_endpoints_set.begin(), updated_endpoints_set.end());
+			std::cout << updated_endpoints_set.size() << std::endl;
 
-			if (m_callback) {
-				if (all_endpoints_are_timed_out) {
-					endpoints_set_t empty_set;
-					m_callback(DESTROY_HANDLE, service_name, handle_name, empty_set);
+			if (all_endpoints_are_timed_out && m_callback) {
+				std::cout << "all_endpoints_are_timed_out!" << std::endl;
+				endpoints_set_t empty_set;
+				m_callback(DESTROY_HANDLE, service_name, handle_name, empty_set);
+			}
+			else if (some_timed_out_endpoints_found && m_callback) {
+				std::cout << "some_timed_out_endpoints_found!" << std::endl;
+				bool sets_equal = true;
+
+				if (endpoints_set == updated_endpoints_set) {
+					endpoints_set_t::iterator itt = endpoints_set.begin();
+					for (; itt != endpoints_set.end(); ++itt) {
+						endpoints_set_t::iterator itt2 = updated_endpoints_set.find(*itt);
+
+						if (itt2 == updated_endpoints_set.end() || itt->weight != itt2->weight) {
+							sets_equal = false;
+							break;
+						}
+					}
 				}
-				else if (some_timed_out_endpoints_found) {
+
+				if (!sets_equal) {
+					endpoints_set.clear();
+					endpoints_set.insert(updated_endpoints_set.begin(), updated_endpoints_set.end());
 					m_callback(UPDATE_HANDLE, service_name, handle_name, endpoints_set);
 				}
 			}
