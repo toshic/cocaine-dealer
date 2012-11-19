@@ -359,6 +359,9 @@ configuration_t::parse_basic_settings(const Json::Value& config_value) {
 	}
 
 	m_endpoint_timeout = config_value.get("endpoint_timeout", defaults_t::endpoint_timeout).asFloat();
+	if (m_endpoint_timeout < 1.0) {
+		m_endpoint_timeout = 1.0;
+	}
 }
 
 const std::string&

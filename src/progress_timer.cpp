@@ -19,6 +19,7 @@
 */
 
 #include <cstddef>
+#include <iostream>
 
 #include "cocaine/dealer/utils/progress_timer.hpp"
 
@@ -26,15 +27,31 @@ namespace cocaine {
 namespace dealer {
 
 progress_timer::progress_timer() {
-	begin_.init_from_current_time();
+    begin_.init_from_current_time();
 }
 
 progress_timer::~progress_timer() {
 
 }
 
+progress_timer::progress_timer(const progress_timer& rhs) {
+    *this = rhs;
+}
+
+progress_timer&
+progress_timer::operator = (const progress_timer& rhs) {
+    if (this == &rhs) {
+        return *this;
+    }
+
+    begin_ = rhs.begin_;
+
+    return *this;
+}
+
 void
 progress_timer::reset() {
+    std::cout << "progress_timer reset\n";
 	begin_.init_from_current_time();
 }
 

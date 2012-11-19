@@ -2,7 +2,7 @@
 	"version" : 1,
 	
 	"use_persistense" : false,
-	"endpoint_timeout" : 3.0,
+	"endpoint_timeout" : 1,
 
 	"logger" :
 	{

@@ -200,6 +200,78 @@ overseer_t::main_loop() {
 	kill_sockets();
 }
 
+
+void
+overseer_t::update_main_routing_table(routing_table_t& routing_table_update) {
+	// for each service in update
+	routing_table_t::iterator it = routing_table_update.begin();
+	for (; it != routing_table_update.end(); ++it) {
+
+		std::string						service_name = it->first;
+		handle_endpoints_t& 			handle_endpoints = it->second;
+
+		// get handle in update, see whether it exists in main table
+		handle_endpoints_t::iterator 	hit = handle_endpoints.begin();
+		for (; hit != handle_endpoints.end(); ++hit) {
+			std::string 					handle_name = hit->first;
+			endpoints_set_t					new_endpoints_set = hit->second;
+			handle_endpoints_t::iterator 	main_table_hit;
+
+			bool handle_exists = handle_exists_for_service(m_routing_table,
+														   service_name,
+														   handle_name,
+														   main_table_hit);
+
+			bool was_dead = true;
+
+			if (handle_exists) {
+				was_dead = all_endpoints_dead(main_table_hit->second);
+			}
+
+			if (!handle_exists || was_dead) {
+				routing_table_t::iterator sit;
+				if (service_from_table(m_routing_table, service_name, sit)) {
+
+					new_endpoints_set.insert(sit->second[handle_name].begin(),
+											 sit->second[handle_name].end());
+
+					sit->second[handle_name].clear();
+					sit->second[handle_name].insert(new_endpoints_set.begin(), new_endpoints_set.end());
+
+					if (m_callback) {
+						m_callback(CREATE_HANDLE, service_name, handle_name, new_endpoints_set);
+					}
+				}
+			}
+			else {
+				new_endpoints_set.insert(main_table_hit->second.begin(), main_table_hit->second.end());
+
+				bool sets_equal = endpoints_set_equal(new_endpoints_set, main_table_hit->second);
+
+				main_table_hit->second.clear();
+				main_table_hit->second.insert(new_endpoints_set.begin(), new_endpoints_set.end());
+
+				if (m_callback && !sets_equal) {
+					m_callback(UPDATE_HANDLE, service_name, handle_name, main_table_hit->second);
+				}
+			}
+		}
+	}
+}
+
+bool
+overseer_t::all_endpoints_dead(const endpoints_set_t& endpoints) {
+	endpoints_set_t::const_iterator it = endpoints.begin();
+
+	for (; it != endpoints.end(); ++it) {
+		if (it->weight > 0) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void
 overseer_t::check_for_timedout_endpoints(ev::timer& timer, int type) {
 	// service
@@ -218,8 +290,7 @@ overseer_t::check_for_timedout_endpoints(ev::timer& timer, int type) {
 			endpoints_set_t				updated_endpoints_set;
 			endpoints_set_t::iterator	eit = endpoints_set.begin();
 			
-			bool some_timed_out_endpoints_found = false;
-			bool all_endpoints_are_timed_out = true;
+			bool some_endpoints_timed_out = false;
 			
 			for (; eit != endpoints_set.end(); ++eit) {
 				cocaine_endpoint_t	endpoint = *eit;
@@ -228,43 +299,26 @@ overseer_t::check_for_timedout_endpoints(ev::timer& timer, int type) {
 				if (endpoint.weight > 0 &&
 					elapsed > config()->endpoint_timeout())
 				{
-					some_timed_out_endpoints_found = true;
+					some_endpoints_timed_out = true;
 					endpoint.weight = 0;
-					std::cout << "timed out: " << endpoint.as_string() << std::endl;
-				}
-				else {
-					all_endpoints_are_timed_out = false;
 				}
 
 				updated_endpoints_set.insert(endpoint);
 			}
 
-			std::cout << updated_endpoints_set.size() << std::endl;
+			if (some_endpoints_timed_out && all_endpoints_dead(updated_endpoints_set) && m_callback) {
+				endpoints_set.clear();
+				endpoints_set.insert(updated_endpoints_set.begin(), updated_endpoints_set.end());
 
-			if (all_endpoints_are_timed_out && m_callback) {
-				std::cout << "all_endpoints_are_timed_out!" << std::endl;
 				endpoints_set_t empty_set;
 				m_callback(DESTROY_HANDLE, service_name, handle_name, empty_set);
 			}
-			else if (some_timed_out_endpoints_found && m_callback) {
-				std::cout << "some_timed_out_endpoints_found!" << std::endl;
-				bool sets_equal = true;
-
-				if (endpoints_set == updated_endpoints_set) {
-					endpoints_set_t::iterator itt = endpoints_set.begin();
-					for (; itt != endpoints_set.end(); ++itt) {
-						endpoints_set_t::iterator itt2 = updated_endpoints_set.find(*itt);
-
-						if (itt2 == updated_endpoints_set.end() || itt->weight != itt2->weight) {
-							sets_equal = false;
-							break;
-						}
-					}
-				}
+			else if (some_endpoints_timed_out && m_callback) {
+				bool sets_equal = endpoints_set_equal(endpoints_set, updated_endpoints_set);
+				endpoints_set.clear();
+				endpoints_set.insert(updated_endpoints_set.begin(), updated_endpoints_set.end());
 
 				if (!sets_equal) {
-					endpoints_set.clear();
-					endpoints_set.insert(updated_endpoints_set.begin(), updated_endpoints_set.end());
 					m_callback(UPDATE_HANDLE, service_name, handle_name, endpoints_set);
 				}
 			}
@@ -309,51 +363,22 @@ overseer_t::service_from_table(routing_table_t& routing_table,
 	}
 }
 
-void
-overseer_t::update_main_routing_table(routing_table_t& routing_table_update) {
-	// for each service in update
-	routing_table_t::iterator it = routing_table_update.begin();
-	for (; it != routing_table_update.end(); ++it) {
+bool
+overseer_t::endpoints_set_equal(const endpoints_set_t& lhs, const endpoints_set_t& rhs) {
+	if (lhs != rhs) {
+		return false;
+	}
 
-		std::string						service_name = it->first;
-		handle_endpoints_t& 			handle_endpoints = it->second;
+	endpoints_set_t::iterator it = lhs.begin();
+	for (; it != lhs.end(); ++it) {
+		endpoints_set_t::iterator it2 = rhs.find(*it);
 
-		// get handle in update, see whether it exists in main table
-		handle_endpoints_t::iterator 	hit = handle_endpoints.begin();
-		for (; hit != handle_endpoints.end(); ++hit) {
-			std::string 					handle_name = hit->first;
-			endpoints_set_t					new_endpoints_set = hit->second;
-			handle_endpoints_t::iterator 	main_table_hit;
-
-			//  - if yes - merge new hosts, UPDATE HANDLE event with hosts
-			if (handle_exists_for_service(m_routing_table,
-										  service_name,
-										  handle_name,
-										  main_table_hit))
-			{
-				new_endpoints_set.insert(main_table_hit->second.begin(), main_table_hit->second.end());
-
-				if (new_endpoints_set != main_table_hit->second) {
-					main_table_hit->second.clear();
-					main_table_hit->second.insert(new_endpoints_set.begin(), new_endpoints_set.end());
-
-					if (m_callback) {
-						m_callback(UPDATE_HANDLE, service_name, handle_name, main_table_hit->second);
-					}
-				}
-			}
-			else { //  — if not - assign new hosts, CREATE HANDLE event with hosts
-				routing_table_t::iterator sit;
-				if (service_from_table(m_routing_table, service_name, sit)) {
-					sit->second[handle_name] = new_endpoints_set;
-
-					if (m_callback) {
-						m_callback(CREATE_HANDLE, service_name, handle_name, new_endpoints_set);
-					}
-				}
-			}
+		if (it2 == rhs.end() || it->weight != it2->weight) {
+			return false;
 		}
 	}
+
+	return true;
 }
 
 void
@@ -503,9 +528,6 @@ overseer_t::parse_responces(const std::map<std::string, std::vector<announce_t> 
 			cocaine_node_info_parser_t parser(context());
 
 			if (!parser.parse(it->second[i].info, node_info)) {
-				std::string error_msg = "overseer - could not parse metainfo for service: %s from node: %s";
-				log(PLOG_WARNING, error_msg, it->first.c_str(), node_info.hostname.c_str());
-
 				continue;
 			}
 
@@ -554,7 +576,9 @@ overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& r
 				break;
 			}
 
-			socket_responces.push_back(announce);
+			if (!announce.hostname.empty() && !announce.info.empty()) {
+				socket_responces.push_back(announce);
+			}
 		}
 
 		if (!socket_responces.empty()) {

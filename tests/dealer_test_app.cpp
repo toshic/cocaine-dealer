@@ -173,7 +173,7 @@ main(int argc, char** argv) {
 	overseer.set_callback(process_event);
 	overseer.run();
 
-	sleep(10);
+	sleep(300);
 	return EXIT_SUCCESS;
 
 	/*
