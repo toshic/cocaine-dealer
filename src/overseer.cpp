@@ -108,6 +108,11 @@ overseer_t::stop() {
 }
 
 void
+overseer_t::set_callback(callback_t callback) {
+	m_callback = callback;
+}
+
+void
 overseer_t::reset_routing_table(routing_table_t& routing_table) {
 	routing_table.clear();
 
@@ -234,11 +239,14 @@ overseer_t::check_for_timedout_endpoints(ev::timer& timer, int type) {
 			endpoints_set.clear();
 			endpoints_set.insert(updated_endpoints_set.begin(), updated_endpoints_set.end());
 
-			if (all_endpoints_are_timed_out) {
-				// gen DELETE HANDLE event
-			}
-			else if (some_timed_out_endpoints_found) {
-				// gen UPDATE HANDLE event with service_name, handle_name, endpoints_set
+			if (m_callback) {
+				if (all_endpoints_are_timed_out) {
+					endpoints_set_t empty_set;
+					m_callback(DELETE_HANDLE, service_name, handle_name, empty_set);
+				}
+				else if (some_timed_out_endpoints_found) {
+					m_callback(UPDATE_HANDLE, service_name, handle_name, endpoints_set);
+				}
 			}
 		}
 	}
@@ -308,14 +316,20 @@ overseer_t::update_main_routing_table(routing_table_t& routing_table_update) {
 				new_endpoints_set.insert(main_table_hit->second.begin(), main_table_hit->second.end());
 				main_table_hit->second.clear();
 				main_table_hit->second.insert(new_endpoints_set.begin(), new_endpoints_set.end());
-				// callback with UPDATE HANDLE, service name, handle name, main_table_hit->second
+
+				if (m_callback) {
+					m_callback(UPDATE_HANDLE, service_name, handle_name, main_table_hit->second);
+				}
 			}
 			else { //  — if not - assign new hosts, CREATE HANDLE event with hosts
 				routing_table_t::iterator sit;
 				if (service_from_table(m_routing_table, service_name, sit)) {
 					sit->second[handle_name] = new_endpoints_set;
+
+					if (m_callback) {
+						m_callback(CREATE_HANDLE, service_name, handle_name, new_endpoints_set);
+					}
 				}
-				// callback with CREATE HANDLE, service name, handle name, new_endpoints_set
 			}
 		}
 	}

@@ -66,14 +66,7 @@ enum e_overseer_event {
 
 class overseer_t : private boost::noncopyable, public dealer_object_t {
 public:
-	overseer_t(const boost::shared_ptr<context_t>& ctx, bool logging_enabled = true);
-	virtual ~overseer_t();
-
-	void run();
-	void stop();
-
-	//typedef boost::function<void(const service_info_t&, const handles_endpoints_t&)> callback_t;
-
+	// TYPES
 	typedef std::vector<cocaine_node_info_t> cocaine_node_list_t;
 	typedef std::set<cocaine_endpoint_t> endpoints_set_t;
 
@@ -82,6 +75,19 @@ public:
 
 	// <service name, handles endpoints>
 	typedef std::map<std::string, handle_endpoints_t> routing_table_t;
+
+	typedef boost::function<void(e_overseer_event event_type,
+							 const std::string& service_name,
+							 const std::string& handle_name,
+							 const endpoints_set_t& endpoints)> callback_t;
+
+	// API
+	overseer_t(const boost::shared_ptr<context_t>& ctx, bool logging_enabled = true);
+	virtual ~overseer_t();
+
+	void run();
+	void stop();
+	void set_callback(callback_t callback);
 
 private:
 	typedef boost::shared_ptr<hosts_fetcher_iface> hosts_fetcher_ptr;
@@ -124,16 +130,17 @@ private:
 	void print_routing_table();
 
 private:
-	typedef boost::shared_ptr<ev::io> ev_io_ptr;
-
-	std::vector<hosts_fetcher_ptr> m_endpoints_fetchers;
+	typedef boost::shared_ptr<ev::io> 	ev_io_ptr;
+	typedef std::set<inetv4_endpoint_t> inetv4_endpoints_t;
 
 	// <service, endpoints>
-	std::map<std::string, std::set<inetv4_endpoint_t> > m_endpoints;
+	std::map<std::string, inetv4_endpoints_t>	m_endpoints;
+	std::vector<hosts_fetcher_ptr>				m_endpoints_fetchers;
 
 	// <service, socket>
 	std::map<std::string, socket_ptr>	m_sockets;
 	routing_table_t						m_routing_table;
+	callback_t							m_callback;
 
 	ev::default_loop		m_event_loop;
 	ev::timer				m_fetcher_timer;
