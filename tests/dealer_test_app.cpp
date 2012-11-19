@@ -142,7 +142,7 @@ main(int argc, char** argv) {
 	overseer_t overseer(ctx);
 	overseer.run();
 
-	sleep(120);
+	sleep(10);
 	return EXIT_SUCCESS;
 
 	/*

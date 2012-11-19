@@ -25,6 +25,12 @@
 #include <map>
 #include <set>
 
+#include <ev++.h>
+
+#include <zmq.hpp>
+    
+#include "json/json.h"
+
 #include <boost/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/shared_ptr.hpp>
@@ -34,14 +40,9 @@
 #include <boost/function.hpp>
 #include <boost/lexical_cast.hpp>
 
-#include "json/json.h"
-
-#include <zmq.hpp>
-
 #include "cocaine/dealer/defaults.hpp"
 #include "cocaine/dealer/utils/error.hpp"
 #include "cocaine/dealer/utils/uuid.hpp"
-#include "cocaine/dealer/utils/progress_timer.hpp"
 #include "cocaine/dealer/core/handle_info.hpp"
 #include "cocaine/dealer/core/inetv4_host.hpp"
 #include "cocaine/dealer/core/dealer_object.hpp"
@@ -95,8 +96,7 @@ private:
 
 	std::vector<std::string> poll_sockets();
 
-	void read_from_sockets(const std::vector<std::string>& responded_sockets_ids,
-						   std::map<std::string, std::vector<announce_t> >& responces);
+	void read_from_sockets(std::map<std::string, std::vector<announce_t> >& responces);
 
 	void parse_responces(const std::map<std::string, std::vector<announce_t> >& responces,
 						 std::map<std::string, std::vector<cocaine_node_info_t> >& parsed_responses);
@@ -116,14 +116,18 @@ private:
 							routing_table_t::iterator& it);
 
 	void check_for_timedout_endpoints();
-	
+
+	void reset_routing_table(routing_table_t& routing_table);
+	void fetch_and_process_endpoints(ev::timer& watcher, int type);
+	void request(ev::io& watcher, int type);
+
 	// used for debug only
 	void print_all_fetched_endpoints();
 	void print_routing_table();
 
-	void reset_routing_table(routing_table_t& routing_table);
-
 private:
+	typedef boost::shared_ptr<ev::io> ev_io_ptr;
+
 	std::vector<hosts_fetcher_ptr> m_endpoints_fetchers;
 
 	// <service, endpoints>
@@ -133,12 +137,13 @@ private:
 	std::map<std::string, socket_ptr>	m_sockets;
 	routing_table_t						m_routing_table;
 
-	boost::mutex		m_mutex;
-	boost::thread		m_thread;
-	wuuid_t				m_uuid;
-	volatile bool		m_stopping;
-
-	progress_timer		m_last_fetch_timer;
+	ev::default_loop		m_event_loop;
+	ev::timer				m_fetcher_timer;
+	std::vector<ev_io_ptr>	m_watchers;
+	boost::mutex			m_mutex;
+	boost::thread			m_thread;
+	wuuid_t					m_uuid;
+	volatile bool			m_stopping;
 };
 
 } // namespace dealer

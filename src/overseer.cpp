@@ -23,6 +23,7 @@
 #include <boost/tuple/tuple.hpp>
 
 #include "cocaine/dealer/heartbeats/overseer.hpp"
+
 #include "cocaine/dealer/heartbeats/file_hosts_fetcher.hpp"
 #include "cocaine/dealer/heartbeats/http_hosts_fetcher.hpp"
 #include "cocaine/dealer/core/inetv4_endpoint.hpp"
@@ -83,7 +84,7 @@ overseer_t::run() {
 
 void
 overseer_t::reset_routing_table(routing_table_t& routing_table) {
-	m_routing_table.clear();
+	routing_table.clear();
 
 	const std::map<std::string, service_info_t>& services_list = config()->services_list();
 	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
@@ -91,7 +92,7 @@ overseer_t::reset_routing_table(routing_table_t& routing_table) {
 	// prepare routing table
 	for (; it != services_list.end(); ++it) {
 		handle_endpoints_t handle_endpoints;
-		m_routing_table[it->second.name] = handle_endpoints;
+		routing_table[it->second.name] = handle_endpoints;
 	}
 }
 
@@ -120,6 +121,15 @@ overseer_t::stop() {
 		m_endpoints_fetchers[i].reset();
 	}
 
+	m_fetcher_timer.stop();
+
+	for (size_t i = 0; i < m_watchers.size(); ++i) {
+		m_watchers[i]->stop();
+	}
+	m_watchers.clear();
+
+	m_event_loop.unloop(ev::ALL);
+
 	m_stopping = true;
 	m_thread.join();
 
@@ -127,28 +137,61 @@ overseer_t::stop() {
 }
 
 void
+overseer_t::fetch_and_process_endpoints(ev::timer& watcher, int type) {
+	bool found_missing_endpoints = fetch_endpoints();
+
+	if (found_missing_endpoints) {
+		kill_sockets();
+		create_sockets();
+	}
+
+	connect_sockets();
+}
+
+void
+overseer_t::request(ev::io& watcher, int type) {
+	if (type != ev::READ) {
+		return;
+	}
+
+	std::map<std::string, std::vector<announce_t> > responces;
+	read_from_sockets(responces);
+
+	if (responces.size() == 0) {
+		return;
+	}
+
+	// parse nodes responses
+	std::map<std::string, cocaine_node_list_t> parsed_responses;
+	parse_responces(responces, parsed_responses);
+
+	// get update
+	routing_table_t routing_table_update;
+	reset_routing_table(routing_table_update);
+	routing_table_from_responces(parsed_responses, routing_table_update);
+
+	// merge update with routing table, gen create/update handle events
+	update_main_routing_table(routing_table_update);
+	print_routing_table();
+}
+
+void
 overseer_t::main_loop() {
 	// init
-	m_last_fetch_timer.reset();
-
 	create_sockets();
 	fetch_endpoints();
 	connect_sockets();
 
+	// fetch endpoints every 15 secs
+	m_fetcher_timer.set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
+    m_fetcher_timer.start(0, 15);
+
+	m_event_loop.loop();
+
+	/*
+	std::cout << "ok...\n";
+
 	while (!m_stopping) {
-
-		// process endpoints connections
-		if (m_last_fetch_timer.elapsed().as_double() > 15.0) {
-			bool found_missing_endpoints = fetch_endpoints();
-
-			if (found_missing_endpoints) {
-				kill_sockets();
-				create_sockets();
-			}
-
-			connect_sockets();
-			m_last_fetch_timer.reset();
-		}
 
 		// gather announced responces
 		std::vector<std::string> responded_sockets_ids = poll_sockets();
@@ -177,6 +220,7 @@ overseer_t::main_loop() {
 	}
 
 	kill_sockets();
+	*/
 }
 
 void
@@ -238,7 +282,7 @@ overseer_t::handle_exists_for_service(routing_table_t& routing_table,
 	if (service_from_table(routing_table, service_name, sit)) {
 		handle_endpoints_t& handle_endpoints = sit->second;
 
-		endpoints_set_t::iterator eit = handle_endpoints.find(handle_name);
+		handle_endpoints_t::iterator eit = handle_endpoints.find(handle_name);
 		if (eit != handle_endpoints.end()) {
 			it = eit;
 			return true;
@@ -391,12 +435,9 @@ overseer_t::routing_table_from_responces(const std::map<std::string, cocaine_nod
 
 				// find specific service->handle routing table:
 				// first, find service
-				routing_table_t::iterator rit = routing_table.find(service_name);
-
-				if (rit == routing_table.end()) {
-					log(PLOG_ERROR,
-						"overseer is terribly broken! service %s is missing in routing table",
-						service_name.c_str());
+				routing_table_t::iterator rit;
+				if (!service_from_table(routing_table, service_name, rit)) {
+					continue;
 				}
 
 				// secondly find handle
@@ -410,9 +451,6 @@ overseer_t::routing_table_from_responces(const std::map<std::string, cocaine_nod
 					handle_endpoints[handle_name] = endpoints_set;
 				}
 				else {
-					std::pair<endpoints_set_t::iterator, bool> res;
-					res = hit->second.insert(endpoint);
-					hit->second.erase(res.first);
 					hit->second.insert(endpoint);
 				}
 			}
@@ -473,37 +511,45 @@ overseer_t::parse_responces(const std::map<std::string, std::vector<announce_t> 
 }
 
 void
-overseer_t::read_from_sockets(const std::vector<std::string>& responded_sockets_ids,
-							  std::map<std::string, std::vector<announce_t> >& responces)
-{
-	for (size_t i = 0; i < responded_sockets_ids.size(); ++i) {
-		socket_ptr sock_ptr = m_sockets[responded_sockets_ids[i]];
+overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& responces) {
+	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
+	for (; it != m_sockets.end(); ++it) {
+		std::string service_name = it->first;
+		std::set<inetv4_endpoint_t>& service_endpoints = m_endpoints[service_name];
+		socket_ptr sock_ptr = m_sockets[it->first];
 
-		zmq::message_t reply;
-		std::string enpoint_info_string;
+		if (!sock_ptr) {
+			log(PLOG_ERROR,
+				"overseer is terribly broken! bad socket for service %s, can't read from socket",
+				service_name.c_str());
+			continue;
+		}
 
 		std::vector<announce_t> socket_responces;
+		
+		while (true) {
+			announce_t		announce;
+			zmq::message_t	reply;
 
-		announce_t announce;
+			if (sock_ptr->recv(&reply, ZMQ_NOBLOCK)) {
+				announce.hostname = std::string(static_cast<char*>(reply.data()), reply.size());
+			}
+			else {
+				break;
+			}
 
-		if (sock_ptr->recv(&reply, ZMQ_NOBLOCK)) {
-			announce.hostname = std::string(static_cast<char*>(reply.data()), reply.size());
-		}
-		else {
-			return;
-		}
+			if (sock_ptr->recv(&reply, ZMQ_NOBLOCK)) {
+				announce.info = std::string(static_cast<char*>(reply.data()), reply.size());
+			}
+			else {
+				break;
+			}
 
-		if (sock_ptr->recv(&reply, ZMQ_NOBLOCK)) {
-			announce.info = std::string(static_cast<char*>(reply.data()), reply.size());
+			socket_responces.push_back(announce);
 		}
-		else {
-			return;
-		}
-
-		socket_responces.push_back(announce);
 
 		if (!socket_responces.empty()) {
-			responces[responded_sockets_ids[i]] = socket_responces;
+			responces[service_name] = socket_responces;
 		}
 	}
 }
@@ -593,14 +639,26 @@ overseer_t::kill_sockets() {
 	}
 
 	m_sockets.clear();
+
+	for (size_t i = 0; i < m_watchers.size(); ++i) {
+		m_watchers[i]->stop();
+	}
+
+	m_watchers.clear();
 }
 
 void
 overseer_t::connect_sockets() {
-	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
+	// kill watchers
+	for (size_t i = 0; i < m_watchers.size(); ++i) {
+		m_watchers[i]->stop();
+	}
+	m_watchers.clear();
 
 	// create sockets
+	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
 	for (; it != m_sockets.end(); ++it) {
+
 		std::set<inetv4_endpoint_t>& service_endpoints = m_endpoints[it->first];
 		socket_ptr sock = m_sockets[it->first];
 
@@ -609,6 +667,19 @@ overseer_t::connect_sockets() {
 			for (; sit != service_endpoints.end(); ++sit) {
 				try {
 					sock->connect(sit->as_connection_string().c_str());
+
+					// get socket fd
+					int fd = 0;
+					size_t size = sizeof(fd);
+					sock->getsockopt(ZMQ_FD, &fd, &size);
+
+					// create watcher
+					if (fd) {
+						ev_io_ptr watcher(new ev::io);
+						watcher->set<overseer_t, &overseer_t::request>(this);
+	    				watcher->start(fd, ev::READ);
+	    				m_watchers.push_back(watcher);
+	    			}
 				}
 				catch (const std::exception& ex) {
 					log(PLOG_ERROR,

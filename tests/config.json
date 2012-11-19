@@ -29,7 +29,7 @@
 			"app" : "cocaine_test",
 			"autodiscovery" : {
 				"type" : "FILE",
-				"source" : "tests/hosts"
+				"source" : "../tests/hosts"
 			},
 			"policy" : {
 				"deadline" : 1.0,
