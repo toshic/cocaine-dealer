@@ -115,7 +115,7 @@ private:
 							const std::string& service_name,
 							routing_table_t::iterator& it);
 
-	void check_for_timedout_endpoints();
+	void check_for_timedout_endpoints(ev::timer& timer, int type);
 
 	void reset_routing_table(routing_table_t& routing_table);
 	void fetch_and_process_endpoints(ev::timer& watcher, int type);
@@ -139,6 +139,7 @@ private:
 
 	ev::default_loop		m_event_loop;
 	ev::timer				m_fetcher_timer;
+	ev::timer				m_timeout_timer;
 	std::vector<ev_io_ptr>	m_watchers;
 	boost::mutex			m_mutex;
 	boost::thread			m_thread;

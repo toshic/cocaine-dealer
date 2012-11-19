@@ -82,6 +82,31 @@ overseer_t::run() {
 	m_thread = boost::thread(f);
 }
 
+
+void
+overseer_t::stop() {
+	log(PLOG_DEBUG, "overseer — stopping...");
+
+	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
+		m_endpoints_fetchers[i].reset();
+	}
+
+	m_fetcher_timer.stop();
+	m_timeout_timer.stop();
+
+	for (size_t i = 0; i < m_watchers.size(); ++i) {
+		m_watchers[i]->stop();
+	}
+	m_watchers.clear();
+
+	m_event_loop.unloop(ev::ALL);
+
+	m_stopping = true;
+	m_thread.join();
+
+	log(PLOG_DEBUG, "overseer — stopped.");
+}
+
 void
 overseer_t::reset_routing_table(routing_table_t& routing_table) {
 	routing_table.clear();
@@ -111,29 +136,6 @@ overseer_t::print_all_fetched_endpoints() {
 			std::cout << "\thost: " << its->as_string() << std::endl;
 		}
 	}
-}
-
-void
-overseer_t::stop() {
-	log(PLOG_DEBUG, "overseer — stopping...");
-
-	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
-		m_endpoints_fetchers[i].reset();
-	}
-
-	m_fetcher_timer.stop();
-
-	for (size_t i = 0; i < m_watchers.size(); ++i) {
-		m_watchers[i]->stop();
-	}
-	m_watchers.clear();
-
-	m_event_loop.unloop(ev::ALL);
-
-	m_stopping = true;
-	m_thread.join();
-
-	log(PLOG_DEBUG, "overseer — stopped.");
 }
 
 void
@@ -172,7 +174,6 @@ overseer_t::request(ev::io& watcher, int type) {
 
 	// merge update with routing table, gen create/update handle events
 	update_main_routing_table(routing_table_update);
-	print_routing_table();
 }
 
 void
@@ -186,45 +187,16 @@ overseer_t::main_loop() {
 	m_fetcher_timer.set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
     m_fetcher_timer.start(0, 15);
 
+	m_timeout_timer.set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
+    m_timeout_timer.start(0, 0.5);
+
 	m_event_loop.loop();
 
-	/*
-	std::cout << "ok...\n";
-
-	while (!m_stopping) {
-
-		// gather announced responces
-		std::vector<std::string> responded_sockets_ids = poll_sockets();
-		std::map<std::string, std::vector<announce_t> > responces;
-
-		if (!responded_sockets_ids.empty()) {
-			read_from_sockets(responded_sockets_ids, responces);
-		}
-
-		// parse nodes responses
-		std::map<std::string, cocaine_node_list_t> parsed_responses;
-		parse_responces(responces, parsed_responses);
-
-		// get update
-		routing_table_t routing_table_update;
-		reset_routing_table(routing_table_update);
-		routing_table_from_responces(parsed_responses, routing_table_update);
-
-		// merge update with routing table, gen create/update handle events
-		update_main_routing_table(routing_table_update);
-
-		// check whether there are handles with timed out hosts, gen remove/update handle events
-		check_for_timedout_endpoints();
-
-		print_routing_table();
-	}
-
 	kill_sockets();
-	*/
 }
 
 void
-overseer_t::check_for_timedout_endpoints() {
+overseer_t::check_for_timedout_endpoints(ev::timer& timer, int type) {
 	// service
 	routing_table_t::iterator it = m_routing_table.begin();
 	for (; it != m_routing_table.end(); ++it) {
@@ -270,6 +242,8 @@ overseer_t::check_for_timedout_endpoints() {
 			}
 		}
 	}
+
+	print_routing_table();
 }
 
 bool
