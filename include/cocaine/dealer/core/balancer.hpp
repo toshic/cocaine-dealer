@@ -40,20 +40,17 @@ namespace dealer {
 class balancer_t : private boost::noncopyable, public dealer_object_t {
 public:
 	balancer_t(const std::string& identity,
-			   const std::vector<cocaine_endpoint_t>& endpoints,
+			   const std::set<cocaine_endpoint_t>& endpoints,
 			   const boost::shared_ptr<context_t>& ctx,
 			   bool logging_enabled = true);
 
 	virtual ~balancer_t();
 
-	void connect(const std::vector<cocaine_endpoint_t>& endpoints);
+	void connect(const std::set<cocaine_endpoint_t>& endpoints);
 	void disconnect();
 
 	bool send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& endpoint);
 	bool receive(boost::shared_ptr<response_chunk_t>& response);
-
-	void update_endpoints(const std::vector<cocaine_endpoint_t>& endpoints,
-						  std::vector<cocaine_endpoint_t>& missing_endpoints);
 
 	bool check_for_responses(int poll_timeout) const;
 
@@ -72,7 +69,7 @@ private:
 
 private:
 	boost::shared_ptr<zmq::socket_t>	m_socket;
-	std::vector<cocaine_endpoint_t>		m_endpoints;
+	std::set<cocaine_endpoint_t>		m_endpoints;
 	size_t								m_current_endpoint_index;
 	std::string							m_socket_identity;
 };

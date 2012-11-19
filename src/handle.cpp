@@ -37,12 +37,11 @@ handle_t::handle_t(const handle_info_t& info,
 				   bool logging_enabled) :
 	dealer_object_t(ctx, logging_enabled),
 	m_info(info),
-	//m_endpoints(endpoints),
+	m_endpoints(endpoints),
 	m_is_running(false),
 	m_is_connected(false),
 	m_receiving_control_socket_ok(false)
 {
-	/*
 	log(PLOG_DEBUG, "CREATED HANDLE " + description());
 
 	// create message cache
@@ -62,7 +61,6 @@ handle_t::handle_t(const handle_info_t& info,
 
 	// connect to hosts 
 	connect();
-	*/
 }
 
 handle_t::~handle_t() {
@@ -71,7 +69,6 @@ handle_t::~handle_t() {
 
 void
 handle_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints) {
-	/*
 	if (!m_is_running || endpoints.empty()) {
 		return;
 	}
@@ -87,9 +84,7 @@ handle_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints) {
 	zmq::message_t message(sizeof(int));
 	memcpy((void *)message.data(), &control_message, sizeof(int));
 	m_zmq_control_socket->send(message);
-	*/
 }
-
 
 void
 handle_t::kill() {
@@ -334,18 +329,13 @@ handle_t::dispatch_control_messages(int type, balancer_t& balancer) {
 		case CONTROL_MESSAGE_UPDATE:
 			if (m_is_connected) {
 				std::vector<cocaine_endpoint_t> missing_endpoints;
-				balancer.update_endpoints(m_endpoints, missing_endpoints);
+				balancer.connect(m_endpoints, missing_endpoints);
 
 				if (!missing_endpoints.empty()) {
 					std::for_each(missing_endpoints.begin(), missing_endpoints.end(), resheduler(m_message_cache));
 					//m_message_cache->make_all_messages_new();
 				}
 			}
-			break;
-
-		case CONTROL_MESSAGE_DISCONNECT:
-			balancer.disconnect();
-			m_is_connected = false;
 			break;
 	}
 }

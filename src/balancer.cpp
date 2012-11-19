@@ -30,7 +30,7 @@ namespace cocaine {
 namespace dealer {
 
 balancer_t::balancer_t(const std::string& identity,
-					   const std::vector<cocaine_endpoint_t>& endpoints,
+					   const std::set<cocaine_endpoint_t>& endpoints,
 					   const boost::shared_ptr<context_t>& ctx,
 					   bool logging_enabled) :
 	dealer_object_t(ctx, logging_enabled),
@@ -38,7 +38,6 @@ balancer_t::balancer_t(const std::string& identity,
 	m_current_endpoint_index(0),
 	m_socket_identity(identity)
 {
-	std::sort(m_endpoints.begin(), m_endpoints.end());
 	recreate_socket();
 }
 
@@ -47,8 +46,7 @@ balancer_t::~balancer_t() {
 }
 
 void
-balancer_t::connect(const std::vector<cocaine_endpoint_t>& endpoints) {
-
+balancer_t::connect(const std::set<cocaine_endpoint_t>& endpoints) {
 	if (log_flag_enabled(PLOG_DEBUG)) {
 		log(PLOG_DEBUG, "connect " + m_socket_identity);
 	}
@@ -61,8 +59,10 @@ balancer_t::connect(const std::vector<cocaine_endpoint_t>& endpoints) {
 
 	std::string connection_str;
 	try {
-		for (size_t i = 0; i < endpoints.size(); ++i) {
-			connection_str = endpoints[i].endpoint;
+		std::set<cocaine_endpoint_t>::iterator it = endpoints.begin();
+
+		for (; it != endpoints.end(); ++it) {
+			connection_str = it->endpoint;
 			m_socket->connect(connection_str.c_str());
 		}
 	}
@@ -83,47 +83,6 @@ void balancer_t::disconnect() {
 	}
 
 	m_socket.reset();
-}
-
-void	
-balancer_t::update_endpoints(const std::vector<cocaine_endpoint_t>& endpoints,
-							 std::vector<cocaine_endpoint_t>& missing_endpoints)
-{
-	std::vector<cocaine_endpoint_t> incoming_endpoints = endpoints;
-	std::sort(incoming_endpoints.begin(), incoming_endpoints.end());
-
-	if (m_endpoints.size() == incoming_endpoints.size()) {
-		if (std::equal(m_endpoints.begin(),
-					   m_endpoints.end(),
-					   incoming_endpoints.begin())) {
-			return;
-		}
-	}
-
-	std::vector<cocaine_endpoint_t> new_endpoints;
-	get_endpoints_diff(incoming_endpoints, new_endpoints, missing_endpoints);
-
-	if (!missing_endpoints.empty()) {
-
-		if (log_flag_enabled(PLOG_DEBUG)) {
-			log(PLOG_DEBUG, "missing endpoints on " + m_socket_identity);
-		}
-
-		recreate_socket();
-		connect(endpoints);
-	}
-	else {
-		if (!new_endpoints.empty()) {
-
-			if (log_flag_enabled(PLOG_DEBUG)) {
-				log(PLOG_DEBUG, "new endpoints on " + m_socket_identity);
-			}
-
-			connect(new_endpoints);
-		}
-	}
-
-	m_endpoints = incoming_endpoints;
 }
 
 void
