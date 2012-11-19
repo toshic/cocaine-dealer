@@ -61,7 +61,7 @@ struct announce_t {
 enum e_overseer_event {
 	CREATE_HANDLE = 1,
 	UPDATE_HANDLE,
-	DELETE_HANDLE
+	DESTROY_HANDLE
 };
 
 class overseer_t : private boost::noncopyable, public dealer_object_t {

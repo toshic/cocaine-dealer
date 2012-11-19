@@ -19,6 +19,7 @@
 */
 
 #include <iostream>
+#include <set>
 
 #include <boost/program_options.hpp>
 #include <boost/thread.hpp>
@@ -133,6 +134,35 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 	std::cout << "----------------------------------- shutting dealers down -------------------------------\n";
 }
 
+void process_event(e_overseer_event event_type,
+				   const std::string& service_name,
+				   const std::string& handle_name,
+				   const std::set<cocaine_endpoint_t>& endpoints)
+{
+	std::cout << "event: ";
+
+	switch (event_type) {
+		case CREATE_HANDLE:
+			std::cout << "CREATE HANDLE, ";
+			break;
+
+		case UPDATE_HANDLE:
+			std::cout << "UPDATE HANDLE, ";
+			break;
+
+		case DESTROY_HANDLE:
+			std::cout << "DESTROY HANDLE, ";
+			break;
+	}
+
+	std::cout << service_name << "/" << handle_name << " endpoints: \n";
+
+	std::set<cocaine_endpoint_t>::iterator it = endpoints.begin();
+	for (; it != endpoints.end(); ++it) {
+		std::cout << "\t" << it->as_string() << std::endl;
+	}
+}
+
 int
 main(int argc, char** argv) {
 	boost::shared_ptr<cocaine::dealer::context_t> ctx;
@@ -140,6 +170,7 @@ main(int argc, char** argv) {
 	ctx->create_storage();
 
 	overseer_t overseer(ctx);
+	overseer.set_callback(process_event);
 	overseer.run();
 
 	sleep(10);

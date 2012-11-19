@@ -242,7 +242,7 @@ overseer_t::check_for_timedout_endpoints(ev::timer& timer, int type) {
 			if (m_callback) {
 				if (all_endpoints_are_timed_out) {
 					endpoints_set_t empty_set;
-					m_callback(DELETE_HANDLE, service_name, handle_name, empty_set);
+					m_callback(DESTROY_HANDLE, service_name, handle_name, empty_set);
 				}
 				else if (some_timed_out_endpoints_found) {
 					m_callback(UPDATE_HANDLE, service_name, handle_name, endpoints_set);
@@ -250,8 +250,6 @@ overseer_t::check_for_timedout_endpoints(ev::timer& timer, int type) {
 			}
 		}
 	}
-
-	print_routing_table();
 }
 
 bool
@@ -314,11 +312,14 @@ overseer_t::update_main_routing_table(routing_table_t& routing_table_update) {
 										  main_table_hit))
 			{
 				new_endpoints_set.insert(main_table_hit->second.begin(), main_table_hit->second.end());
-				main_table_hit->second.clear();
-				main_table_hit->second.insert(new_endpoints_set.begin(), new_endpoints_set.end());
 
-				if (m_callback) {
-					m_callback(UPDATE_HANDLE, service_name, handle_name, main_table_hit->second);
+				if (new_endpoints_set != main_table_hit->second) {
+					main_table_hit->second.clear();
+					main_table_hit->second.insert(new_endpoints_set.begin(), new_endpoints_set.end());
+
+					if (m_callback) {
+						m_callback(UPDATE_HANDLE, service_name, handle_name, main_table_hit->second);
+					}
 				}
 			}
 			else { //  — if not - assign new hosts, CREATE HANDLE event with hosts
