@@ -328,8 +328,8 @@ handle_t::dispatch_control_messages(int type, balancer_t& balancer) {
 
 		case CONTROL_MESSAGE_UPDATE:
 			if (m_is_connected) {
-				std::vector<cocaine_endpoint_t> missing_endpoints;
-				balancer.connect(m_endpoints, missing_endpoints);
+				std::set<cocaine_endpoint_t> missing_endpoints;
+				balancer.update_endpoints(m_endpoints, missing_endpoints);
 
 				if (!missing_endpoints.empty()) {
 					std::for_each(missing_endpoints.begin(), missing_endpoints.end(), resheduler(m_message_cache));

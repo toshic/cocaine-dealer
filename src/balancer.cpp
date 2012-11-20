@@ -73,7 +73,15 @@ balancer_t::connect(const std::set<cocaine_endpoint_t>& endpoints) {
 	}
 }
 
-void balancer_t::disconnect() {
+void
+balancer_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints,
+							 std::set<cocaine_endpoint_t>& missing_endpoints)
+{
+
+}
+
+void
+balancer_t::disconnect() {
 	if (!m_socket) {
 		return;
 	}
@@ -90,6 +98,7 @@ balancer_t::get_endpoints_diff(const std::vector<cocaine_endpoint_t>& incoming_e
 							   std::vector<cocaine_endpoint_t>& new_endpoints,
 							   std::vector<cocaine_endpoint_t>& missing_endpoints)
 {
+	/*
 	// assume m_endpoints and incoming_endpoints are sorted
 	for (size_t i = 0; i < incoming_endpoints.size(); ++i) {
 		if (false == std::binary_search(m_endpoints.begin(), m_endpoints.end(), incoming_endpoints[i])) {
@@ -102,6 +111,7 @@ balancer_t::get_endpoints_diff(const std::vector<cocaine_endpoint_t>& incoming_e
 			missing_endpoints.push_back(m_endpoints[i]);
 		}
 	}
+	*/
 }
 
 void
@@ -120,14 +130,19 @@ balancer_t::recreate_socket() {
 
 cocaine_endpoint_t&
 balancer_t::get_next_endpoint() {
+	/*
 	if (m_current_endpoint_index < m_endpoints.size() - 1) {
 		++m_current_endpoint_index;
 	}
 	else {
 		m_current_endpoint_index = 0;	
 	}
-
+	
 	return m_endpoints[m_current_endpoint_index];
+	*/
+
+	static cocaine_endpoint_t e;
+	return e;
 }
 
 bool
