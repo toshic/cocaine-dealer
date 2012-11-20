@@ -165,6 +165,7 @@ void process_event(e_overseer_event event_type,
 
 int
 main(int argc, char** argv) {
+	/*
 	boost::shared_ptr<cocaine::dealer::context_t> ctx;
 	ctx.reset(new cocaine::dealer::context_t("/home/rimz/cocaine-dealer/tests/config.json"));
 	ctx->create_storage();
@@ -175,7 +176,7 @@ main(int argc, char** argv) {
 
 	sleep(300);
 	return EXIT_SUCCESS;
-
+	*/
 	/*
 	zmq::context_t context(1);
 	zmq::socket_t zmq_socket(context, ZMQ_SUB);

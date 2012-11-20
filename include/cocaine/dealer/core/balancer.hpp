@@ -59,10 +59,6 @@ public:
 	static bool is_valid_rpc_code(int rpc_code);
 
 private:
-	void get_endpoints_diff(const std::vector<cocaine_endpoint_t>& updated_endpoints,
-							std::vector<cocaine_endpoint_t>& new_endpoints,
-							std::vector<cocaine_endpoint_t>& missing_endpoints);
-
 	void recreate_socket();
 
 	cocaine_endpoint_t& get_next_endpoint();
@@ -70,6 +66,7 @@ private:
 private:
 	boost::shared_ptr<zmq::socket_t>	m_socket;
 	std::set<cocaine_endpoint_t>		m_endpoints;
+	std::vector<cocaine_endpoint_t>		m_endpoints_vec;
 	size_t								m_current_endpoint_index;
 	std::string							m_socket_identity;
 };

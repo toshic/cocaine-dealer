@@ -40,6 +40,11 @@ balancer_t::balancer_t(const std::string& identity,
 {
 	recreate_socket();
 
+	std::set<cocaine_endpoint_t>::iterator it = m_endpoints.begin();
+	for (; it != m_endpoints.end(); ++it) {
+		m_endpoints_vec.push_back(*it);
+	}
+
 	if (log_flag_enabled(PLOG_DEBUG)) {
 		log(PLOG_DEBUG, "connect " + m_socket_identity);
 	}
@@ -92,27 +97,17 @@ balancer_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints,
 			}
 		}
 	}
-}
 
-void
-balancer_t::get_endpoints_diff(const std::vector<cocaine_endpoint_t>& incoming_endpoints,
-							   std::vector<cocaine_endpoint_t>& new_endpoints,
-							   std::vector<cocaine_endpoint_t>& missing_endpoints)
-{
-	/*
-	// assume m_endpoints and incoming_endpoints are sorted
-	for (size_t i = 0; i < incoming_endpoints.size(); ++i) {
-		if (false == std::binary_search(m_endpoints.begin(), m_endpoints.end(), incoming_endpoints[i])) {
-			new_endpoints.push_back(incoming_endpoints[i]);
-		}
+	m_endpoints.clear();
+	m_endpoints.insert(endpoints.begin(), endpoints.end());
+
+	m_endpoints_vec.clear();
+	it = m_endpoints.begin();
+	for (; it != m_endpoints.end(); ++it) {
+		m_endpoints_vec.push_back(*it);
 	}
 
-	for (size_t i = 0; i < m_endpoints.size(); ++i) {
-		if (false == std::binary_search(incoming_endpoints.begin(), incoming_endpoints.end(), m_endpoints[i])) {
-			missing_endpoints.push_back(m_endpoints[i]);
-		}
-	}
-	*/
+	m_current_endpoint_index = 0;
 }
 
 void
@@ -131,19 +126,42 @@ balancer_t::recreate_socket() {
 
 cocaine_endpoint_t&
 balancer_t::get_next_endpoint() {
-	/*
-	if (m_current_endpoint_index < m_endpoints.size() - 1) {
+	// increment iter
+	if (m_current_endpoint_index < m_endpoints_vec.size() - 1) {
 		++m_current_endpoint_index;
 	}
 	else {
-		m_current_endpoint_index = 0;	
+		m_current_endpoint_index = 0;
 	}
-	
-	return m_endpoints[m_current_endpoint_index];
-	*/
 
-	static cocaine_endpoint_t e;
-	return e;
+	// make sure endpoint is avail
+	if (m_endpoints_vec[m_current_endpoint_index].weight > 0) {
+		return m_endpoints_vec[m_current_endpoint_index];
+	}
+
+	// if not — find the one that is
+	bool found = false;
+	for (size_t i = m_current_endpoint_index; i < m_endpoints_vec.size(); ++i) {
+		if (m_endpoints_vec[i].weight > 0) {
+			m_current_endpoint_index = i;
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		for (size_t i = 0; i < m_current_endpoint_index; ++i) {
+			if (m_endpoints_vec[i].weight > 0) {
+				m_current_endpoint_index = i;
+				found = true;
+				break;
+			}
+		}
+	}
+
+	assert(found);
+	
+	return m_endpoints_vec[m_current_endpoint_index];
 }
 
 bool
