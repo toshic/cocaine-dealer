@@ -39,19 +39,12 @@ balancer_t::balancer_t(const std::string& identity,
 	m_socket_identity(identity)
 {
 	recreate_socket();
-}
 
-balancer_t::~balancer_t() {
-	disconnect();
-}
-
-void
-balancer_t::connect(const std::set<cocaine_endpoint_t>& endpoints) {
 	if (log_flag_enabled(PLOG_DEBUG)) {
 		log(PLOG_DEBUG, "connect " + m_socket_identity);
 	}
 
-	if (endpoints.empty()) {
+	if (m_endpoints.empty()) {
 		return;
 	}
 
@@ -59,9 +52,9 @@ balancer_t::connect(const std::set<cocaine_endpoint_t>& endpoints) {
 
 	std::string connection_str;
 	try {
-		std::set<cocaine_endpoint_t>::iterator it = endpoints.begin();
+		std::set<cocaine_endpoint_t>::iterator it = m_endpoints.begin();
 
-		for (; it != endpoints.end(); ++it) {
+		for (; it != m_endpoints.end(); ++it) {
 			connection_str = it->endpoint;
 			m_socket->connect(connection_str.c_str());
 		}
@@ -73,15 +66,7 @@ balancer_t::connect(const std::set<cocaine_endpoint_t>& endpoints) {
 	}
 }
 
-void
-balancer_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints,
-							 std::set<cocaine_endpoint_t>& missing_endpoints)
-{
-
-}
-
-void
-balancer_t::disconnect() {
+balancer_t::~balancer_t() {
 	if (!m_socket) {
 		return;
 	}
@@ -91,6 +76,22 @@ balancer_t::disconnect() {
 	}
 
 	m_socket.reset();
+}
+
+void
+balancer_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints,
+							 std::set<cocaine_endpoint_t>& missing_endpoints)
+{
+	std::set<cocaine_endpoint_t>::iterator it = m_endpoints.begin();
+
+	for (; it != m_endpoints.end(); ++it) {
+		std::set<cocaine_endpoint_t>::iterator new_it = endpoints.find(*it);
+		if (new_it != endpoints.end()) {
+			if (it->weight > 0 && new_it->weight == 0) {
+				missing_endpoints.insert(*new_it);
+			}
+		}
+	}
 }
 
 void

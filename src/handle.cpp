@@ -58,9 +58,6 @@ handle_t::handle_t(const handle_info_t& info,
 	// run message dispatch thread
 	m_is_running = true;
 	m_thread = boost::thread(&handle_t::dispatch_messages, this);
-
-	// connect to hosts 
-	connect();
 }
 
 handle_t::~handle_t() {
@@ -108,6 +105,7 @@ handle_t::dispatch_messages() {
 	balancer_uuid.generate();
 	std::string balancer_ident = m_info.as_string() + "." + balancer_uuid.as_human_readable_string();
 	balancer_t balancer(balancer_ident, m_endpoints, context());
+	m_is_connected = true;
 
 	socket_ptr_t control_socket;
 	establish_control_conection(control_socket);
@@ -319,13 +317,6 @@ handle_t::dispatch_control_messages(int type, balancer_t& balancer) {
 	}
 
 	switch (type) {
-		case CONTROL_MESSAGE_CONNECT:
-			if (!m_is_connected) {
-				balancer.connect(m_endpoints);
-				m_is_connected = true;
-			}
-			break;
-
 		case CONTROL_MESSAGE_UPDATE:
 			if (m_is_connected) {
 				std::set<cocaine_endpoint_t> missing_endpoints;

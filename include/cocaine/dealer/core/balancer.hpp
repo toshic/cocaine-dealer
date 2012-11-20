@@ -46,12 +46,8 @@ public:
 
 	virtual ~balancer_t();
 
-	void connect(const std::set<cocaine_endpoint_t>& endpoints);
-
 	void update_endpoints(const std::set<cocaine_endpoint_t>& endpoints,
 						  std::set<cocaine_endpoint_t>& missing_endpoints);
-
-	void disconnect();
 
 	bool send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& endpoint);
 	bool receive(boost::shared_ptr<response_chunk_t>& response);
