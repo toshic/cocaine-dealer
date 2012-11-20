@@ -51,7 +51,6 @@ progress_timer::operator = (const progress_timer& rhs) {
 
 void
 progress_timer::reset() {
-    std::cout << "progress_timer reset\n";
 	begin_.init_from_current_time();
 }
 

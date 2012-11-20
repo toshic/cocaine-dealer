@@ -2,7 +2,7 @@
 	"version" : 1,
 	
 	"use_persistense" : false,
-	"endpoint_timeout" : 1,
+	"endpoint_timeout" : 2,
 
 	"logger" :
 	{
@@ -32,9 +32,9 @@
 				"source" : "../tests/hosts"
 			},
 			"policy" : {
-				"deadline" : 1.0,
-				"max_retries" : 3,
-				"ack_timeout" : 0.5
+				"deadline" : 2.0,
+				"max_retries" : -1,
+				"ack_timeout" : 1.5
 			}
 		}
 	}

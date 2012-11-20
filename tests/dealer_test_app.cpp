@@ -79,7 +79,7 @@ void worker(dealer_t* d,
 }
 
 void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messages_count) {
-	std::string config_path = "tests/config.json";
+	std::string config_path = "../tests/config.json";
 
 	typedef boost::ptr_vector<boost::thread> thread_pool;
 	typedef boost::ptr_vector<thread_pool> thread_pools_list;
