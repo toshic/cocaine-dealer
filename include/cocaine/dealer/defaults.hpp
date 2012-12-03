@@ -42,7 +42,7 @@ struct defaults_t {
 	// common
 	static const int				protocol_version	= 1;
 	static const unsigned short		control_port		= 5000;
-	static const float				endpoint_timeout	= 2.0;		  // seconds
+	static const float				endpoint_timeout;
 	static const size_t 			max_message_size	= 2147483648; // 2 gb (bytes)
 
 	// logger
