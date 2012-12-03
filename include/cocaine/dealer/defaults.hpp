@@ -40,10 +40,10 @@ enum e_message_cache_type {
 
 struct defaults_t {
 	// common
-	static const int		protocol_version			= 1;
-	static const unsigned short	control_port			= 5000;
-	static const unsigned long long	heartbeat_interval	= 2;	// seconds
-	static const size_t 		max_message_size		= 2147483648; // 2 gb (bytes)
+	static const int				protocol_version	= 1;
+	static const unsigned short		control_port		= 5000;
+	static const float				endpoint_timeout	= 2.0;		  // seconds
+	static const size_t 			max_message_size	= 2147483648; // 2 gb (bytes)
 
 	// logger
 	static const enum e_logger_type	logger_type = STDOUT_LOGGER;

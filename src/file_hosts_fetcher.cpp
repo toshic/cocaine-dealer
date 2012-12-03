@@ -91,7 +91,6 @@ file_hosts_fetcher_t::get_hosts(inetv4_endpoints_t& endpoints, const std::string
 	}
 
 	file.close();
-	
 	parse_hosts_data(buffer, endpoints);
 
 	return true;

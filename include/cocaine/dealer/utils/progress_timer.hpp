@@ -30,8 +30,12 @@ class progress_timer {
 
 public:
 	progress_timer();
+    progress_timer(const progress_timer& rhs);
 	virtual ~progress_timer();
+    
+    progress_timer& operator = (const progress_timer& rhs);
 
+    time_value started_at() const;
 	void reset();
 	time_value elapsed();
 

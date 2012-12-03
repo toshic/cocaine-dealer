@@ -75,7 +75,9 @@ public:
 
 	virtual ~service_t();
 
-	void refresh_handles(const handles_endpoints_t& handles_endpoints);
+	void create_handle(const handle_info_t& handle_info, const std::set<cocaine_endpoint_t>& endpoints);
+	void update_handle(const handle_info_t& handle_info, const std::set<cocaine_endpoint_t>& endpoints);
+	void destroy_handle(const handle_info_t& handle_info);
 
 	boost::shared_ptr<response_t> send_message(cached_message_prt_t message);
 	bool is_dead();
@@ -83,14 +85,7 @@ public:
 	service_info_t info() const;
 
 private:
-	void create_new_handles(const handles_info_list_t& handles_info,
-							const handles_endpoints_t& handles_endpoints);
-
-	void create_handle(const handle_info_t& handle_info,
-					   const handles_endpoints_t& handles_endpoints);
-
 	void remove_outstanding_handles(const handles_info_list_t& handles_info);
-	void update_existing_handles(const handles_endpoints_t& handles_endpoints);
 
 	void enqueue_responce(boost::shared_ptr<response_chunk_t>& response);
 
@@ -107,8 +102,6 @@ private:
 
 	void get_new_handles(const handles_endpoints_t& handles_endpoints,
 						 handles_info_list_t& new_handles);
-
-	void destroy_handle(const std::string& handle_name);
 
 	messages_deque_ptr_t get_and_remove_unhandled_queue(const std::string& handle_name);
 

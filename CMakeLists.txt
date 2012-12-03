@@ -21,6 +21,7 @@ FIND_PACKAGE(CURL REQUIRED)
 
 INCLUDE(cmake/locate_library.cmake)
 
+LOCATE_LIBRARY(LIBEV "ev++.h" "ev" "libev")
 LOCATE_LIBRARY(LIBEBLOB "eblob/eblob.hpp" "eblob")
 LOCATE_LIBRARY(LIBMSGPACK "msgpack.hpp" "msgpack")
 LOCATE_LIBRARY(LIBZMQ "zmq.hpp" "zmq")
@@ -38,12 +39,14 @@ INCLUDE_DIRECTORIES(
     ${Boost_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
     ${LIBMSGPACK_INCLUDE_DIRS}
-    ${LIBZMQ_INCLUDE_DIRS})
+    ${LIBZMQ_INCLUDE_DIRS}
+    ${LIBEV_INCLUDE_DIRS})
 
 LINK_DIRECTORIES(
     ${Boost_LIBRARY_DIRS}
     ${LIBMSGPACK_LIBRARY_DIRS}
-    ${LIBZMQ_LIBRARY_DIRS})
+    ${LIBZMQ_LIBRARY_DIRS}
+    ${LIBEV_LIBRARY_DIRS})
 
 INCLUDE_DIRECTORIES(BEFORE ${PROJECT_SOURCE_DIR}/foreign/jsoncpp-0.6.0-rc2/include)
 INCLUDE_DIRECTORIES(BEFORE ${PROJECT_SOURCE_DIR}/include)
@@ -73,6 +76,7 @@ TARGET_LINK_LIBRARIES(cocaine-dealer
     zmq
     eblob_cpp
     eblob
+    ev
     ${Boost_SYSTEM_LIBRARY}
     ${LIBUUID_LIBRARY})
 
@@ -85,7 +89,8 @@ ADD_EXECUTABLE(dealer_test_app
 TARGET_LINK_LIBRARIES(dealer_test_app
     boost_program_options-mt
     cocaine-dealer
-    zmq)
+    zmq
+    ev)
 
 ADD_EXECUTABLE(overseer
     utils/main.cpp
@@ -94,6 +99,7 @@ ADD_EXECUTABLE(overseer
     src/cocaine_node_info.cpp
     src/cocaine_node_app_info.cpp
     src/cocaine_node_task_info.cpp
+    src/inetv4_endpoint.cpp
     src/progress_timer.cpp
     src/time_value.cpp
     src/networking.cpp
@@ -103,7 +109,8 @@ TARGET_LINK_LIBRARIES(overseer
     boost_program_options-mt
     json
     zmq
-    msgpack)
+    msgpack
+    ev)
 
 INSTALL(
     TARGETS

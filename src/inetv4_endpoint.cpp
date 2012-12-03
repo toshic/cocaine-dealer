@@ -18,58 +18,13 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-#include <cstddef>
-#include <iostream>
-
-#include "cocaine/dealer/utils/progress_timer.hpp"
+#include "cocaine/dealer/core/inetv4_endpoint.hpp"
 
 namespace cocaine {
 namespace dealer {
 
-progress_timer::progress_timer() {
-    begin_.init_from_current_time();
-}
+std::map<enum transport_type, std::string> inetv4_endpoint_t::transport_literals;
+std::map<std::string, enum transport_type> inetv4_endpoint_t::transport_back_literals;
 
-progress_timer::~progress_timer() {
-
-}
-
-progress_timer::progress_timer(const progress_timer& rhs) {
-    *this = rhs;
-}
-
-progress_timer&
-progress_timer::operator = (const progress_timer& rhs) {
-    if (this == &rhs) {
-        return *this;
-    }
-
-    begin_ = rhs.begin_;
-
-    return *this;
-}
-
-void
-progress_timer::reset() {
-	begin_.init_from_current_time();
-}
-
-time_value
-progress_timer::elapsed() {
-	time_value curr_time = time_value::get_current_time();
-
-	if (begin_ > curr_time) {
-		return time_value();
-	}
-
-	time_value retval(curr_time.distance(begin_));
-	return retval;
-}
-
-time_value
-progress_timer::started_at() const {
-    return begin_;
-}
-	
 } // namespace dealer
 } // namespace cocaine

@@ -19,6 +19,7 @@
 */
 
 #include <iostream>
+#include <set>
 
 #include <boost/program_options.hpp>
 #include <boost/thread.hpp>
@@ -32,6 +33,8 @@
 #include "cocaine/dealer/utils/refresher.hpp"
 #include "cocaine/dealer/utils/networking.hpp"
 #include "cocaine/dealer/utils/math.hpp"
+
+#include "cocaine/dealer/heartbeats/overseer.hpp"
 
 #include <eblob/eblob.hpp>
 
@@ -76,7 +79,7 @@ void worker(dealer_t* d,
 }
 
 void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messages_count) {
-	std::string config_path = "tests/config.json";
+	std::string config_path = "../tests/config.json";
 
 	typedef boost::ptr_vector<boost::thread> thread_pool;
 	typedef boost::ptr_vector<thread_pool> thread_pools_list;
@@ -131,8 +134,49 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 	std::cout << "----------------------------------- shutting dealers down -------------------------------\n";
 }
 
+void process_event(e_overseer_event event_type,
+				   const std::string& service_name,
+				   const std::string& handle_name,
+				   const std::set<cocaine_endpoint_t>& endpoints)
+{
+	std::cout << "event: ";
+
+	switch (event_type) {
+		case CREATE_HANDLE:
+			std::cout << "CREATE HANDLE, ";
+			break;
+
+		case UPDATE_HANDLE:
+			std::cout << "UPDATE HANDLE, ";
+			break;
+
+		case DESTROY_HANDLE:
+			std::cout << "DESTROY HANDLE, ";
+			break;
+	}
+
+	std::cout << service_name << "/" << handle_name << " endpoints: \n";
+
+	std::set<cocaine_endpoint_t>::iterator it = endpoints.begin();
+	for (; it != endpoints.end(); ++it) {
+		std::cout << "\t" << it->as_string() << std::endl;
+	}
+}
+
 int
 main(int argc, char** argv) {
+	/*
+	boost::shared_ptr<cocaine::dealer::context_t> ctx;
+	ctx.reset(new cocaine::dealer::context_t("/home/rimz/cocaine-dealer/tests/config.json"));
+	ctx->create_storage();
+
+	overseer_t overseer(ctx);
+	overseer.set_callback(process_event);
+	overseer.run();
+
+	sleep(300);
+	return EXIT_SUCCESS;
+	*/
 	/*
 	zmq::context_t context(1);
 	zmq::socket_t zmq_socket(context, ZMQ_SUB);
@@ -147,8 +191,9 @@ main(int argc, char** argv) {
 	zmq_socket.setsockopt(ZMQ_SUBSCRIBE, subscription_filter.c_str(), subscription_filter.length());
 
 	zmq_socket.connect("epgm://239.0.0.1:5555");
+	zmq_socket.connect("tcp://elisto02f.dev.yandex.net:5554");
 
-		// create polling structure
+	// create polling structure
 	zmq_pollitem_t poll_items[1];
 	poll_items[0].socket = zmq_socket;
 	poll_items[0].fd = 0;
@@ -180,9 +225,11 @@ main(int argc, char** argv) {
 
 		while (zmq_socket.recv(&reply)) {
 			response_string = std::string(static_cast<char*>(reply.data()), reply.size());
-
-			std::cout << "received something!\n";
-			std::cout << "\"" << response_string << "\"" << std::endl;
+			
+			if (!response_string.empty()) {
+				std::cout << "received something!\n";
+				std::cout << "\"" << response_string << "\"" << std::endl;
+			}
 		}
 	}
 	*/

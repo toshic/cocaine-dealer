@@ -38,7 +38,7 @@
 #include "cocaine/dealer/core/context.hpp"
 #include "cocaine/dealer/core/service.hpp"
 #include "cocaine/dealer/core/dealer_object.hpp"
-#include "cocaine/dealer/heartbeats/heartbeats_collector.hpp"
+#include "cocaine/dealer/heartbeats/overseer.hpp"
 
 namespace cocaine {
 namespace dealer {
@@ -105,8 +105,10 @@ private:
 	void connect();
 	void disconnect();
 
-	void service_hosts_pinged_callback(const service_info_t& service_info,
-									   const handles_endpoints_t& endpoints_for_handles);
+	void process_overseer_event(e_overseer_event event_type,
+								const std::string& service_name,
+								const std::string& handle_name,
+								const std::set<cocaine_endpoint_t>& endpoints);
 
 	// restoring messages from storage cache
 	void storage_iteration_callback(const std::string& key, void* data, uint64_t size, int column);
@@ -123,8 +125,7 @@ private:
 	// dealer service name mapped to service
 	services_map_t m_services;
 
-	// heartsbeat collector
-	std::auto_ptr<heartbeats_collector_t> m_heartbeats_collector;
+	std::auto_ptr<overseer_t> m_overseer;
 
 	// synchronization
 	boost::mutex m_mutex;

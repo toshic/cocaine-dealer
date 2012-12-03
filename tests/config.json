@@ -2,6 +2,7 @@
 	"version" : 1,
 	
 	"use_persistense" : false,
+	"endpoint_timeout" : 2,
 
 	"logger" :
 	{
@@ -28,11 +29,12 @@
 			"app" : "cocaine_test",
 			"autodiscovery" : {
 				"type" : "FILE",
-				"source" : "tests/hosts"
+				"source" : "../tests/hosts"
 			},
 			"policy" : {
-				"deadline" : 10.0,
-				"max_retries" : -1
+				"deadline" : 2.0,
+				"max_retries" : -1,
+				"ack_timeout" : 1.5
 			}
 		}
 	}

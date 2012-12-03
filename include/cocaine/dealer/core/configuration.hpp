@@ -57,7 +57,8 @@ public:
 	const std::string& config_path() const;
 	unsigned int config_version() const;
 	enum e_message_cache_type message_cache_type() const;
-	
+	float endpoint_timeout() const;
+
 	enum e_logger_type logger_type() const;
 	unsigned int logger_flags() const;
 	const std::string& logger_file_path() const;
@@ -109,8 +110,8 @@ private:
 	int			m_eblob_defrag_timeout;
 	
 	// statistics
-	bool		m_statistics_enabled;
-	bool		m_remote_statistics_enabled;
+	bool			m_statistics_enabled;
+	bool			m_remote_statistics_enabled;
 	boost::uint16_t	m_remote_statistics_port;
 
 	// services
@@ -118,6 +119,9 @@ private:
 
 	// synchronization
 	boost::mutex m_mutex;
+
+	// endpoint announce timeout
+	float m_endpoint_timeout;
 };
 
 } // namespace dealer

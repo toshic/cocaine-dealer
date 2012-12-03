@@ -45,6 +45,7 @@ std::ostream& operator << (std::ostream& out, const cocaine_node_task_info_t& in
 	out << std::setw(20) << "" << std::setw(10);
 	out << "route: " << info.route << std::endl;
 
+	/*
 	out << std::fixed << std::setprecision(9);
 
 	out << std::setw(20) << "" << std::setw(24);
@@ -58,7 +59,8 @@ std::ostream& operator << (std::ostream& out, const cocaine_node_task_info_t& in
 
 	out << std::setw(20) << "" << std::setw(24);
 	out << "time spent on slaves: " << info.time_spent_on_slaves << std::endl;
-
+	*/
+	
 	out << std::setw(old_width) << std::setfill(old_char);
 
 	return out;

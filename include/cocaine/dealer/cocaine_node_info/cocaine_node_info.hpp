@@ -63,7 +63,7 @@ struct cocaine_node_info_t {
 	applications	apps;
 	unsigned int	pending_jobs;
 	unsigned int	processed_jobs;
-	std::string		route;
+	std::string		hostname;
 	double			uptime;
 	unsigned int	ip_address;
 	unsigned short	port;

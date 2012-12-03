@@ -52,8 +52,8 @@ std::ostream& operator << (std::ostream& out, const cocaine_node_info_t& node_in
 	out << std::setw(12) << "jobs:";
 	out << std::setw(50) << pending.str() << std::endl;
 
-	out << std::setw(12) << "route:";
-	out << std::setw(50) << node_info.route << std::endl;
+	out << std::setw(12) << "hostname:";
+	out << std::setw(50) << node_info.hostname << std::endl;
 
 	out << std::setw(12) << "uptime:";
 	out << std::setw(50) << std::fixed << std::setprecision(11) << node_info.uptime << std::endl;

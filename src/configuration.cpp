@@ -44,7 +44,8 @@ configuration_t::configuration_t() :
 	m_eblob_defrag_timeout(defaults_t::eblob_defrag_timeout),
 	m_statistics_enabled(false),
 	m_remote_statistics_enabled(false),
-	m_remote_statistics_port(defaults_t::statistics_port)
+	m_remote_statistics_port(defaults_t::statistics_port),
+	m_endpoint_timeout(defaults_t::endpoint_timeout)
 {
 	
 }
@@ -61,7 +62,8 @@ configuration_t::configuration_t(const std::string& path) :
 	m_eblob_defrag_timeout(defaults_t::eblob_defrag_timeout),
 	m_statistics_enabled(false),
 	m_remote_statistics_enabled(false),
-	m_remote_statistics_port(defaults_t::statistics_port)
+	m_remote_statistics_port(defaults_t::statistics_port),
+	m_endpoint_timeout(defaults_t::endpoint_timeout)
 {
 	load(path);
 }
@@ -355,6 +357,11 @@ configuration_t::parse_basic_settings(const Json::Value& config_value) {
 	else {
 		m_message_cache_type = RAM_ONLY;
 	}
+
+	m_endpoint_timeout = config_value.get("endpoint_timeout", defaults_t::endpoint_timeout).asFloat();
+	if (m_endpoint_timeout < 1.0) {
+		m_endpoint_timeout = 1.0;
+	}
 }
 
 const std::string&
@@ -430,6 +437,11 @@ configuration_t::is_remote_statistics_enabled() const {
 boost::uint16_t
 configuration_t::remote_statistics_port() const {
 	return m_remote_statistics_port;
+}
+
+float
+configuration_t::endpoint_timeout() const {
+	return m_endpoint_timeout;
 }
 
 const std::map<std::string, service_info_t>&

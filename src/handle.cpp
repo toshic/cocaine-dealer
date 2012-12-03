@@ -32,7 +32,7 @@ namespace cocaine {
 namespace dealer {
 
 handle_t::handle_t(const handle_info_t& info,
-				   const endpoints_list_t& endpoints,
+				   const std::set<cocaine_endpoint_t>& endpoints,
 				   const boost::shared_ptr<context_t>& ctx,
 				   bool logging_enabled) :
 	dealer_object_t(ctx, logging_enabled),
@@ -58,13 +58,29 @@ handle_t::handle_t(const handle_info_t& info,
 	// run message dispatch thread
 	m_is_running = true;
 	m_thread = boost::thread(&handle_t::dispatch_messages, this);
-
-	// connect to hosts 
-	connect();
 }
 
 handle_t::~handle_t() {
 	kill();
+}
+
+void
+handle_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints) {
+	if (!m_is_running || endpoints.empty()) {
+		return;
+	}
+
+	boost::mutex::scoped_lock lock(m_mutex);
+	m_endpoints = endpoints;
+	lock.unlock();
+
+	log(PLOG_DEBUG, "UPDATE HANDLE " + description());
+
+	// connect to hosts
+	int control_message = CONTROL_MESSAGE_UPDATE;
+	zmq::message_t message(sizeof(int));
+	memcpy((void *)message.data(), &control_message, sizeof(int));
+	m_zmq_control_socket->send(message);
 }
 
 void
@@ -89,6 +105,7 @@ handle_t::dispatch_messages() {
 	balancer_uuid.generate();
 	std::string balancer_ident = m_info.as_string() + "." + balancer_uuid.as_human_readable_string();
 	balancer_t balancer(balancer_ident, m_endpoints, context());
+	m_is_connected = true;
 
 	socket_ptr_t control_socket;
 	establish_control_conection(control_socket);
@@ -122,7 +139,7 @@ handle_t::dispatch_messages() {
 		if (m_is_running && m_is_connected) {
 			for (int i = 0; i < 100; ++i) { // batching
 				if (m_message_cache->new_messages_count() == 0) {
-					break;	
+					break;
 				}
 
 				dispatch_next_available_message(balancer);
@@ -300,16 +317,9 @@ handle_t::dispatch_control_messages(int type, balancer_t& balancer) {
 	}
 
 	switch (type) {
-		case CONTROL_MESSAGE_CONNECT:
-			if (!m_is_connected) {
-				balancer.connect(m_endpoints);
-				m_is_connected = true;
-			}
-			break;
-
 		case CONTROL_MESSAGE_UPDATE:
 			if (m_is_connected) {
-				std::vector<cocaine_endpoint_t> missing_endpoints;
+				std::set<cocaine_endpoint_t> missing_endpoints;
 				balancer.update_endpoints(m_endpoints, missing_endpoints);
 
 				if (!missing_endpoints.empty()) {
@@ -317,11 +327,6 @@ handle_t::dispatch_control_messages(int type, balancer_t& balancer) {
 					//m_message_cache->make_all_messages_new();
 				}
 			}
-			break;
-
-		case CONTROL_MESSAGE_DISCONNECT:
-			balancer.disconnect();
-			m_is_connected = false;
 			break;
 	}
 }
@@ -396,7 +401,7 @@ handle_t::process_deadlined_messages() {
 			response->uuid = expired_messages.at(i)->uuid();
 			response->rpc_code = SERVER_RPC_MESSAGE_ERROR;
 			response->error_code = deadline_error;
-			response->error_message = "message expired in service's handle";
+			response->error_message = "message expired in handle";
 			enqueue_response(response);
 
 			remove_from_persistent_storage(response->uuid,
@@ -546,25 +551,6 @@ handle_t::connect() {
 
 	// connect to hosts
 	int control_message = CONTROL_MESSAGE_CONNECT;
-	zmq::message_t message(sizeof(int));
-	memcpy((void *)message.data(), &control_message, sizeof(int));
-	m_zmq_control_socket->send(message);
-}
-
-void
-handle_t::update_endpoints(const std::vector<cocaine_endpoint_t>& endpoints) {
-	if (!m_is_running || endpoints.empty()) {
-		return;
-	}
-
-	boost::mutex::scoped_lock lock(m_mutex);
-	m_endpoints = endpoints;
-	lock.unlock();
-
-	log(PLOG_DEBUG, "UPDATE HANDLE " + description());
-
-	// connect to hosts
-	int control_message = CONTROL_MESSAGE_UPDATE;
 	zmq::message_t message(sizeof(int));
 	memcpy((void *)message.data(), &control_message, sizeof(int));
 	m_zmq_control_socket->send(message);

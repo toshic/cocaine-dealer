@@ -23,6 +23,10 @@
 
 #include <string>
 
+#include <boost/lexical_cast.hpp>
+
+#include "cocaine/dealer/utils/progress_timer.hpp"
+
 namespace cocaine {
 namespace dealer {
 
@@ -31,20 +35,25 @@ struct cocaine_endpoint_t {
 public:
 	cocaine_endpoint_t() {}
 
-	cocaine_endpoint_t(const std::string& endpoint_, const std::string& route_) :
+	cocaine_endpoint_t(const std::string& endpoint_, const std::string& route_, int weight_ = 0) :
 		endpoint(endpoint_),
-		route(route_) {}
+		route(route_),
+		weight(weight_) {}
 
 	~cocaine_endpoint_t() {}
 
 	cocaine_endpoint_t(const cocaine_endpoint_t& rhs) :
 		endpoint(rhs.endpoint),
-		route(rhs.route) {}
+		route(rhs.route),
+		weight(rhs.weight),
+		announce_timer(rhs.announce_timer) {}
 
 	cocaine_endpoint_t& operator = (const cocaine_endpoint_t& rhs) {
 		if (this != &rhs) {
 			endpoint = rhs.endpoint;
 			route = rhs.route;
+			weight = rhs.weight;
+			announce_timer = rhs.announce_timer;
 		}
 
 		return *this;
@@ -64,11 +73,19 @@ public:
 	}
 
 	std::string as_string() const {
-		return "endpoint: " + endpoint + ", route: " + route;
+		std::string str;
+		str += "endpoint: " + endpoint + ", ";
+		str += "route: " + route + ", ";
+		str += "weight: " + boost::lexical_cast<std::string>(weight) + ", ";
+		str += "announce: " + announce_timer.started_at().as_string();
+
+		return str;
 	}
 
-	std::string endpoint;
-	std::string route;
+	std::string		endpoint;
+	std::string		route;
+	int				weight;
+	progress_timer	announce_timer;
 };
 
 } // namespace dealer
