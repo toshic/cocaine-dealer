@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.8) lucid; urgency=low
+
+  * fixes for --pedantic + switch to c++0x
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Mon, 3 Dec 2012 20:17:13 +0400
+
 cocaine-dealer (0.9.7) lucid; urgency=low
 
   * version increment
