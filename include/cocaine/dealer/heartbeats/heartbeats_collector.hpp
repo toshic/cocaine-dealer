@@ -90,7 +90,7 @@ private:
 	std::set<inetv4_endpoint_t> m_all_endpoints;
 	std::map<inetv4_endpoint_t, cocaine_node_info_t> m_endpoints_metadata;
 
-	std::auto_ptr<refresher> m_refresher;
+	std::unique_ptr<refresher> m_refresher;
 	callback_t m_callback;
 
 	// synchronization

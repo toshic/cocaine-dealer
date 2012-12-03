@@ -188,7 +188,9 @@ time_value::distance(const time_value& rhs) const {
 		temp_diff.tv_sec -= 1;
 	}
 
-	long long distance = 1000000LL * temp_diff.tv_sec + temp_diff.tv_usec;
+	long long distance = 1000000;
+	distance *= temp_diff.tv_sec;
+	distance += temp_diff.tv_usec;
 	return fabs(distance / 1000000.0);
 }
 

@@ -23,7 +23,10 @@
 namespace cocaine {
 namespace dealer {
 
-const std::string defaults_t::eblob_path = "/tmp/pmq_eblob";
+const std::string defaults_t::eblob_path		= "/tmp/pmq_eblob";
+const float defaults_t::policy_ack_timeout		= 0.05; // seconds
+const float defaults_t::policy_chunk_timeout	= 0.0;  // seconds
+const float defaults_t::policy_message_deadline	= 0.0;  // seconds
 
 } // namespace dealer
 } // namespace cocaine

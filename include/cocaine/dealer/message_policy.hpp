@@ -121,7 +121,7 @@ struct message_policy_t {
                    timeout,
                    ack_timeout,
                    deadline,
-                   max_retries);
+                   max_retries)
 };
 
 } // namespace dealer

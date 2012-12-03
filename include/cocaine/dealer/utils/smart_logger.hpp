@@ -150,7 +150,7 @@ private:
 
 		time_t rawtime;
 		struct tm* timeinfo;
-		unsigned int buflen = 80;
+		const unsigned int buflen = 80;
 		char buffer[buflen];
 
 		memset(buffer, 0, sizeof(buffer));

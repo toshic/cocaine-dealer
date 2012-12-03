@@ -64,7 +64,7 @@ std::ostream& operator << (std::ostream& out, const cocaine_node_info_t& node_in
 	out << std::setw(old_width) << std::setfill(old_char);
 
 	return out;
-};
+}
 
 } // namespace dealer
 } // namespace cocaine

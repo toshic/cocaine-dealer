@@ -3,6 +3,7 @@ PROJECT(Dealer)
 
 SET(DEALER_VERSION 0.9)
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+SET(CMAKE_CXX_FLAGS "-std=c++0x -pedantic")
 
 MESSAGE("-- prefix='${CMAKE_INSTALL_PREFIX}'")
 
@@ -95,7 +96,8 @@ ADD_EXECUTABLE(overseer
     src/cocaine_node_task_info.cpp
     src/progress_timer.cpp
     src/time_value.cpp
-    src/networking.cpp)
+    src/networking.cpp
+    src/defaults.cpp)
 
 TARGET_LINK_LIBRARIES(overseer
     boost_program_options-mt

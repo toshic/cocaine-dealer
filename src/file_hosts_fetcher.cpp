@@ -80,7 +80,7 @@ file_hosts_fetcher_t::get_hosts(inetv4_endpoints_t& endpoints, const std::string
 		throw internal_error("hosts file: " + source + " failed to open.");
 	}
 
-	size_t max_size = 512;
+	const size_t max_size = 512;
 	char buff[max_size];
 
 	while (!file.eof()) {

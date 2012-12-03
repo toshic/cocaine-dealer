@@ -74,7 +74,7 @@ public:
 
 	static time_value get_current_time();
 
-	MSGPACK_DEFINE(value_.tv_sec, value_.tv_usec);
+	MSGPACK_DEFINE(value_.tv_sec, value_.tv_usec)
 
 private:
 	timeval value_;

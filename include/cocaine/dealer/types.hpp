@@ -43,7 +43,7 @@ struct policy_t {
     double timeout;
     double deadline;
 
-    MSGPACK_DEFINE(urgent, timeout, deadline);
+    MSGPACK_DEFINE(urgent, timeout, deadline)
 };
 
 enum error_code {

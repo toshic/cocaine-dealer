@@ -68,7 +68,7 @@ struct message_path_t {
     std::string service_alias;
     std::string handle_name;
 
-    MSGPACK_DEFINE(service_alias, handle_name);
+    MSGPACK_DEFINE(service_alias, handle_name)
 };
 
 static std::size_t __attribute__ ((unused)) hash_value(const message_path_t& path) {

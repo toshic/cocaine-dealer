@@ -40,22 +40,22 @@ enum e_message_cache_type {
 
 struct defaults_t {
 	// common
-	static const int		protocol_version	= 1;
-	static const unsigned short	control_port		= 5000;
+	static const int		protocol_version			= 1;
+	static const unsigned short	control_port			= 5000;
 	static const unsigned long long	heartbeat_interval	= 2;	// seconds
-	static const size_t 		max_message_size	= 2147483648; // 2 gb (bytes)
+	static const size_t 		max_message_size		= 2147483648; // 2 gb (bytes)
 
 	// logger
-	static const enum e_logger_type	logger_type 	= STDOUT_LOGGER;
+	static const enum e_logger_type	logger_type = STDOUT_LOGGER;
 	static const unsigned int	logger_flags	= PLOG_NONE;
 
 	// policy defaults
 	static const bool	policy_urgent		= false;
 	static const bool	policy_persistent	= false;
 	static const int	policy_max_retries	= 0;
-	static const float	policy_ack_timeout	= 0.05; // seconds
-	static const float 	policy_chunk_timeout	= 0.0;	// seconds
-	static const float	policy_message_deadline	= 0.0;	// seconds
+	static const float	policy_ack_timeout;
+	static const float 	policy_chunk_timeout;
+	static const float	policy_message_deadline;
 
 	// persistance
 	static const enum e_message_cache_type message_cache_type = RAM_ONLY;

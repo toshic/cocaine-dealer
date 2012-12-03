@@ -28,9 +28,7 @@ namespace dealer {
 
 class math {
 public:
-    static const float epsilon = 0.00000001;
-
-    static bool compare_floats(float a, float b, float precision = math::epsilon) {
+    static bool compare_floats(float a, float b, float precision = 0.00000001) {
         if (fabs(a - b) < precision) {
             return true;
         }
