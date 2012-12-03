@@ -401,7 +401,7 @@ handle_t::process_deadlined_messages() {
 			response->uuid = expired_messages.at(i)->uuid();
 			response->rpc_code = SERVER_RPC_MESSAGE_ERROR;
 			response->error_code = deadline_error;
-			response->error_message = "message expired in service's handle";
+			response->error_message = "message expired in handle";
 			enqueue_response(response);
 
 			remove_from_persistent_storage(response->uuid,
