@@ -27,7 +27,6 @@
 #include "cocaine/dealer/core/persistent_data_container.hpp"
 #include "cocaine/dealer/utils/data_container.hpp"
 #include "cocaine/dealer/utils/error.hpp"
-#include "cocaine/dealer/heartbeats/heartbeats_collector.hpp"
 #include "cocaine/dealer/heartbeats/http_hosts_fetcher.hpp"
 #include "cocaine/dealer/heartbeats/file_hosts_fetcher.hpp"
 #include "cocaine/dealer/storage/eblob_storage.hpp"
