@@ -296,11 +296,10 @@ configuration_t::load(const std::string& path) {
 	boost::mutex::scoped_lock lock(m_mutex);
 
 	m_path = path;
-
-	std::ifstream file(path.c_str(), std::ifstream::in);
+	std::ifstream file(m_path.c_str(), std::ifstream::in);
 	
 	if (!file.is_open()) {
-		throw internal_error("config file: " + path + " failed to open at: " + std::string(BOOST_CURRENT_FUNCTION));
+		throw internal_error("config file: " + m_path + " failed to open.");
 	}
 
 	std::string config_data;
@@ -323,7 +322,7 @@ configuration_t::load(const std::string& path) {
 	bool parsing_successful = reader.parse(config_data, root);
 		
 	if (!parsing_successful) {
-		throw internal_error("config file: " + path + " could not be parsed at: " + std::string(BOOST_CURRENT_FUNCTION));
+		throw internal_error("config file: " + m_path + " could not be parsed.");
 	}
 	
 	try {
@@ -335,7 +334,7 @@ configuration_t::load(const std::string& path) {
 		//parse_statistics_settings(config_value);
 	}
 	catch (const std::exception& ex) {
-		std::string error_msg = "config file: " + path + " could not be parsed. details: ";
+		std::string error_msg = "config file: " + m_path + " could not be parsed. details: ";
 		error_msg += ex.what();
 		throw internal_error(error_msg);
 	}

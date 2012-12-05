@@ -77,9 +77,9 @@ public:
 	typedef std::map<std::string, handle_endpoints_t> routing_table_t;
 
 	typedef boost::function<void(e_overseer_event event_type,
-							 const std::string& service_name,
-							 const std::string& handle_name,
-							 const endpoints_set_t& endpoints)> callback_t;
+								 const std::string& service_name,
+								 const std::string& handle_name,
+								 const endpoints_set_t& endpoints)> callback_t;
 
 	// API
 	overseer_t(const boost::shared_ptr<context_t>& ctx, bool logging_enabled = true);

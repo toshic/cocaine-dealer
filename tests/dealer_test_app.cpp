@@ -81,6 +81,8 @@ void worker(dealer_t* d,
 void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messages_count) {
 	std::string config_path = "../tests/config.json";
 
+
+
 	typedef boost::ptr_vector<boost::thread> thread_pool;
 	typedef boost::ptr_vector<thread_pool> thread_pools_list;
 
@@ -233,7 +235,7 @@ main(int argc, char** argv) {
 		}
 	}
 	*/
-
+	/*
 	dealer_t			d("tests/config.json");
 	message_path_t		path("cocaine_test", "add_time_func");
 	std::string			payload = "message ";
@@ -259,7 +261,7 @@ main(int argc, char** argv) {
 	}
 
 	return EXIT_SUCCESS;
-
+	*/
 	/*
 	dealer_t d("tests/config.json");
 

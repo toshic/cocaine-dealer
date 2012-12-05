@@ -32,8 +32,7 @@
 namespace cocaine {
 namespace dealer {
 
-overseer_t::overseer_t(const boost::shared_ptr<context_t>& ctx,
-					   bool logging_enabled) :
+overseer_t::overseer_t(const boost::shared_ptr<context_t>& ctx, bool logging_enabled) :
 	dealer_object_t(ctx, logging_enabled),
 	m_stopping(false)
 {
@@ -86,25 +85,62 @@ overseer_t::run() {
 void
 overseer_t::stop() {
 	log(PLOG_DEBUG, "overseer — stopping...");
+	m_stopping = true;
+	m_event_loop.unloop(ev::ALL);
+
+	log(PLOG_DEBUG, "overseer — stopping thread...");
+
+	m_thread.join();
+
+	log(PLOG_DEBUG, "overseer — stopped");
+}
+
+void
+overseer_t::main_loop() {
+	boost::thread::id tid = boost::this_thread::get_id();
+	std::cout << ">>>>> main_loop TID: " << tid << std::endl;
+
+	log(PLOG_DEBUG, "overseer — A");
+
+	// init
+	create_sockets();
+
+	log(PLOG_DEBUG, "overseer — B");
+
+	fetch_endpoints();
+
+	log(PLOG_DEBUG, "overseer — C");
+
+	connect_sockets();
+
+	log(PLOG_DEBUG, "overseer — D");
+
+	// fetch endpoints every 15 secs
+	m_fetcher_timer.set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
+	m_timeout_timer.set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
+
+    m_fetcher_timer.start(0, 15);
+    m_timeout_timer.start(0, 0.5);
+
+	log(PLOG_DEBUG, "overseer — started loop.");
+
+	if (!m_stopping) {
+		m_event_loop.loop();
+	}
+
+	log(PLOG_DEBUG, "overseer — unlooped ALL!");
+	
+	m_fetcher_timer.stop();
+	m_timeout_timer.stop();
+	
+	kill_sockets();
 
 	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
 		m_endpoints_fetchers[i].reset();
 	}
 
-	m_fetcher_timer.stop();
-	m_timeout_timer.stop();
-
-	for (size_t i = 0; i < m_watchers.size(); ++i) {
-		m_watchers[i]->stop();
-	}
-	m_watchers.clear();
-
-	m_event_loop.unloop(ev::ALL);
-
-	m_stopping = true;
-	m_thread.join();
-
-	log(PLOG_DEBUG, "overseer — stopped.");
+	log(PLOG_DEBUG, "overseer — killed fetchers!");
+	log(PLOG_DEBUG, "overseer — killed sockets!");
 }
 
 void
@@ -180,26 +216,6 @@ overseer_t::request(ev::io& watcher, int type) {
 	// merge update with routing table, gen create/update handle events
 	update_main_routing_table(routing_table_update);
 }
-
-void
-overseer_t::main_loop() {
-	// init
-	create_sockets();
-	fetch_endpoints();
-	connect_sockets();
-
-	// fetch endpoints every 15 secs
-	m_fetcher_timer.set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
-    m_fetcher_timer.start(0, 15);
-
-	m_timeout_timer.set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
-    m_timeout_timer.start(0, 0.5);
-
-	m_event_loop.loop();
-
-	kill_sockets();
-}
-
 
 void
 overseer_t::update_main_routing_table(routing_table_t& routing_table_update) {
@@ -589,6 +605,9 @@ overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& r
 
 void
 overseer_t::create_sockets() {
+	boost::thread::id tid = boost::this_thread::get_id();
+	std::cout << ">>>>> create_sockets TID: " << tid << std::endl;
+
 	const std::map<std::string, service_info_t>& services_list = config()->services_list();
 	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
 	
@@ -615,6 +634,9 @@ overseer_t::create_sockets() {
 
 void
 overseer_t::kill_sockets() {
+	boost::thread::id tid = boost::this_thread::get_id();
+	std::cout << ">>>>> kill_sockets TID: " << tid << std::endl;
+
 	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
 	
 	// create sockets
@@ -633,6 +655,9 @@ overseer_t::kill_sockets() {
 
 void
 overseer_t::connect_sockets() {
+	boost::thread::id tid = boost::this_thread::get_id();
+	std::cout << ">>>>> connect_sockets TID: " << tid << std::endl;
+
 	// kill watchers
 	for (size_t i = 0; i < m_watchers.size(); ++i) {
 		m_watchers[i]->stop();
@@ -683,6 +708,9 @@ overseer_t::connect_sockets() {
 
 bool
 overseer_t::fetch_endpoints() {
+
+	std::cout << "fetch endpoints\n";
+
 	bool found_missing_endpoints = false;
 
 	// for each hosts fetcher

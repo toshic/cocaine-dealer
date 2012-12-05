@@ -120,7 +120,14 @@ balancer_t::recreate_socket() {
 	int64_t hwm = balancer_t::socket_hwm;
 	m_socket.reset(new zmq::socket_t(*(context()->zmq_context()), ZMQ_ROUTER));
 	m_socket->setsockopt(ZMQ_LINGER, &timeout, sizeof(timeout));
-	m_socket->setsockopt(ZMQ_HWM, &hwm, sizeof(hwm));
+
+	#if ZMQ_VERSION_MAJOR < 3
+		m_socket->setsockopt(ZMQ_HWM, &hwm, sizeof(hwm));
+	#else
+		m_socket->setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+		m_socket->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+	#endif
+
 	m_socket->setsockopt(ZMQ_IDENTITY, m_socket_identity.c_str(), m_socket_identity.length());
 }
 

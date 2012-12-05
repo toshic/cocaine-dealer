@@ -45,7 +45,7 @@ dealer_impl_t::dealer_impl_t(const std::string& config_path) :
 	m_messages_ptr(NULL)
 {
 	// create dealer context
-	std::string ctx_error_msg = "could not create dealer context at: " + std::string(BOOST_CURRENT_FUNCTION) + " ";
+	std::string ctx_error_msg = "could not create dealer context, ";
 
 	char* absolute_config_path;
 	std::string config_path_tmp = config_path;
@@ -266,7 +266,6 @@ dealer_impl_t::regex_match(const std::string& regex_str, const std::string& valu
 
 void
 dealer_impl_t::connect() {
-	log(PLOG_DEBUG, "creating heartbeats collector");
 	m_overseer.reset(new overseer_t(context()));
 	m_overseer->set_callback(boost::bind(&dealer_impl_t::process_overseer_event, this, _1, _2, _3, _4));
 	m_overseer->run();
