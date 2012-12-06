@@ -34,7 +34,7 @@
 			"policy" : {
 				"deadline" : 5.0,
 				"max_retries" : -1,
-				"ack_timeout" : 1.5
+				"ack_timeout" : 1.0
 			}
 		}
 	}

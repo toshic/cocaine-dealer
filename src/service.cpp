@@ -423,7 +423,7 @@ service_t::check_for_deadlined_messages() {
 
 		cached_messages_deque_t::iterator qit = queue->begin();
 		for (;qit != queue->end(); ++qit) {
-			if ((*qit)->is_expired()) {
+			if ((*qit)->is_expired() && (*qit)->is_deadlined()) {
 				expired_queue->push_back(*qit);
 				found_expired = true;
 			}
