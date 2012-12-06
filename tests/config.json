@@ -25,14 +25,14 @@
 
 	"services" :
 	{
-		"cocaine_test" : {
+		"server_time" : {
 			"app" : "cocaine_test",
 			"autodiscovery" : {
 				"type" : "FILE",
 				"source" : "../tests/hosts"
 			},
 			"policy" : {
-				"deadline" : 2.0,
+				"deadline" : 5.0,
 				"max_retries" : -1,
 				"ack_timeout" : 1.5
 			}

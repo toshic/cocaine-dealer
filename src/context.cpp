@@ -64,16 +64,14 @@ context_t::context_t(const std::string& config_path) {
 	
 	// create zmq context
 	m_zmq_context.reset(new zmq::context_t(1));
-	std::cout << "context created!\n";
+
 	// create statistics collector
 	//m_stats.reset(new statistics_collector(m_config, m_zmq_context, logger()));
 }
 
 context_t::~context_t() {
-	std::cout << "killing context\n";
 	m_zmq_context.reset();
 	m_storage.reset();
-	std::cout << "context killed!\n";
 }
 
 boost::shared_ptr<context_t>

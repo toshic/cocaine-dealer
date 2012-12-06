@@ -362,6 +362,7 @@ message_cache_t::get_expired_messages(message_queue_t& expired_messages) {
 			// remove expired messages
 			if (msg->is_expired()) {
 				expired_messages.push_back(msg);
+				std::cout << "rm from sent\n";
 				msg_map.erase(mit++);
 			}
 			else {
@@ -379,6 +380,7 @@ message_cache_t::get_expired_messages(message_queue_t& expired_messages) {
 
 		// remove expired messages
 		if (msg->is_expired()) {
+			std::cout << "rm from new\n";
 			expired_messages.push_back(msg);
 		}
 

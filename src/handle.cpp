@@ -357,9 +357,33 @@ handle_t::process_deadlined_messages() {
 			curr_timestamp_str = time_value::get_current_time().as_string();
 		}
 
-		if (!expired_messages.at(i)->ack_received()) {
+		if (expired_messages.at(i)->is_deadlined()) {
+			boost::shared_ptr<response_chunk_t> response(new response_chunk_t);
+			response->uuid = expired_messages.at(i)->uuid();
+			response->rpc_code = SERVER_RPC_MESSAGE_ERROR;
+			response->error_code = deadline_error;
+			response->error_message = "message expired in handle";
+			enqueue_response(response);
+
+			remove_from_persistent_storage(response->uuid,
+										   expired_messages.at(i)->policy(),
+										   expired_messages.at(i)->path().service_alias);
+
+			if (log_flag_enabled(PLOG_ERROR)) {
+				std::string log_str = "deadline policy exceeded, for message %s, (enqued: %s, sent: %s, curr: %s)";
+
+				log(PLOG_ERROR,
+					log_str,
+					expired_messages.at(i)->uuid().as_human_readable_string().c_str(),
+					enqued_timestamp_str.c_str(),
+					sent_timestamp_str.c_str(),
+					curr_timestamp_str.c_str());
+			}
+		}
+		else if (expired_messages.at(i)->is_ack_timedout()) {
 			if (expired_messages.at(i)->can_retry()) {
 				expired_messages.at(i)->increment_retries_count();
+				expired_messages.at(i)->reset_ack_timedout();
 				m_message_cache->enqueue_with_priority(expired_messages.at(i));
 
 				if (log_flag_enabled(PLOG_WARNING)) {
@@ -394,29 +418,6 @@ handle_t::process_deadlined_messages() {
 						sent_timestamp_str.c_str(),
 						curr_timestamp_str.c_str());
 				}
-			}
-		}
-		else {
-			boost::shared_ptr<response_chunk_t> response(new response_chunk_t);
-			response->uuid = expired_messages.at(i)->uuid();
-			response->rpc_code = SERVER_RPC_MESSAGE_ERROR;
-			response->error_code = deadline_error;
-			response->error_message = "message expired in handle";
-			enqueue_response(response);
-
-			remove_from_persistent_storage(response->uuid,
-										   expired_messages.at(i)->policy(),
-										   expired_messages.at(i)->path().service_alias);
-
-			if (log_flag_enabled(PLOG_ERROR)) {
-				std::string log_str = "deadline policy exceeded, for message %s, (enqued: %s, sent: %s, curr: %s)";
-
-				log(PLOG_ERROR,
-					log_str,
-					expired_messages.at(i)->uuid().as_human_readable_string().c_str(),
-					enqued_timestamp_str.c_str(),
-					sent_timestamp_str.c_str(),
-					curr_timestamp_str.c_str());
 			}
 		}
 	}

@@ -66,6 +66,9 @@ public:
 	virtual void mark_as_sent(bool value) = 0;
 
 	virtual bool is_expired() = 0;
+	virtual bool is_ack_timedout() = 0;
+	virtual void reset_ack_timedout() = 0;
+	virtual bool is_deadlined() = 0;
 
 	virtual void commit_to_eblob(boost::shared_ptr<eblob_t>& blob) = 0;
 

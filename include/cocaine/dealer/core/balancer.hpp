@@ -55,7 +55,13 @@ public:
 	bool check_for_responses(int poll_timeout) const;
 
 	static const int socket_timeout = 0;
-	static const int64_t socket_hwm = 0;
+
+	#if ZMQ_VERSION_MAJOR < 3
+		static const int64_t socket_hwm = 0;
+	#else
+		static const int socket_hwm = 0;
+	#endif
+
 	static bool is_valid_rpc_code(int rpc_code);
 
 private:

@@ -44,6 +44,8 @@ struct request_metadata_t {
 		request_metadata_t() :
 		data_size(0),
 		ack_received(false),
+		ack_timed_out(false),
+		deadlined(false),
 		is_sent(false),
 		retries_count(0) {}
 
@@ -81,6 +83,8 @@ struct request_metadata_t {
 	time_value	enqued_timestamp;
 	time_value	sent_timestamp;
 	bool		ack_received;
+	bool        ack_timed_out;
+	bool        deadlined;
 
 	bool	is_sent;
 	int		retries_count;

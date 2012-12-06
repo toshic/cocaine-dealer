@@ -84,6 +84,10 @@ public:
 	void mark_as_sent(bool value);
 
 	bool is_expired();
+	bool is_ack_timedout();
+	bool is_deadlined();
+
+	void reset_ack_timedout();
 
 	message_iface& operator = (const message_iface& rhs);
 	bool operator == (const message_iface& rhs) const;
@@ -328,28 +332,53 @@ cached_message_t<DataContainer, MetadataContainer>::mark_as_sent(bool value) {
 }
 
 template<typename DataContainer, typename MetadataContainer> bool
+cached_message_t<DataContainer, MetadataContainer>::is_ack_timedout() {
+	return m_metadata.ack_timed_out;
+}
+
+template<typename DataContainer, typename MetadataContainer> bool
+cached_message_t<DataContainer, MetadataContainer>::is_deadlined() {
+	return m_metadata.deadlined;
+}
+
+template<typename DataContainer, typename MetadataContainer> void
+cached_message_t<DataContainer, MetadataContainer>::reset_ack_timedout() {
+	m_metadata.ack_timed_out = false;
+}
+
+template<typename DataContainer, typename MetadataContainer> bool
 cached_message_t<DataContainer, MetadataContainer>::is_expired() {
-	// check whether we received server ack or not
+	//std::cout << "m_metadata.policy.deadline: " << m_metadata.policy.deadline << std::endl;
+	//std::cout << "m_metadata.policy.ack_timeout: " << m_metadata.policy.ack_timeout << std::endl;
+
 	time_value curr_time = time_value::get_current_time();
-
-	if (m_metadata.is_sent && !ack_received()) {
-		time_value elapsed_from_sent = curr_time.distance(m_metadata.sent_timestamp);
-
-		if (elapsed_from_sent.as_double() > m_metadata.policy.ack_timeout) {
-			return true;
-		}
-	}
 
 	// process policy deadlie
 	if (m_metadata.policy.deadline > 0.0f) {
 		time_value elapsed_from_enqued = curr_time.distance(m_metadata.enqued_timestamp);
 
 		if (elapsed_from_enqued.as_double() > m_metadata.policy.deadline) {
-			return true;
+			m_metadata.deadlined = true;
 		}
 	}
 
-	return false;
+	// check policy ack_timeout
+	if (m_metadata.is_sent && !ack_received()) {
+		time_value elapsed_from_sent = curr_time.distance(m_metadata.sent_timestamp);
+		double elapsed = elapsed_from_sent.as_double();
+		double ack_timeout = m_metadata.policy.ack_timeout;
+
+		if (elapsed > ack_timeout) {
+			std::cout << "elapsed_from_sent: " << elapsed_from_sent.as_double() << std::endl;
+			std::cout << "m_metadata.policy.ack_timeout: " << m_metadata.policy.ack_timeout << std::endl;
+			double diff = elapsed_from_sent.as_double() - m_metadata.policy.ack_timeout;
+			std::cout << "diff: " << diff << std::endl;
+
+			m_metadata.ack_timed_out = true;
+		}
+	}
+
+	return (m_metadata.ack_timed_out || m_metadata.deadlined);
 }
 
 template<typename DataContainer, typename MetadataContainer> void

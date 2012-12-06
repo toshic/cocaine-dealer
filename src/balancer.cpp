@@ -116,19 +116,30 @@ balancer_t::recreate_socket() {
 		log(PLOG_DEBUG, "recreate_socket " + m_socket_identity);
 	}
 
-	int timeout = balancer_t::socket_timeout;
-	int64_t hwm = balancer_t::socket_hwm;
-	m_socket.reset(new zmq::socket_t(*(context()->zmq_context()), ZMQ_ROUTER));
-	m_socket->setsockopt(ZMQ_LINGER, &timeout, sizeof(timeout));
+	try {
+		int timeout = balancer_t::socket_timeout;
+		m_socket.reset(new zmq::socket_t(*(context()->zmq_context()), ZMQ_ROUTER));
+		m_socket->setsockopt(ZMQ_LINGER, &timeout, sizeof(timeout));
 
-	#if ZMQ_VERSION_MAJOR < 3
-		m_socket->setsockopt(ZMQ_HWM, &hwm, sizeof(hwm));
-	#else
-		m_socket->setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
-		m_socket->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
-	#endif
+		#if ZMQ_VERSION_MAJOR < 3
+			int64_t hwm = balancer_t::socket_hwm;
+			m_socket->setsockopt(ZMQ_HWM, &hwm, sizeof(hwm));
+		#else
+			int hwm = balancer_t::socket_hwm;
+			m_socket->setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+			m_socket->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+		#endif
 
-	m_socket->setsockopt(ZMQ_IDENTITY, m_socket_identity.c_str(), m_socket_identity.length());
+		m_socket->setsockopt(ZMQ_IDENTITY, m_socket_identity.c_str(), m_socket_identity.length());
+	}
+	catch (const zmq::error_t& ex) {
+		log(PLOG_ERROR, "could not recreate socket, details: %s", ex.what());
+		throw(ex);
+	}
+	catch (const std::exception& ex) {
+		log(PLOG_ERROR, "could not recreate socket, details: %s", ex.what());
+		throw(ex);
+	}
 }
 
 cocaine_endpoint_t&
