@@ -65,7 +65,8 @@ public:
 	static bool is_valid_rpc_code(int rpc_code);
 
 private:
-	void recreate_socket();
+	void create_socket();
+	void connect_socket(const std::set<cocaine_endpoint_t>& endpoints);
 
 	cocaine_endpoint_t& get_next_endpoint();
 
