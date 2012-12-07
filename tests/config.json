@@ -7,11 +7,11 @@
 	"logger" :
 	{
 		"type" : "STDOUT_LOGGER",
-		"flags" : "PLOG_INTRO | PLOG_ALL"
+		"flags" : "PLOG_INTRO | PLOG_INFO"
 
-		//"type" : "FILE_LOGGER",
-		//"file" : "/home/rimz/dealer.log",
-		//"flags" : "PLOG_ALL | PLOG_INTRO"
+//		"type" : "FILE_LOGGER",
+//		"file" : "/home/rimz/dealer.log",
+//		"flags" : "PLOG_ALL | PLOG_INTRO"
 	},
 
 	"persistent_storage" :

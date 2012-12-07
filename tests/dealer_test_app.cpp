@@ -192,6 +192,7 @@ main(int argc, char** argv) {
 		}
 	}
 	*/
+	/*
 	dealer_t			d("../tests/config.json");
 	message_path_t		path("server_time", "add_time_func");
 	std::string			payload = "message ";
@@ -217,6 +218,7 @@ main(int argc, char** argv) {
 	}
 
 	return EXIT_SUCCESS;
+	*/
 	/*
 	dealer_t d("tests/config.json");
 
