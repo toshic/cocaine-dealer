@@ -1,3 +1,16 @@
+cocaine-dealer (0.9.9) lucid; urgency=low
+
+  * build with zmq 2.xx and 3.xx
+  * fixed deadlined messages in service
+  * fixed deadlined messages and ack_timeouts in handle
+  * fixes for --pedantic + switch to c++0x
+  * migrated overseer to libev
+  * dropped heartbeats collector in favor of overseer
+  * processing routing tables is now completely in overseer
+  * no zmq socket disconnect andmore (fixed lost hosts hang-ups)
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Fri, 7 Dec 2012 17:27:52 +0400
+
 cocaine-dealer (0.9.8) lucid; urgency=low
 
   * fixes for --pedantic + switch to c++0x
