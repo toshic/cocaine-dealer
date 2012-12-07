@@ -56,7 +56,7 @@ protected:
 
                 boost::trim(line);
 
-                // is line commented?
+                // is line empty or commented?
                 if (line.empty() || line.at(0) == '#') {
                     continue;
                 }
@@ -64,7 +64,7 @@ protected:
                 // get transport type
                 enum transport_type transport = TRANSPORT_UNDEFINED;
                 std::string transport_suffix = "://";
-                size_t where = line.find_first_of(transport_suffix);
+                size_t where = line.find(transport_suffix);
 
                 if (where != std::string::npos) {
                     std::string transport_str = line.substr(0, where);
@@ -89,7 +89,7 @@ protected:
                     if (0 == ip) {
                         continue;
                     }
-                    
+
                     endpoints.push_back(inetv4_endpoint_t(ip, default_control_port, transport));
                 }
                 else {

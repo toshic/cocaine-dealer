@@ -172,6 +172,8 @@ overseer_t::fetch_and_process_endpoints(ev::timer& watcher, int type) {
 		create_sockets();
 	}
 
+	std::cout << "fetch_and_process_endpoints\n";
+
 	connect_sockets();
 }
 
@@ -589,6 +591,7 @@ overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& r
 
 void
 overseer_t::create_sockets() {
+	std::cout << "create_sockets\n";
 	const std::map<std::string, service_info_t>& services_list = config()->services_list();
 	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
 	
@@ -614,6 +617,7 @@ overseer_t::create_sockets() {
 
 void
 overseer_t::kill_sockets() {
+	std::cout << "kill_sockets\n";
 	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
 	
 	// create sockets
@@ -632,6 +636,7 @@ overseer_t::kill_sockets() {
 
 void
 overseer_t::connect_sockets() {
+	std::cout << "connect_sockets\n";
 	// kill watchers
 	for (size_t i = 0; i < m_watchers.size(); ++i) {
 		m_watchers[i]->stop();
@@ -712,6 +717,8 @@ overseer_t::fetch_endpoints() {
 
 				// update endpoints with default values
 				for (size_t j = 0; j < endpoints.size(); ++j) {
+					//std::cout << endpoints[j].as_string() << std::endl;
+
 					if (endpoints[j].port == 0) {
 						endpoints[j].port = defaults_t::control_port;
 					}

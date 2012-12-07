@@ -97,6 +97,8 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 		dealer_messages_count.push_back(messages_count);
 	}
 
+	sleep(100);
+
 	progress_timer timer;
 
 	// create threads
