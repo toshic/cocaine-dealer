@@ -543,16 +543,16 @@ overseer_t::parse_responces(const std::map<std::string, std::vector<announce_t> 
 
 void
 overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& responces) {
-	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
+	std::map<std::string, shared_socket_t>::iterator it = m_sockets.begin();
 	for (; it != m_sockets.end(); ++it) {
 		std::string service_name = it->first;
-		std::set<inetv4_endpoint_t>& service_endpoints = m_endpoints[service_name];
-		socket_ptr sock_ptr = m_sockets[it->first];
 
-		if (!sock_ptr) {
-			log(PLOG_ERROR,
-				"overseer is terribly broken! bad socket for service %s, can't read from socket",
-				service_name.c_str());
+		std::set<inetv4_endpoint_t>& service_endpoints = m_endpoints[service_name];
+		shared_socket_t sock = m_sockets[it->first];
+
+		if (!sock) {
+			log_error("overseer is terribly broken! bad socket for service %s, can't read from socket",
+					  service_name.c_str());
 			continue;
 		}
 
@@ -562,14 +562,14 @@ overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& r
 			announce_t		announce;
 			zmq::message_t	reply;
 
-			if (sock_ptr->recv(&reply, ZMQ_NOBLOCK)) {
+			if (sock->recv(&reply, ZMQ_NOBLOCK)) {
 				announce.hostname = std::string(static_cast<char*>(reply.data()), reply.size());
 			}
 			else {
 				break;
 			}
 
-			if (sock_ptr->recv(&reply, ZMQ_NOBLOCK)) {
+			if (sock->recv(&reply, ZMQ_NOBLOCK)) {
 				announce.info = std::string(static_cast<char*>(reply.data()), reply.size());
 			}
 			else {
@@ -594,26 +594,20 @@ overseer_t::create_sockets() {
 	
 	// create sockets
 	for (; it != services_list.end(); ++it) {
-		zmq::socket_t* sock = new zmq::socket_t(*(context()->zmq_context()), ZMQ_SUB);
-		
-		int timeout = 0;
-		sock->setsockopt(ZMQ_LINGER, &timeout, sizeof(timeout));
+		const std::string& service_name = it->second.name;
 
-		wuuid_t sock_uuid;
-		sock_uuid.generate();
-		std::string ident = "[" + it->second.name + "]_overseer_";
-		ident += sock_uuid.as_human_readable_string();
-		sock->setsockopt(ZMQ_IDENTITY, ident.c_str(), ident.length());
+		shared_socket_t sock(new socket_t(context(), ZMQ_SUB));
+		sock->set_linger(0);
+		sock->set_identity("[" + service_name + "]_overseer_", true);
+		sock->subscribe();
 
-		sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
-		socket_ptr sock_ptr(sock);
-		m_sockets[it->second.name] = sock_ptr;
+		m_sockets[service_name] = sock;
 	}
 }
 
 void
 overseer_t::kill_sockets() {
-	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
+	std::map<std::string, shared_socket_t>::iterator it = m_sockets.begin();
 	
 	// create sockets
 	for (; it != m_sockets.end(); ++it) {
@@ -638,70 +632,37 @@ overseer_t::connect_sockets() {
 	m_watchers.clear();
 
 	// create sockets
-	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
+	std::map<std::string, shared_socket_t>::iterator it = m_sockets.begin();
 	for (; it != m_sockets.end(); ++it) {
 		const std::string& service_name = it->first;
 
 		std::set<inetv4_endpoint_t>& service_endpoints = m_endpoints[service_name];
-		socket_ptr sock = m_sockets[service_name];
+		shared_socket_t sock = m_sockets[service_name];
 
 		if (sock) {
-			std::set<inetv4_endpoint_t>::iterator sit = service_endpoints.begin();
-			for (; sit != service_endpoints.end(); ++sit) {
+			std::set<inetv4_endpoint_t>::iterator endpoint_it = service_endpoints.begin();
+			for (; endpoint_it != service_endpoints.end(); ++endpoint_it) {
 				try {
-					std::string conn_string = sit->as_connection_string();
-
-					// must be hidden in socket_t!!!
-					bool connection_ok = true;
-
-					std::map<std::string, plain_endpoints_t>::iterator conn_it = m_connected_endpoints.find(service_name);
-					if (conn_it == m_connected_endpoints.end()) {
-						plain_endpoints_t conn_endpoints;
-						conn_endpoints.insert(conn_string);
-						m_connected_endpoints[service_name] = conn_endpoints;
-					}
-					else {
-						plain_endpoints_t& conn_endpoints = conn_it->second;
-						plain_endpoints_t::iterator find_it = conn_endpoints.find(conn_string);
-
-						if (find_it == conn_endpoints.end()) {
-							conn_endpoints.insert(conn_string);
-						}
-						else {
-							connection_ok = false;
-						}
-					}
-					// must be hidden in socket_t!!!
-
-					if (connection_ok) {
-						sock->connect(conn_string.c_str());
-					}
-
-					//get socket fd
-					int fd = 0;
-					size_t size = sizeof(fd);
-					sock->getsockopt(ZMQ_FD, &fd, &size);
+					sock->connect(*endpoint_it);
 
 					//create watcher
-					if (fd) {
+					if (sock->fd()) {
 						ev_io_ptr watcher(new ev::io);
 						watcher->set<overseer_t, &overseer_t::request>(this);
-	    				watcher->start(fd, ev::READ);
+	    				watcher->start(sock->fd(), ev::READ);
 	    				m_watchers.push_back(watcher);
 	    			}
 				}
 				catch (const std::exception& ex) {
-					log(PLOG_ERROR,
-						"overseer - could not connect socket for service %s, details: %s",
-						it->first.c_str(),
-						ex.what());
+					log_error("overseer - could not connect socket for service %s, details: %s",
+							  it->first.c_str(),
+								ex.what());
 				}
 			}
 		}
 		else {
-			log(PLOG_ERROR,
-				"overseer - invalid socket for service %s",
-				it->first.c_str());
+			log_error("overseer - invalid socket for service %s",
+					  it->first.c_str());
 		}
 	}
 }

@@ -92,7 +92,7 @@ public:
 
 private:
 	typedef boost::shared_ptr<hosts_fetcher_iface> hosts_fetcher_ptr;
-	typedef boost::shared_ptr<zmq::socket_t> socket_ptr;
+	typedef boost::shared_ptr<socket_t> shared_socket_t;
 
 	bool fetch_endpoints();
 	void main_loop();
@@ -139,15 +139,13 @@ private:
 
 	// <service, endpoints>
 	std::map<std::string, inetv4_endpoints_t>	m_endpoints;
-
-	// <service, conected endpoints>
-	std::map<std::string, plain_endpoints_t>	m_connected_endpoints;
 	std::vector<hosts_fetcher_ptr>				m_endpoints_fetchers;
 
 	// <service, socket>
-	std::map<std::string, socket_ptr>	m_sockets;
-	routing_table_t						m_routing_table;
-	callback_t							m_callback;
+	std::map<std::string, shared_socket_t>	m_sockets;
+
+	routing_table_t			m_routing_table;
+	callback_t				m_callback;
 
 	ev::default_loop		m_event_loop;
 	ev::timer				m_fetcher_timer;

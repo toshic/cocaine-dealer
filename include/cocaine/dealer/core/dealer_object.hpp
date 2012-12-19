@@ -59,6 +59,70 @@ public:
 		m_ctx->logger()->log(std::string(buff));
 	}
 
+	void log_info(const std::string& message, ...) {
+		if (!m_logging_enabled || !m_ctx || !(m_ctx->logger())) {
+			return;
+		}
+
+		char buff[2048];
+		memset(buff, 0, sizeof(buff));
+	
+		va_list vl;
+		va_start(vl, message);
+		vsnprintf(buff, sizeof(buff) - 1, message.c_str(), vl);
+		va_end(vl);
+
+		m_ctx->logger()->log(std::string(buff));
+	}
+
+	void log_warning(const std::string& message, ...) {
+		if (!m_logging_enabled || !m_ctx || !(m_ctx->logger())) {
+			return;
+		}
+
+		char buff[2048];
+		memset(buff, 0, sizeof(buff));
+	
+		va_list vl;
+		va_start(vl, message);
+		vsnprintf(buff, sizeof(buff) - 1, message.c_str(), vl);
+		va_end(vl);
+
+		m_ctx->logger()->log_warning(std::string(buff));
+	}
+
+	void log_error(const std::string& message, ...) {
+		if (!m_logging_enabled || !m_ctx || !(m_ctx->logger())) {
+			return;
+		}
+
+		char buff[2048];
+		memset(buff, 0, sizeof(buff));
+	
+		va_list vl;
+		va_start(vl, message);
+		vsnprintf(buff, sizeof(buff) - 1, message.c_str(), vl);
+		va_end(vl);
+
+		m_ctx->logger()->log_error(std::string(buff));
+	}
+
+	void log_debug(const std::string& message, ...) {
+		if (!m_logging_enabled || !m_ctx || !(m_ctx->logger())) {
+			return;
+		}
+
+		char buff[2048];
+		memset(buff, 0, sizeof(buff));
+	
+		va_list vl;
+		va_start(vl, message);
+		vsnprintf(buff, sizeof(buff) - 1, message.c_str(), vl);
+		va_end(vl);
+
+		m_ctx->logger()->log_debug(std::string(buff));
+	}
+
 	void log(unsigned int type, const std::string& message, ...) {
 		if (!m_logging_enabled || !m_ctx || !(m_ctx->logger())) {
 			return;

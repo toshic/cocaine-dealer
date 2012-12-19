@@ -33,6 +33,8 @@
 
 #include "cocaine/dealer/core/birth_control.hpp"
 #include "cocaine/dealer/core/context.hpp"
+#include "cocaine/dealer/core/inetv4_endpoint.hpp"
+#include "cocaine/dealer/utils/uuid.hpp"
 
 namespace cocaine {
 namespace dealer {
@@ -70,8 +72,8 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
         socket_t(const boost::shared_ptr<context_t>& context, int type);
         socket_t(const boost::shared_ptr<context_t>& context, int type, const std::string& route);
 
-        void bind(const std::string& endpoint);
-        void connect(const std::string& endpoint);
+        void bind(const inetv4_endpoint_t& endpoint);
+        void connect(const inetv4_endpoint_t& endpoint);
         void drop();
 
         bool send(zmq::message_t& message, int flags = 0) {
@@ -98,7 +100,7 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
             return send(message, flags);
         }
 
-        bool recv(zmq::message_t * message, int flags = 0) {
+        bool recv(zmq::message_t* message, int flags = 0) {
             return m_socket.recv(message, flags);
         }
 
@@ -141,25 +143,43 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
             return serialization_traits< typename boost::remove_const<T>::type >::unpack(message, result.value);
         }
 
-        void getsockopt(int name,
-                        void * value,
-                        size_t * size)
-        {
+        void get_sockopt(int name, void* value, size_t* size) {
             m_socket.getsockopt(name, value, size);
         }
 
-        void setsockopt(int name,
-                        const void * value,
-                        size_t size)
-        {
+        void set_sockopt(int name, const void* value, size_t size) {
             m_socket.setsockopt(name, value, size);
+        }
+
+        void set_linger(int value) {
+            set_sockopt(ZMQ_LINGER, &value, sizeof(value));
+        }
+
+        void set_identity(const std::string& ident, bool gen_uuid = false) {
+            std::string identity = ident;
+
+            if (gen_uuid) {
+                wuuid_t sock_uuid;
+                sock_uuid.generate();
+                identity += sock_uuid.as_human_readable_string();
+            }
+
+            set_sockopt(ZMQ_IDENTITY, identity.data(), identity.size());
+        }
+
+        void subscribe(const std::string& filter = "") {
+            if (m_type != ZMQ_SUB) {
+                return;
+            }
+
+            set_sockopt(ZMQ_SUBSCRIBE, filter.data(), filter.size());
         }
 
         bool more() {
             int64_t rcvmore = 0;
             size_t size = sizeof(rcvmore);
 
-            getsockopt(ZMQ_RCVMORE, &rcvmore, &size);
+            get_sockopt(ZMQ_RCVMORE, &rcvmore, &size);
 
             return rcvmore != 0;
         }
@@ -168,7 +188,7 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
             char identity[256] = {0};
             size_t size = sizeof(identity);
 
-            getsockopt(ZMQ_IDENTITY, &identity, &size);
+            get_sockopt(ZMQ_IDENTITY, &identity, &size);
 
             return identity;
         }
@@ -177,7 +197,7 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
             int fd = 0;
             size_t size = sizeof(fd);
 
-            getsockopt(ZMQ_FD, &fd, &size);
+            get_sockopt(ZMQ_FD, &fd, &size);
 
             return fd;
         }
@@ -186,7 +206,7 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
             unsigned long events = 0;
             size_t size = sizeof(events);
 
-            getsockopt(ZMQ_EVENTS, &events, &size);
+            get_sockopt(ZMQ_EVENTS, &events, &size);
 
             return (events & event) == event;
         }
@@ -196,9 +216,9 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
         }
 
     private:
-        zmq::socket_t m_socket;
-        std::set<std::string> m_endpoints;
-        int m_type;
+        zmq::socket_t               m_socket;
+        std::set<inetv4_endpoint_t>   m_endpoints;
+        int         m_type;
         std::string m_identity;
 };
 

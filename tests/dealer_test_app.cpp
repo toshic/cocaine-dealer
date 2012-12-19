@@ -40,6 +40,8 @@ using namespace cocaine::dealer;
 using namespace boost::program_options;
 
 int sent_messages = 0;
+progress_timer timer;
+static bool first_responce_received = false;
 
 void worker(dealer_t* d,
 			std::vector<int>* dealer_messages_count,
@@ -58,7 +60,12 @@ void worker(dealer_t* d,
 
 			data_container data;
 			while (resp->get(&data)) {
-				std::cout << std::string(reinterpret_cast<const char*>(data.data()), 0, data.size()) << std::endl;
+				//std::cout << std::string(reinterpret_cast<const char*>(data.data()), 0, data.size()) << std::endl;
+			}
+
+			if (!first_responce_received) {
+				timer.reset();
+				first_responce_received = true;
 			}
 		}
 		catch (const dealer_error& err) {
@@ -96,8 +103,6 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 		dealers.push_back(new dealer_t(config_path));
 		dealer_messages_count.push_back(messages_count);
 	}
-
-	progress_timer timer;
 
 	// create threads
 	std::cout << "sending messages...\n";

@@ -33,18 +33,18 @@ socket_t::socket_t(const boost::shared_ptr<context_t>& context, int type, const 
     m_type(type),
     m_identity(ident)
 {
-    setsockopt(ZMQ_IDENTITY, ident.data(), ident.size());
+    set_sockopt(ZMQ_IDENTITY, ident.data(), ident.size());
 }
 
-void socket_t::bind(const std::string& endpoint) {
-    m_socket.bind(endpoint.c_str());
+void socket_t::bind(const inetv4_endpoint_t& endpoint) {
+    m_socket.bind(endpoint.as_connection_string().c_str());
 }
 
-void socket_t::connect(const std::string& endpoint) {
+void socket_t::connect(const inetv4_endpoint_t& endpoint) {
     bool connect_ok = true;
 
     if (m_type == ZMQ_SUB) {
-        std::set<std::string>::const_iterator it = m_endpoints.find(endpoint);
+        std::set<inetv4_endpoint_t>::const_iterator it = m_endpoints.find(endpoint);
 
         if (it != m_endpoints.end()) {
             connect_ok = false;
@@ -55,7 +55,7 @@ void socket_t::connect(const std::string& endpoint) {
     }
 
     if (connect_ok) {
-        m_socket.connect(endpoint.c_str());
+        m_socket.connect(endpoint.as_connection_string().c_str());
     }
 }
 

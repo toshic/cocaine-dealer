@@ -56,7 +56,7 @@ public:
 	}
 
 	bool operator == (const inetv4_host_t& rhs) const {
-		return (ip == rhs.ip && hostname == rhs.hostname);
+		return (ip == rhs.ip);
 	}
 
 	bool operator != (const inetv4_host_t& rhs) const {

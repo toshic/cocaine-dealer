@@ -121,6 +121,70 @@ public:
 		internal_log(PLOG_INFO, std::string(buff));
 	}
 
+	void log_info(const std::string& message, ...) {
+		if ((flags_m & PLOG_INFO) != PLOG_INFO) {
+			return;
+		}
+
+		char buff[2048];
+		memset(buff, 0, sizeof(buff));
+	
+		va_list vl;
+		va_start(vl, message);
+		vsnprintf(buff, sizeof(buff) - 1, message.c_str(), vl);
+		va_end(vl);
+
+		internal_log(PLOG_INFO, std::string(buff));
+	}
+
+	void log_debug(const std::string& message, ...) {
+		if ((flags_m & PLOG_DEBUG) != PLOG_DEBUG) {
+			return;
+		}
+
+		char buff[2048];
+		memset(buff, 0, sizeof(buff));
+	
+		va_list vl;
+		va_start(vl, message);
+		vsnprintf(buff, sizeof(buff) - 1, message.c_str(), vl);
+		va_end(vl);
+
+		internal_log(PLOG_DEBUG, std::string(buff));
+	}
+
+	void log_warning(const std::string& message, ...) {
+		if ((flags_m & PLOG_WARNING) != PLOG_WARNING) {
+			return;
+		}
+
+		char buff[2048];
+		memset(buff, 0, sizeof(buff));
+	
+		va_list vl;
+		va_start(vl, message);
+		vsnprintf(buff, sizeof(buff) - 1, message.c_str(), vl);
+		va_end(vl);
+
+		internal_log(PLOG_WARNING, std::string(buff));
+	}
+
+	void log_error(const std::string& message, ...) {
+		if ((flags_m & PLOG_ERROR) != PLOG_ERROR) {
+			return;
+		}
+
+		char buff[2048];
+		memset(buff, 0, sizeof(buff));
+	
+		va_list vl;
+		va_start(vl, message);
+		vsnprintf(buff, sizeof(buff) - 1, message.c_str(), vl);
+		va_end(vl);
+
+		internal_log(PLOG_ERROR, std::string(buff));
+	}
+
 	void log(unsigned int type, const std::string& message, ...) {
 		if ((flags_m & type) != type) {
 			return;
