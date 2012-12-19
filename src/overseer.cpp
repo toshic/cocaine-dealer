@@ -37,6 +37,8 @@ overseer_t::overseer_t(const boost::shared_ptr<context_t>& ctx, bool logging_ena
 	m_stopping(false)
 {
 	m_uuid.generate();
+
+	socket_t sock(context(), ZMQ_SUB);
 }
 
 overseer_t::~overseer_t() {
@@ -102,8 +104,6 @@ overseer_t::stop() {
 
 void
 overseer_t::main_loop() {
-	boost::thread::id tid = boost::this_thread::get_id();
-
 	// init
 	create_sockets();
 	fetch_endpoints();
@@ -113,7 +113,7 @@ overseer_t::main_loop() {
 	m_fetcher_timer.set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
 	m_timeout_timer.set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
 
-    m_fetcher_timer.start(0, 15);
+    m_fetcher_timer.start(15, 15);
     m_timeout_timer.start(0, 0.5);
 
 	if (!m_stopping) {
@@ -171,8 +171,6 @@ overseer_t::fetch_and_process_endpoints(ev::timer& watcher, int type) {
 		kill_sockets();
 		create_sockets();
 	}
-
-	std::cout << "fetch_and_process_endpoints\n";
 
 	connect_sockets();
 }
@@ -591,7 +589,6 @@ overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& r
 
 void
 overseer_t::create_sockets() {
-	std::cout << "create_sockets\n";
 	const std::map<std::string, service_info_t>& services_list = config()->services_list();
 	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
 	
@@ -608,8 +605,7 @@ overseer_t::create_sockets() {
 		ident += sock_uuid.as_human_readable_string();
 		sock->setsockopt(ZMQ_IDENTITY, ident.c_str(), ident.length());
 
-		std::string subscription_filter = "";
-		sock->setsockopt(ZMQ_SUBSCRIBE, subscription_filter.c_str(), subscription_filter.length());
+		sock->setsockopt(ZMQ_SUBSCRIBE, "", 0);
 		socket_ptr sock_ptr(sock);
 		m_sockets[it->second.name] = sock_ptr;
 	}
@@ -617,7 +613,6 @@ overseer_t::create_sockets() {
 
 void
 overseer_t::kill_sockets() {
-	std::cout << "kill_sockets\n";
 	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
 	
 	// create sockets
@@ -636,7 +631,6 @@ overseer_t::kill_sockets() {
 
 void
 overseer_t::connect_sockets() {
-	std::cout << "connect_sockets\n";
 	// kill watchers
 	for (size_t i = 0; i < m_watchers.size(); ++i) {
 		m_watchers[i]->stop();
@@ -646,22 +640,49 @@ overseer_t::connect_sockets() {
 	// create sockets
 	std::map<std::string, socket_ptr>::iterator it = m_sockets.begin();
 	for (; it != m_sockets.end(); ++it) {
+		const std::string& service_name = it->first;
 
-		std::set<inetv4_endpoint_t>& service_endpoints = m_endpoints[it->first];
-		socket_ptr sock = m_sockets[it->first];
+		std::set<inetv4_endpoint_t>& service_endpoints = m_endpoints[service_name];
+		socket_ptr sock = m_sockets[service_name];
 
 		if (sock) {
 			std::set<inetv4_endpoint_t>::iterator sit = service_endpoints.begin();
 			for (; sit != service_endpoints.end(); ++sit) {
 				try {
-					sock->connect(sit->as_connection_string().c_str());
+					std::string conn_string = sit->as_connection_string();
 
-					// get socket fd
+					// must be hidden in socket_t!!!
+					bool connection_ok = true;
+
+					std::map<std::string, plain_endpoints_t>::iterator conn_it = m_connected_endpoints.find(service_name);
+					if (conn_it == m_connected_endpoints.end()) {
+						plain_endpoints_t conn_endpoints;
+						conn_endpoints.insert(conn_string);
+						m_connected_endpoints[service_name] = conn_endpoints;
+					}
+					else {
+						plain_endpoints_t& conn_endpoints = conn_it->second;
+						plain_endpoints_t::iterator find_it = conn_endpoints.find(conn_string);
+
+						if (find_it == conn_endpoints.end()) {
+							conn_endpoints.insert(conn_string);
+						}
+						else {
+							connection_ok = false;
+						}
+					}
+					// must be hidden in socket_t!!!
+
+					if (connection_ok) {
+						sock->connect(conn_string.c_str());
+					}
+
+					//get socket fd
 					int fd = 0;
 					size_t size = sizeof(fd);
 					sock->getsockopt(ZMQ_FD, &fd, &size);
 
-					// create watcher
+					//create watcher
 					if (fd) {
 						ev_io_ptr watcher(new ev::io);
 						watcher->set<overseer_t, &overseer_t::request>(this);
@@ -717,8 +738,6 @@ overseer_t::fetch_endpoints() {
 
 				// update endpoints with default values
 				for (size_t j = 0; j < endpoints.size(); ++j) {
-					//std::cout << endpoints[j].as_string() << std::endl;
-
 					if (endpoints[j].port == 0) {
 						endpoints[j].port = defaults_t::control_port;
 					}

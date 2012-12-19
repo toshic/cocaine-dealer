@@ -46,6 +46,7 @@
 #include "cocaine/dealer/core/handle_info.hpp"
 #include "cocaine/dealer/core/inetv4_host.hpp"
 #include "cocaine/dealer/core/dealer_object.hpp"
+#include "cocaine/dealer/core/io.hpp"
 #include "cocaine/dealer/core/cocaine_endpoint.hpp"
 #include "cocaine/dealer/heartbeats/hosts_fetcher_iface.hpp"
 #include "cocaine/dealer/cocaine_node_info/cocaine_node_info.hpp"
@@ -134,9 +135,13 @@ private:
 private:
 	typedef boost::shared_ptr<ev::io> 	ev_io_ptr;
 	typedef std::set<inetv4_endpoint_t> inetv4_endpoints_t;
+	typedef std::set<std::string>		plain_endpoints_t;
 
 	// <service, endpoints>
 	std::map<std::string, inetv4_endpoints_t>	m_endpoints;
+
+	// <service, conected endpoints>
+	std::map<std::string, plain_endpoints_t>	m_connected_endpoints;
 	std::vector<hosts_fetcher_ptr>				m_endpoints_fetchers;
 
 	// <service, socket>
