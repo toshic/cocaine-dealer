@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.11) lucid; urgency=low
+
+  * employed new io layer in overseer
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Wed, 19 Dec 2012 23:34:52 +0400
+
 cocaine-dealer (0.9.10) lucid; urgency=low
 
   * fixed improper shutdown in overseer
