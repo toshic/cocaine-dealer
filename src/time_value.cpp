@@ -114,7 +114,7 @@ time_value::empty() const {
 
 void
 time_value::reset() {
-	*this == time_value();
+	*this = time_value();
 }
 
 bool
