@@ -188,13 +188,9 @@ overseer_t::request(ev::io& watcher, int type) {
 	std::map<std::string, std::vector<announce_t> > responces;
 	read_from_sockets(responces);
 
-	log("begin resp");
 	if (responces.size() == 0) {
-		log("no resp");
 		return;
 	}
-
-	log("%d resp", responces.size());
 
 	// parse nodes responses
 	std::map<std::string, cocaine_node_list_t> parsed_responses;
