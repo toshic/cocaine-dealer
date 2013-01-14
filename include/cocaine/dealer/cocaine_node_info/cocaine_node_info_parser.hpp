@@ -75,22 +75,11 @@ public:
 		set_host_info(nutils::str_to_ipv4(node_ip_address), node_port);
 	}
 
-	bool parse(const std::string& json_string, cocaine_node_info_t& node_info) {
-		Json::Value root;
-		Json::Reader reader;
+	bool parse(const Json::Value& json_info, cocaine_node_info_t& node_info) {	
+		log("parse");
 
-		if (!reader.parse(json_string, root)) {
-			
-			if (log_flag_enabled(PLOG_WARNING)) {
-				std::string log_str = "cocaine node %s routing info could not be parsed";
-				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
-			}
-
-			return false;
-		}
-	
 		// parse apps
-		const Json::Value apps = root["apps"];
+		const Json::Value apps = json_info["apps"];
 		if (!apps.isObject() || !apps.size()) {
 
 			if (log_flag_enabled(PLOG_WARNING)) {
@@ -115,24 +104,8 @@ public:
 	    	}
 	    }
 
-	    // parse remaining properties
-	    const Json::Value jobs_props = root["jobs"];
-	    if (!jobs_props.isObject()) {
-
-	    	if (log_flag_enabled(PLOG_WARNING)) {
-	    		std::string log_str = "no jobs object found in cocaine node %s rounting info";
-				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
-			}
-	    }
-	    else {
-	    	node_info.pending_jobs = jobs_props.get("pending", 0).asInt();
-	    	node_info.processed_jobs = jobs_props.get("processed", 0).asInt();
-	    }
-
-	    node_info.hostname = root.get("hostname", "").asString();
-		node_info.uptime = root.get("uptime", 0.0f).asDouble();
-		node_info.ip_address = m_node_ip_address;
-		node_info.port = m_node_port;
+	    node_info.identity = json_info.get("identity", "").asString();
+		node_info.uptime = json_info.get("uptime", 0.0f).asDouble();
 
 		return true;
 	}

@@ -141,6 +141,10 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 
 int
 main(int argc, char** argv) {
+	dealer_t d("../tests/config.json");
+	sleep(100);
+	return EXIT_SUCCESS;
+
 	/*
 	zmq::context_t context(1);
 	zmq::socket_t zmq_socket(context, ZMQ_SUB);

@@ -31,13 +31,6 @@ namespace cocaine {
 namespace dealer {
 
 std::ostream& operator << (std::ostream& out, const cocaine_node_info_t& node_info) {
-	std::stringstream pending;
-	pending << "pending " << node_info.pending_jobs;
-	pending << ", processed " << node_info.processed_jobs;
-
-	std::stringstream host_info;
-	host_info << nutils::ipv4_to_str(node_info.ip_address) << ":" << node_info.port;
-
 	char old_char = out.fill(' ');
 	int old_width = out.width(10);
 
@@ -49,17 +42,13 @@ std::ostream& operator << (std::ostream& out, const cocaine_node_info_t& node_in
 		out << it->second;
 	}
 
-	out << std::setw(12) << "jobs:";
-	out << std::setw(50) << pending.str() << std::endl;
-
-	out << std::setw(12) << "hostname:";
-	out << std::setw(50) << node_info.hostname << std::endl;
-
 	out << std::setw(12) << "uptime:";
-	out << std::setw(50) << std::fixed << std::setprecision(11) << node_info.uptime << std::endl;
+	out << std::setw(50) << std::fixed << std::setprecision(11);
+	out << node_info.uptime << std::endl;
 
-	out << std::setw(12) << "host info:";
-	out << std::setw(50) << host_info.str() << std::endl;
+	out << std::setw(12) << "identity:";
+	out << std::setw(50);
+	out << node_info.identity << std::endl;
 
 	out << std::setw(old_width) << std::setfill(old_char);
 

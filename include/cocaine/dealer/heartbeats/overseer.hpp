@@ -56,7 +56,7 @@ namespace dealer {
 
 struct announce_t {
 	std::string hostname;
-	std::string info;
+	Json::Value info;
 };
 
 enum e_overseer_event {

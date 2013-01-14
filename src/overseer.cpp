@@ -1,24 +1,25 @@
 /*
-    Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
-    Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
+	Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
+	Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
 
-    This file is part of Cocaine.
+	This file is part of Cocaine.
 
-    Cocaine is free software; you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
+	Cocaine is free software; you can redistribute it and/or modify
+	it under the terms of the GNU Lesser General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
-    Cocaine is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU Lesser General Public License for more details.
+	Cocaine is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program. If not, see <http://www.gnu.org/licenses/>. 
+	You should have received a copy of the GNU Lesser General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>. 
 */
 
 #include <memory>
+#include <sstream>
 
 #include <boost/tuple/tuple.hpp>
 
@@ -28,6 +29,9 @@
 #include "cocaine/dealer/heartbeats/http_hosts_fetcher.hpp"
 #include "cocaine/dealer/core/inetv4_endpoint.hpp"
 #include "cocaine/dealer/cocaine_node_info/cocaine_node_info_parser.hpp"
+
+#include <cocaine/traits.hpp>
+#include <cocaine/traits/json.hpp>
 
 namespace cocaine {
 namespace dealer {
@@ -113,8 +117,8 @@ overseer_t::main_loop() {
 	m_fetcher_timer.set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
 	m_timeout_timer.set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
 
-    m_fetcher_timer.start(15, 15);
-    m_timeout_timer.start(0, 0.5);
+	m_fetcher_timer.start(15, 15);
+	m_timeout_timer.start(0, 0.5);
 
 	if (!m_stopping) {
 		m_event_loop.loop();
@@ -184,21 +188,25 @@ overseer_t::request(ev::io& watcher, int type) {
 	std::map<std::string, std::vector<announce_t> > responces;
 	read_from_sockets(responces);
 
+	log("begin resp");
 	if (responces.size() == 0) {
+		log("no resp");
 		return;
 	}
+
+	log("%d resp", responces.size());
 
 	// parse nodes responses
 	std::map<std::string, cocaine_node_list_t> parsed_responses;
 	parse_responces(responces, parsed_responses);
 
-	// get update
-	routing_table_t routing_table_update;
-	reset_routing_table(routing_table_update);
-	routing_table_from_responces(parsed_responses, routing_table_update);
+	// // get update
+	// routing_table_t routing_table_update;
+	// reset_routing_table(routing_table_update);
+	// routing_table_from_responces(parsed_responses, routing_table_update);
 
-	// merge update with routing table, gen create/update handle events
-	update_main_routing_table(routing_table_update);
+	// // merge update with routing table, gen create/update handle events
+	// update_main_routing_table(routing_table_update);
 }
 
 void
@@ -417,7 +425,7 @@ overseer_t::routing_table_from_responces(const std::map<std::string, cocaine_nod
 
 			// verify app tasks
 			std::string app_info_at_host = "overseer — service: " + service_name + ", app: ";
-			app_info_at_host += app_name + " at host: " + service_node_list[i].hostname;
+			app_info_at_host += app_name + " at host: " + service_node_list[i].identity;
 
 			if (app.tasks.size() == 0) {
 				log(PLOG_WARNING, app_info_at_host + " has no tasks!");
@@ -531,7 +539,9 @@ overseer_t::parse_responces(const std::map<std::string, std::vector<announce_t> 
 				continue;
 			}
 
-			node_info.hostname = it->second[i].hostname;
+			std::cout << node_info << std::endl;
+			exit(0);
+
 			parsed_nodes_for_service.push_back(node_info);
 		}
 
@@ -561,22 +571,39 @@ overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& r
 		while (true) {
 			announce_t		announce;
 			zmq::message_t	reply;
+			bool			data_ok = true;
 
 			if (sock->recv(&reply, ZMQ_NOBLOCK)) {
 				announce.hostname = std::string(static_cast<char*>(reply.data()), reply.size());
+
+				if (announce.hostname.empty()) {
+					data_ok = false;
+				}
+
+				if (sock->recv(&reply, ZMQ_NOBLOCK)) {
+					msgpack::object obj;
+					msgpack::unpacked up;
+
+					if (0 == reply.size()) {
+						data_ok = false;
+					}
+
+					msgpack::unpack(&up, (char*)reply.data(), reply.size());
+					obj = up.get();
+
+					Json::Value val;
+					cocaine::io::type_traits<Json::Value>::unpack(obj, val);
+					announce.info = val;
+				}
+				else {
+					break;
+				}
 			}
 			else {
 				break;
 			}
 
-			if (sock->recv(&reply, ZMQ_NOBLOCK)) {
-				announce.info = std::string(static_cast<char*>(reply.data()), reply.size());
-			}
-			else {
-				break;
-			}
-
-			if (!announce.hostname.empty() && !announce.info.empty()) {
+			if (data_ok) {
 				socket_responces.push_back(announce);
 			}
 		}
@@ -649,9 +676,9 @@ overseer_t::connect_sockets() {
 					if (sock->fd()) {
 						ev_io_ptr watcher(new ev::io);
 						watcher->set<overseer_t, &overseer_t::request>(this);
-	    				watcher->start(sock->fd(), ev::READ);
-	    				m_watchers.push_back(watcher);
-	    			}
+						watcher->start(sock->fd(), ev::READ);
+						m_watchers.push_back(watcher);
+					}
 				}
 				catch (const std::exception& ex) {
 					log_error("overseer - could not connect socket for service %s, details: %s",
