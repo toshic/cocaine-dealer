@@ -25,8 +25,8 @@
 
 	"services" :
 	{
-		"server_time" : {
-			"app" : "cocaine_test",
+		"time_echo" : {
+			"app" : "time echo_212b40755644f278251b281e650c6534417a06cc",
 			"autodiscovery" : {
 				"type" : "FILE",
 				"source" : "../tests/hosts"
