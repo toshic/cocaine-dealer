@@ -65,17 +65,17 @@ std::ostream& operator << (std::ostream& out, const cocaine_node_app_info_t& inf
 	out << "profile: " << std::setw(0) << info.profile << std::endl;
 
 	out << std::setw(2) << "" << std::setw(4) << "" << std::setw(9);
-	out << "load median: " << std::setw(0) << info.load_median << std::endl;
-
-	out << std::setw(2) << "" << std::setw(4) << "" << std::setw(9);
 	out << "slaves: " << std::setw(0) << slaves.str() << std::endl;
 
 	out << std::setw(2) << "" << std::setw(4) << "" << std::setw(9);
 	out << "sessions pending: " << std::setw(0) << info.sessions_pending << std::endl;
 
 	out << std::setw(2) << "" << std::setw(4) << "" << std::setw(9);
-	out << "queue depth: " << std::setw(0) << info.queue_depth << std::endl;
+	out << "queue depth:      " << std::setw(0) << info.queue_depth << std::endl;
 	
+	out << std::setw(2) << "" << std::setw(4) << "" << std::setw(9);
+	out << "load median:      " << std::setw(0) << info.load_median << std::endl;
+
 	out << std::setw(2) << "" << std::setw(4) << "" << std::setw(9);
 	out << "tasks:" << std::endl;
 

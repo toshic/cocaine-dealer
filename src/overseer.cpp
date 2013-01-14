@@ -468,7 +468,7 @@ overseer_t::routing_table_from_responces(const std::map<std::string, cocaine_nod
 
 				// create endpoint
 				cocaine_endpoint_t endpoint(task_it->second.endpoint,
-											task_it->second.route,
+											task_it->second.identity,
 											weight);
 
 				// find specific service->handle routing table:
@@ -534,9 +534,6 @@ overseer_t::parse_responces(const std::map<std::string, std::vector<announce_t> 
 			if (!parser.parse(it->second[i].info, node_info)) {
 				continue;
 			}
-
-			std::cout << node_info << std::endl;
-			exit(0);
 
 			parsed_nodes_for_service.push_back(node_info);
 		}

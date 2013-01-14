@@ -214,20 +214,8 @@ private:
 			return false;
 		}
 
-		task_info.backlog = json_app_data.get("backlog", 0).asInt();
 		task_info.endpoint = json_app_data.get("endpoint", "").asString();
-		task_info.route = json_app_data.get("route", "").asString();
-
-
-		/*
-		const Json::Value stats_props = json_app_data["stats"];
-		if (stats_props.isObject()) {
-			task_info.median_processing_time = stats_props.get("median-processing-time", 0).asDouble();
-			task_info.median_wait_time = stats_props.get("median-wait-time", 0).asDouble();
-			task_info.time_spent_in_queues = stats_props.get("time-spent-in-queues", 0).asDouble();
-			task_info.time_spent_on_slaves = stats_props.get("time-spent-on-slaves", 0).asDouble();
-		}
-		*/
+		task_info.identity = json_app_data.get("identity", "").asString();
 
 		return true;
 	}

@@ -37,29 +37,10 @@ std::ostream& operator << (std::ostream& out, const cocaine_node_task_info_t& in
 	out << name << std::endl;
 
 	out << std::setw(20) << "" << std::setw(10);
-	out << "backlog: " << info.backlog << std::endl;
-
-	out << std::setw(20) << "" << std::setw(10);
 	out << "endpoint: " << info.endpoint << std::endl;
 
 	out << std::setw(20) << "" << std::setw(10);
-	out << "route: " << info.route << std::endl;
-
-	/*
-	out << std::fixed << std::setprecision(9);
-
-	out << std::setw(20) << "" << std::setw(24);
-	out << "median processing time: " << info.median_processing_time << std::endl;
-
-	out << std::setw(20) << "" << std::setw(24);
-	out << "median wait time: " << info.median_wait_time << std::endl;
-
-	out << std::setw(20) << "" << std::setw(24);
-	out << "time spent in queues: " << info.time_spent_in_queues << std::endl;
-
-	out << std::setw(20) << "" << std::setw(24);
-	out << "time spent on slaves: " << info.time_spent_on_slaves << std::endl;
-	*/
+	out << "identity: " << info.identity << std::endl;
 	
 	out << std::setw(old_width) << std::setfill(old_char);
 
