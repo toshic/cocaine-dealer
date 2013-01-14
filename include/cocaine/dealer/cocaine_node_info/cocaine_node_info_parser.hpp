@@ -1,21 +1,21 @@
 /*
-    Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
-    Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
+	Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
+	Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
 
-    This file is part of Cocaine.
+	This file is part of Cocaine.
 
-    Cocaine is free software; you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
+	Cocaine is free software; you can redistribute it and/or modify
+	it under the terms of the GNU Lesser General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
-    Cocaine is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU Lesser General Public License for more details.
+	Cocaine is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program. If not, see <http://www.gnu.org/licenses/>. 
+	You should have received a copy of the GNU Lesser General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>. 
 */
 
 #ifndef _COCAINE_DEALER_COCAINE_NODE_INFO_PARSER_HPP_INCLUDED_
@@ -76,8 +76,6 @@ public:
 	}
 
 	bool parse(const Json::Value& json_info, cocaine_node_info_t& node_info) {	
-		log("parse");
-
 		// parse apps
 		const Json::Value apps = json_info["apps"];
 		if (!apps.isObject() || !apps.size()) {
@@ -90,21 +88,21 @@ public:
 			return false;
 		}
 
-	    Json::Value::Members app_names(apps.getMemberNames());
-	    for (Json::Value::Members::iterator it = app_names.begin(); it != app_names.end(); ++it) {
-	    	std::string parsed_app_name(*it);
-	    	Json::Value json_app_data(apps[parsed_app_name]);
+		Json::Value::Members app_names(apps.getMemberNames());
+		for (Json::Value::Members::iterator it = app_names.begin(); it != app_names.end(); ++it) {
+			std::string parsed_app_name(*it);
+			Json::Value json_app_data(apps[parsed_app_name]);
 
-	    	cocaine_node_app_info_t app_info(parsed_app_name);
-	    	if (!parse_app_info(json_app_data, app_info)) {
-	    		continue;
-	    	}
-	    	else {
-	    		node_info.apps[parsed_app_name] = app_info;
-	    	}
-	    }
+			cocaine_node_app_info_t app_info(parsed_app_name);
+			if (!parse_app_info(json_app_data, app_info)) {
+				continue;
+			}
+			else {
+				node_info.apps[parsed_app_name] = app_info;
+			}
+		}
 
-	    node_info.identity = json_info.get("identity", "").asString();
+		node_info.identity = json_info.get("identity", "").asString();
 		node_info.uptime = json_info.get("uptime", 0.0f).asDouble();
 
 		return true;
@@ -114,11 +112,11 @@ private:
 	bool parse_app_info(const Json::Value& json_app_data, cocaine_node_app_info_t& app_info) {
 		// parse tasks
 		Json::Value tasks(json_app_data["drivers"]);
-    	if (!tasks.isObject() || !tasks.size()) {
+		if (!tasks.isObject() || !tasks.size()) {
 
-    		if (log_flag_enabled(PLOG_WARNING)) {
-    			std::string log_str = "no drivers info for app [" + app_info.name;
-    			log_str += "] found in cocaine node %s rounting info";
+			if (log_flag_enabled(PLOG_WARNING)) {
+				std::string log_str = "no drivers info for app [" + app_info.name;
+				log_str += "] found in cocaine node %s rounting info";
 				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
 			}
 
@@ -126,15 +124,15 @@ private:
 		}
 
 		Json::Value::Members tasks_names(tasks.getMemberNames());
-    	for (Json::Value::Members::iterator it = tasks_names.begin(); it != tasks_names.end(); ++it) {
-    		std::string task_name(*it);
-    		Json::Value task(tasks[task_name]);
+		for (Json::Value::Members::iterator it = tasks_names.begin(); it != tasks_names.end(); ++it) {
+			std::string task_name(*it);
+			Json::Value task(tasks[task_name]);
 
-    		if (!task.isObject() || !task.size()) {
+			if (!task.isObject() || !task.size()) {
 
-    			if (log_flag_enabled(PLOG_WARNING)) {
-    				std::string log_str = "no drivers info for app [" + app_info.name;
-	    			log_str += "], task [" + task_name + "] found in cocaine node %s rounting info";
+				if (log_flag_enabled(PLOG_WARNING)) {
+					std::string log_str = "no drivers info for app [" + app_info.name;
+					log_str += "], task [" + task_name + "] found in cocaine node %s rounting info";
 					log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
 				}
 
@@ -150,8 +148,45 @@ private:
 			}
 		}
 
-		// parse remaining properties
+		// parse [load-median]
+		app_info.load_median = json_app_data.get("load-median", 0).asInt();
+
+		// parse [profile]
+		app_info.profile = json_app_data.get("profile", "").asString();
+
+		// parse [queue-depth]
 		app_info.queue_depth = json_app_data.get("queue-depth", 0).asInt();
+
+		// parse [sessions]
+		const Json::Value sessions_props = json_app_data["sessions"];
+		if (!sessions_props.isObject()) {
+
+			if (log_flag_enabled(PLOG_WARNING)) {
+				std::string log_str = "no sessions info for app [" + app_info.name;
+				log_str += "] found in cocaine node %s rounting info";
+				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
+			}
+		}
+		else {
+			app_info.sessions_pending = sessions_props.get("pending", 0).asInt();
+		}
+
+		// parse [slaves]
+		const Json::Value slaves_props = json_app_data["slaves"];
+		if (!slaves_props.isObject()) {
+
+			if (log_flag_enabled(PLOG_WARNING)) {
+				std::string log_str = "no slaves info for app [" + app_info.name;
+				log_str += "] found in cocaine node %s rounting info";
+				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
+			}
+		}
+		else {
+			app_info.slaves_busy = slaves_props.get("busy", 0).asInt();
+			app_info.slaves_total = slaves_props.get("total", 0).asInt();
+		}
+
+		// parse [state]
 		std::string state = json_app_data.get("state", "").asString();
 
 		if (state == "running") {
@@ -170,43 +205,29 @@ private:
 			app_info.status = APP_STATUS_UNKNOWN;
 		}
 
-		const Json::Value slaves_props = json_app_data["slaves"];
-	    if (!slaves_props.isObject()) {
-
-	    	if (log_flag_enabled(PLOG_WARNING)) {
-	    		std::string log_str = "no slaves info for app [" + app_info.name;
-	    		log_str += "] found in cocaine node %s rounting info";
-				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
-			}
-	    }
-	    else {
-	    	app_info.slaves_busy = slaves_props.get("busy", 0).asInt();
-	    	app_info.slaves_total = slaves_props.get("total", 0).asInt();
-	    }
-
 		return true;
 	}
 
 	bool parse_task_info(const Json::Value& json_app_data, cocaine_node_task_info_t& task_info) {
 		std::string task_type = json_app_data.get("type", "").asString();
-    	if (task_type != "native-server") {
-    		return false;
-    	}
+		if (task_type != "native-server") {
+			return false;
+		}
 
-    	task_info.backlog = json_app_data.get("backlog", 0).asInt();
-	    task_info.endpoint = json_app_data.get("endpoint", "").asString();
-	    task_info.route = json_app_data.get("route", "").asString();
+		task_info.backlog = json_app_data.get("backlog", 0).asInt();
+		task_info.endpoint = json_app_data.get("endpoint", "").asString();
+		task_info.route = json_app_data.get("route", "").asString();
 
 
-	    /*
+		/*
 		const Json::Value stats_props = json_app_data["stats"];
-	    if (stats_props.isObject()) {
-	    	task_info.median_processing_time = stats_props.get("median-processing-time", 0).asDouble();
-	    	task_info.median_wait_time = stats_props.get("median-wait-time", 0).asDouble();
-	    	task_info.time_spent_in_queues = stats_props.get("time-spent-in-queues", 0).asDouble();
-	    	task_info.time_spent_on_slaves = stats_props.get("time-spent-on-slaves", 0).asDouble();
-	    }
-	    */
+		if (stats_props.isObject()) {
+			task_info.median_processing_time = stats_props.get("median-processing-time", 0).asDouble();
+			task_info.median_wait_time = stats_props.get("median-wait-time", 0).asDouble();
+			task_info.time_spent_in_queues = stats_props.get("time-spent-in-queues", 0).asDouble();
+			task_info.time_spent_on_slaves = stats_props.get("time-spent-on-slaves", 0).asDouble();
+		}
+		*/
 
 		return true;
 	}

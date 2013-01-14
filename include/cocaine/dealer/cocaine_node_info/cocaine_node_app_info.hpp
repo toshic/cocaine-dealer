@@ -48,23 +48,31 @@ struct cocaine_node_app_info_t {
 		queue_depth(0),
 		status(APP_STATUS_UNKNOWN),
 		slaves_busy(0),
-		slaves_total(0) {}
+		slaves_total(0),
+		sessions_pending(0),
+		load_median(0) {}
 
 	explicit cocaine_node_app_info_t(const std::string& name_) :
 		name(name_),
 		queue_depth(0),
 		status(APP_STATUS_UNKNOWN),
 		slaves_busy(0),
-		slaves_total(0) {}
+		slaves_total(0),
+		sessions_pending(0),
+		load_median(0) {}
 
 	~cocaine_node_app_info_t() {}
 
-	std::string			name;
 	application_tasks	tasks;
+
+	std::string			name;
 	unsigned int		queue_depth;
 	enum app_status		status;
 	unsigned int		slaves_busy;
 	unsigned int		slaves_total;
+	unsigned int		sessions_pending;
+	unsigned int		load_median;
+	std::string			profile;
 
 	friend std::ostream& operator << (std::ostream& out, const cocaine_node_app_info_t& info);
 };
