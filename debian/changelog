@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.10000) lucid; urgency=low
+
+  * compatibility with cocaine v10
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Tue, 15 Jan 2013 17:46:25 +0400
+
 cocaine-dealer (0.9.11) lucid; urgency=low
 
   * employed new io layer in overseer
