@@ -1,21 +1,21 @@
 /*
-    Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
-    Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
+	Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
+	Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
 
-    This file is part of Cocaine.
+	This file is part of Cocaine.
 
-    Cocaine is free software; you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
+	Cocaine is free software; you can redistribute it and/or modify
+	it under the terms of the GNU Lesser General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
-    Cocaine is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU Lesser General Public License for more details.
+	Cocaine is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program. If not, see <http://www.gnu.org/licenses/>. 
+	You should have received a copy of the GNU Lesser General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>. 
 */
 
 #include <msgpack.hpp>
@@ -217,8 +217,11 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 		endpoint = get_next_endpoint();
 		message->set_destination_endpoint(endpoint.as_string());
 
-		zmq::message_t ident_chunk(endpoint.route.size());
-		memcpy((void *)ident_chunk.data(), endpoint.route.data(), endpoint.route.size());
+		msgpack::sbuffer sbuf;
+        msgpack::pack(sbuf, endpoint.route);
+
+		zmq::message_t ident_chunk(sbuf.size());
+		memcpy((void *)ident_chunk.data(), sbuf.data(), sbuf.size());
 
 		if (true != m_socket->send(ident_chunk, ZMQ_SNDMORE)) {
 			return false;
@@ -232,7 +235,7 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 
 		// send message uuid
 		const std::string& uuid = message->uuid().as_string();
-		msgpack::sbuffer sbuf;
+		sbuf.clear();
 		msgpack::pack(sbuf, uuid);
 		zmq::message_t uuid_chunk(sbuf.size());
 		memcpy((void *)uuid_chunk.data(), sbuf.data(), sbuf.size());
@@ -252,7 +255,7 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 		}
 
 		sbuf.clear();
-        msgpack::pack(sbuf, server_policy);
+		msgpack::pack(sbuf, server_policy);
 		zmq::message_t policy_chunk(sbuf.size());
 		memcpy((void *)policy_chunk.data(), sbuf.data(), sbuf.size());
 
@@ -306,7 +309,7 @@ balancer_t::check_for_responses(int poll_timeout) const {
 		return true;
 	}
 
-    return false;
+	return false;
 }
 
 bool
@@ -324,21 +327,46 @@ balancer_t::is_valid_rpc_code(int rpc_code) {
 	return false;
 }
 
+namespace {
+	struct unpacked_data_chunk {
+		std::string uuid;
+		std::string data;
+
+		MSGPACK_DEFINE(uuid, data)
+	};
+
+	struct unpacked_error_chunk {
+		std::string uuid;
+		int			code;
+		std::string message;
+
+		MSGPACK_DEFINE(uuid, code, message)
+	};
+}
+
 bool
 balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 	zmq::message_t		chunk;
 	msgpack::object		obj;
 
-	std::string			route;
-	std::string			uuid;
+	std::string			identity;
 	std::string			data;
 	int					rpc_code;
 
 	int 				error_code = -1;
 	std::string 		error_message;
 
-	// receive route
-	if (!nutils::recv_zmq_message(*m_socket, chunk, route)) {
+	// receive identity
+	if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+		return false;
+	}
+	obj.convert(&identity);
+
+	if (identity.empty()) {
+		if (log_flag_enabled(PLOG_ERROR)) {
+			log_error("received empty message identity!");
+		}
+
 		return false;
 	}
 
@@ -349,48 +377,57 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 	obj.convert(&rpc_code);
 
 	if (!is_valid_rpc_code(rpc_code)) {
+		if (log_flag_enabled(PLOG_ERROR)) {
+			log_error("received bad message code: %d", rpc_code);
+		}
+
 		return false;
 	}
-
-	// receive uuid
-	if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
-		return false;
-	}
-
-	obj.convert(&uuid);
 
 	// init response
 	response.reset(new response_chunk_t);
-	response->uuid			= uuid;
-	response->route			= route;
+	response->route			= identity;
 	response->rpc_code		= rpc_code;
 
 	// receive all data
 	switch (rpc_code) {
 		case SERVER_RPC_MESSAGE_CHUNK: {
-			// receive response data
-			if (!nutils::recv_zmq_message(*m_socket, chunk, data)) {
+			unpacked_data_chunk udc;
+			if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+				log_error("could not receive message body for identity: %s", identity.c_str());
 				return false;
 			}
+			obj.convert(&udc);
 
-			response->data = data_container(data.data(), data.size());
+			response->uuid = udc.uuid;
+			response->data = data_container(udc.data.data(), udc.data.size());
 		}
 		break;
 
 		case SERVER_RPC_MESSAGE_ERROR: {
-			// receive error code
+			unpacked_error_chunk uec;
 			if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+				log_error("could not receive message body for identity: %s", identity.c_str());
 				return false;
 			}
-		    obj.convert(&error_code);
-		    response->error_code = error_code;
+			obj.convert(&uec);
 
-			// receive error message
+			response->uuid = uec.uuid;
+			response->error_code = uec.code;
+			response->error_message = uec.message;
+		}
+		break;
+
+		case SERVER_RPC_MESSAGE_ACK:
+		case SERVER_RPC_MESSAGE_CHOKE: {
+			unpacked_data_chunk udc;
 			if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+				log_error("could not receive message body for identity: %s", identity.c_str());
 				return false;
 			}
-		    obj.convert(&error_message);
-		    response->error_message = error_message;
+			obj.convert(&udc);
+
+			response->uuid = udc.uuid;
 		}
 		break;
 
@@ -398,11 +435,11 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 		break;
 	}
 
-	// 2DO довычитать оставшиеся чанки
+	// довычитать оставшиеся чанки
 	int64_t		more = 1;
 	size_t		more_size = sizeof(more);
 	int			rc = zmq_getsockopt(*m_socket, ZMQ_RCVMORE, &more, &more_size);
-    assert(rc == 0);
+	assert(rc == 0);
 
 	while (more) {
 		zmq::message_t chunk;
@@ -411,7 +448,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 		}
 
 		int rc = zmq_getsockopt(*m_socket, ZMQ_RCVMORE, &more, &more_size);
-    	assert(rc == 0);		
+		assert(rc == 0);		
 	}
 
 	// log the info we received
@@ -420,7 +457,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 	switch (rpc_code) {
 		case SERVER_RPC_MESSAGE_ACK: {
 			if (log_flag_enabled(PLOG_DEBUG)) {
-				wuuid_t id(uuid);
+				wuuid_t id(response->uuid);
 				std::string readable_uuid = id.as_human_readable_string();
 				
 				std::string times = time_value::get_current_time().as_string();
@@ -428,7 +465,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 				log(PLOG_DEBUG,
 					message,
-					route.c_str(),
+					identity.c_str(),
 					readable_uuid.c_str(),
 					times.c_str());
 			}
@@ -437,7 +474,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 		case SERVER_RPC_MESSAGE_CHUNK: {
 			if (log_flag_enabled(PLOG_DEBUG)) {
-				wuuid_t id(uuid);
+				wuuid_t id(response->uuid);
 				std::string readable_uuid = id.as_human_readable_string();
 
 				std::string times = time_value::get_current_time().as_string();
@@ -445,7 +482,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 				log(PLOG_DEBUG,
 					message,
-					route.c_str(),
+					identity.c_str(),
 					readable_uuid.c_str(),
 					times.c_str());
 			}
@@ -454,7 +491,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 		case SERVER_RPC_MESSAGE_CHOKE: {
 			if (log_flag_enabled(PLOG_DEBUG)) {
-				wuuid_t id(uuid);
+				wuuid_t id(response->uuid);
 				std::string readable_uuid = id.as_human_readable_string();
 
 				std::string times = time_value::get_current_time().as_string();
@@ -462,7 +499,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 				log(PLOG_DEBUG,
 					message,
-					route.c_str(),
+					identity.c_str(),
 					readable_uuid.c_str(),
 					times.c_str());
 			}
@@ -471,7 +508,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 		case SERVER_RPC_MESSAGE_ERROR: {
 			if (log_flag_enabled(PLOG_ERROR)) {
-				wuuid_t id(uuid);
+				wuuid_t id(response->uuid);
 				std::string readable_uuid = id.as_human_readable_string();
 
 				std::string times = time_value::get_current_time().as_string();
@@ -479,7 +516,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 				log(PLOG_ERROR,
 					message,
-					route.c_str(),
+					identity.c_str(),
 					readable_uuid.c_str(),
 					times.c_str(),
 					error_message.c_str(),
