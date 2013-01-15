@@ -13,7 +13,7 @@ Build-Depends:
  uuid-dev,
  libssl-dev,
  libcurl4-dev,
- eblob (>= 0.17.2),
+ eblob (= 0.17.6),
  libboost-dev,
  libboost-thread-dev,
  libboost-system-dev,
