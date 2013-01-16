@@ -260,6 +260,20 @@ handle_t::dispatch_next_available_response(balancer_t& balancer) {
 						log(PLOG_WARNING, message_str, response->error_code);
 					}
 				}
+				else {
+					enqueue_response(response);
+
+					remove_from_persistent_storage(response);
+					m_message_cache->remove_message_from_cache(response->route, response->uuid);
+
+					if (log_flag_enabled(PLOG_ERROR)) {
+						std::string message_str = "error received for message with uuid: ";
+						message_str += response->uuid.as_human_readable_string();
+						message_str += " from " + description() + ", error code: %d";
+						message_str += ", error message: " + response->error_message;
+						log(PLOG_ERROR, message_str, response->error_code);
+					}					
+				}
 			}
 			else {
 				enqueue_response(response);
