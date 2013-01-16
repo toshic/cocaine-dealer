@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.10001) lucid; urgency=low
+
+  * fixed unpacking responces, clean-up logging
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Wed, 16 Jan 2013 19:53:52 +0400
+
 cocaine-dealer (0.9.10000) lucid; urgency=low
 
   * compatibility with cocaine v10
