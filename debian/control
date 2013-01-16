@@ -38,8 +38,9 @@ Package: libcocaine-dealer-dev
 Architecture: any
 Section: libdevel
 Depends: 
- ${shlibs:Depends},
+ ${shlibs:Depends}
  ${misc:Depends},
  libcocaine-dealer1 (= ${Source-Version})
 Description: Cocaine - Dealer Development Files
  Files needed to use Cocaine Dealer in development.
+ 
