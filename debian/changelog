@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.10002) lucid; urgency=low
+
+  * fix resheduling when app server queue is full
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Wed, 16 Jan 2013 21:12:03 +0400
+
 cocaine-dealer (0.9.10001) lucid; urgency=low
 
   * fixed unpacking responces, clean-up logging
