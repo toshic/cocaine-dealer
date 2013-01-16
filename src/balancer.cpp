@@ -45,10 +45,6 @@ balancer_t::balancer_t(const std::string& identity,
 		m_endpoints_vec.push_back(*it);
 	}
 
-	if (log_flag_enabled(PLOG_DEBUG)) {
-		log(PLOG_DEBUG, "connect " + m_socket_identity);
-	}
-
 	if (m_endpoints.empty()) {
 		return;
 	}
@@ -72,11 +68,16 @@ void
 balancer_t::connect_socket(const std::set<cocaine_endpoint_t>& endpoints) {
 	assert(m_socket);
 
+	if (endpoints.empty() > 0) {
+		return;
+	}
+
 	std::string connection_str;
 	try {
 		std::set<cocaine_endpoint_t>::const_iterator it = endpoints.begin();
 
 		log(PLOG_DEBUG, "connected %s to endpoints: ", m_socket_identity.c_str());
+
 		for (; it != endpoints.end(); ++it) {
 			connection_str = it->endpoint;
 			log(PLOG_DEBUG, it->endpoint);
@@ -138,10 +139,6 @@ balancer_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints,
 
 void
 balancer_t::create_socket() {
-	if (log_flag_enabled(PLOG_DEBUG)) {
-		log(PLOG_DEBUG, "create_socket " + m_socket_identity);
-	}
-
 	try {
 		int timeout = balancer_t::socket_timeout;
 		m_socket.reset(new zmq::socket_t(*(context()->zmq_context()), ZMQ_ROUTER));
@@ -342,12 +339,18 @@ namespace {
 
 		MSGPACK_DEFINE(uuid, code, message)
 	};
+
+	struct unpacked_choke {
+		std::string uuid;
+
+		MSGPACK_DEFINE(uuid)
+	};
 }
 
 bool
 balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 	zmq::message_t		chunk;
-	msgpack::object		obj;
+	msgpack::unpacked 	unpacked;
 
 	std::string			identity;
 	std::string			data;
@@ -357,10 +360,10 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 	std::string 		error_message;
 
 	// receive identity
-	if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+	if (!nutils::recv_zmq_message(*m_socket, chunk, unpacked)) {
 		return false;
 	}
-	obj.convert(&identity);
+	unpacked.get().convert(&identity);
 
 	if (identity.empty()) {
 		if (log_flag_enabled(PLOG_ERROR)) {
@@ -371,10 +374,10 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 	}
 
 	// receive rpc code
-	if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+	if (!nutils::recv_zmq_message(*m_socket, chunk, unpacked)) {
 		return false;
 	}
-	obj.convert(&rpc_code);
+	unpacked.get().convert(&rpc_code);
 
 	if (!is_valid_rpc_code(rpc_code)) {
 		if (log_flag_enabled(PLOG_ERROR)) {
@@ -393,11 +396,11 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 	switch (rpc_code) {
 		case SERVER_RPC_MESSAGE_CHUNK: {
 			unpacked_data_chunk udc;
-			if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+			if (!nutils::recv_zmq_message(*m_socket, chunk, unpacked)) {
 				log_error("could not receive message body for identity: %s", identity.c_str());
 				return false;
 			}
-			obj.convert(&udc);
+			unpacked.get().convert(&udc);
 
 			response->uuid = udc.uuid;
 			response->data = data_container(udc.data.data(), udc.data.size());
@@ -406,11 +409,11 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 		case SERVER_RPC_MESSAGE_ERROR: {
 			unpacked_error_chunk uec;
-			if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+			if (!nutils::recv_zmq_message(*m_socket, chunk, unpacked)) {
 				log_error("could not receive message body for identity: %s", identity.c_str());
 				return false;
 			}
-			obj.convert(&uec);
+			unpacked.get().convert(&uec);
 
 			response->uuid = uec.uuid;
 			response->error_code = uec.code;
@@ -420,14 +423,14 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 		case SERVER_RPC_MESSAGE_ACK:
 		case SERVER_RPC_MESSAGE_CHOKE: {
-			unpacked_data_chunk udc;
-			if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+			unpacked_choke uc;
+			if (!nutils::recv_zmq_message(*m_socket, chunk, unpacked)) {
 				log_error("could not receive message body for identity: %s", identity.c_str());
 				return false;
 			}
-			obj.convert(&udc);
+			unpacked.get().convert(&uc);
 
-			response->uuid = udc.uuid;
+			response->uuid = uc.uuid;
 		}
 		break;
 

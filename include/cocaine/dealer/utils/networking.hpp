@@ -44,7 +44,7 @@ public:
     static int         ipv4_from_hint(const std::string& hint);
 
     static bool recv_zmq_message(zmq::socket_t& sock, zmq::message_t& msg, std::string& str, int flags = ZMQ_NOBLOCK);
-    static bool recv_zmq_message(zmq::socket_t& sock, zmq::message_t& msg, msgpack::object& obj, int flags = ZMQ_NOBLOCK);
+    static bool recv_zmq_message(zmq::socket_t& sock, zmq::message_t& msg, msgpack::unpacked& unpacked, int flags = ZMQ_NOBLOCK);
 
     template <typename T>
     static bool recv_zmq_message(zmq::socket_t& sock,

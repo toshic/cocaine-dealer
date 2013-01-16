@@ -317,12 +317,6 @@ void
 service_t::create_handle(const handle_info_t& handle_info, const std::set<cocaine_endpoint_t>& endpoints) {
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
-	log(PLOG_INFO,
-		"CREATE HANDLE [%s].[%s].[%s]",
-		m_info.name.c_str(),
-		m_info.app.c_str(),
-		handle_info.name.c_str());
-
 	// create new handle
 	handle_ptr_t handle(new dealer::handle_t(handle_info, endpoints, context()));
 	handle->set_responce_callback(boost::bind(&service_t::enqueue_responce, this, _1));

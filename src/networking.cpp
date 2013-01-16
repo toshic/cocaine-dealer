@@ -127,16 +127,14 @@ nutils::recv_zmq_message(zmq::socket_t& sock,
 bool
 nutils::recv_zmq_message(zmq::socket_t& sock,
 						 zmq::message_t& msg,
-						 msgpack::object& obj,
+						 msgpack::unpacked& unpacked,
 						 int flags)
 {
     if (!sock.recv(&msg, flags)) {
         return false;
     }
 
-    msgpack::unpacked unpacked;
     msgpack::unpack(&unpacked, reinterpret_cast<const char*>(msg.data()), msg.size());
-    obj = unpacked.get();
 
     return true;
 }
