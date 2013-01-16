@@ -13,7 +13,7 @@ Build-Depends:
  uuid-dev,
  libssl-dev,
  libcurl4-dev,
- eblob (= 0.17.6),
+ eblob,
  libboost-dev,
  libboost-thread-dev,
  libboost-system-dev,
@@ -43,4 +43,3 @@ Depends:
  libcocaine-dealer1 (= ${Source-Version})
 Description: Cocaine - Dealer Development Files
  Files needed to use Cocaine Dealer in development.
- 
