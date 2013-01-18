@@ -41,7 +41,7 @@ enum e_message_cache_type {
 struct defaults_t {
 	// common
 	static const int		protocol_version	= 1;
-	static const unsigned short	control_port		= 5001; // cocaine server announce port
+	static const unsigned short	control_port	= 5001; // cocaine server announce port
 	static const size_t		max_message_size	= 2147483648; // 2 gb (in bytes)
 	static const float		endpoint_timeout;
 

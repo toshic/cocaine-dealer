@@ -112,9 +112,9 @@
 		// note, source of the hosts must have a list of hosts with ip adresses/hostnames and control port values,
 		// for example:
 		//
-		// 192.168.0.2:5000
-		// 192.168.0.34:5000
-		// somehostname:5000
+		// 192.168.0.2
+		// 192.168.0.34
+		// somehostname
 		// ...
 		//
 		// also, it is allowed to have no hosts specicied at the source.

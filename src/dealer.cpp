@@ -40,7 +40,7 @@ dealer_t::~dealer_t() {
 
 boost::shared_ptr<response_t>
 dealer_t::send_message(const message_t& message) {
-    return m_impl->send_message(message);   
+    return m_impl->send_message(message);
 }
 
 boost::shared_ptr<response_t>
