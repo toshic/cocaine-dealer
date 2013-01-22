@@ -33,7 +33,7 @@
 
 #include "cocaine/dealer/utils/smart_logger.hpp"
 #include "cocaine/dealer/utils/error.hpp"
-#include "cocaine/dealer/storage/eblob.hpp"
+#include "cocaine/dealer/storage/eblob2.hpp"
 #include "cocaine/dealer/core/dealer_object.hpp"
 
 namespace cocaine {
@@ -42,22 +42,18 @@ namespace dealer {
 class eblob_storage2_t : private boost::noncopyable, public dealer_object_t {
 public:
 	eblob_storage2_t(const boost::shared_ptr<context_t>& ctx, bool logging_enabled) :
-		dealer_object_t(ctx, logging_enabled)
-	{
-		// get storage settings
-		boost::shared_ptr<configuration_t> config = ctx->config();
-
-		// init storage
-	}
+		dealer_object_t(ctx, logging_enabled) {}
 
 	~eblob_storage2_t() {}
+
+	typedef boost::shared_ptr<eblob2_t> shared_eblob_t;
 
 	void write(const std::string& ns,
 			   const std::string& key,
 			   void* data,
 			   size_t size)
 	{
-
+		shared_eblob_t eblob = get_eblob(ns);
 	}
 
 	std::string read(const std::string& ns,
@@ -83,20 +79,25 @@ public:
 	}
 
 private:
-	// boost::shared_ptr<eblob_t> get_eblob(const std::string& ns) {
-	// 	std::map<std::string, boost::shared_ptr<eblob_t> >::const_iterator it = m_eblobs.find(nm);
+	shared_eblob_t get_eblob(const std::string& ns) {
+		std::string eblob_name = ns;
 
-	// 	// no such eblob_t was opened
-	// 	if (it == m_eblobs.end()) {
-	// 		std::string error_msg = "no eblob_t storage object with path: " + m_path + nm;
-	// 		error_msg += " at " + std::string(BOOST_CURRENT_FUNCTION);
-	// 		throw internal_error(error_msg);
-	// 	}
+		if (ns.empty()) {
+			eblob_name = "default_eblob";
+		}
 
-	// 	return it->second;
-	// }
-	
-	std::map<std::string, boost::shared_ptr<eblob_t> > m_eblobs;
+		std::map<std::string, shared_eblob_t>::const_iterator it = m_eblobs.find(ns);
+		
+		if (it == m_eblobs.end()) {
+			shared_eblob_t eb(new eblob2_t(eblob_name, context(), true));
+			m_eblobs.insert(std::make_pair(eblob_name, eb));
+			return eb;
+		}
+
+		return it->second;
+	}
+
+	std::map<std::string, shared_eblob_t> m_eblobs;
 };
 
 } // namespace dealer
