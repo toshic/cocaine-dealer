@@ -42,7 +42,7 @@ namespace dealer {
 
 class eblob2_t : public dealer_object_t {
 public:
-	typedef boost::function<void(const std::string&, void*, uint64_t, int)> iteration_callback_t;
+	typedef boost::function<void(const std::string&, void*, uint64_t)> iteration_callback_t;
 
 	eblob2_t();
 
@@ -52,12 +52,12 @@ public:
 
 	virtual	~eblob2_t();
 
-	void write(const std::string& key, const std::string& value, int column = EBLOB_TYPE_DATA);
-	void write(const std::string& key, void* data, size_t size, int column = EBLOB_TYPE_DATA);
-	std::string read(const std::string& key, int column = EBLOB_TYPE_DATA);
+	void write(const std::string& key, const std::string& value);
+	void write(const std::string& key, void* data, size_t size);
+	std::string read(const std::string& key);
 
 	void remove_all(const std::string &key);
-	void remove(const std::string& key, int column = EBLOB_TYPE_DATA);
+	void remove(const std::string& key);
 
 	unsigned long long items_count();
 	unsigned long long alive_items_count();
@@ -77,8 +77,8 @@ private:
 								 void* priv,
 								 void* thread_priv);
 
-	void iteration_callback_instance(const std::string& key, void* data, uint64_t size, int column);
-	void counting_iteration_callback(const std::string& key, void* data, uint64_t size, int column);
+	void iteration_callback_instance(const std::string& key, void* data, uint64_t size);
+	void counting_iteration_callback(const std::string& key, void* data, uint64_t size);
 
 private:
 	std::string				m_path;

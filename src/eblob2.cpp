@@ -59,57 +59,43 @@ eblob2_t::~eblob2_t() {
 
 void
 eblob2_t::write(const std::string& key,
-				const std::string& value,
-				int column)
+				const std::string& value)
 {
 	if (!m_storage.get()) {
 		std::string error_msg = "empty eblob storage object at " + std::string(BOOST_CURRENT_FUNCTION);
-		error_msg += " key: " + key + " column: " + boost::lexical_cast<std::string>(column);
-		throw internal_error(error_msg);
-	}
-
-	if (column < 0) {
-		std::string error_msg = "bad column index at " + std::string(BOOST_CURRENT_FUNCTION);
-		error_msg += " key: " + key + " column: " + boost::lexical_cast<std::string>(column);
+		error_msg += " key: " + key;
 		throw internal_error(error_msg);
 	}
 
 	// 2DO: truncate written value
-	m_storage->write_hashed(key, value, 0, BLOB_DISK_CTL_OVERWRITE, column);
+	m_storage->write_hashed(key, value, 0, BLOB_DISK_CTL_OVERWRITE);
 }
 
 void
 eblob2_t::write(const std::string& key,
 				void* data,
-				size_t size,
-				int column)
+				size_t size)
 {
 	if (!m_storage.get()) {
 		std::string error_msg = "empty eblob storage object at " + std::string(BOOST_CURRENT_FUNCTION);
-		error_msg += " key: " + key + " column: " + boost::lexical_cast<std::string>(column);
-		throw internal_error(error_msg);
-	}
-
-	if (column < 0) {
-		std::string error_msg = "bad column index at " + std::string(BOOST_CURRENT_FUNCTION);
-		error_msg += " key: " + key + " column: " + boost::lexical_cast<std::string>(column);
+		error_msg += " key: " + key;
 		throw internal_error(error_msg);
 	}
 
 	// 2DO: truncate written value
 	std::string value(reinterpret_cast<char*>(data), reinterpret_cast<char*>(data) + size);
-	m_storage->write_hashed(key, value, 0, BLOB_DISK_CTL_OVERWRITE, column);
+	m_storage->write_hashed(key, value, 0, BLOB_DISK_CTL_OVERWRITE);
 }
 
 std::string
-eblob2_t::read(const std::string& key, int column) {
+eblob2_t::read(const std::string& key) {
 	if (!m_storage.get()) {
 		std::string error_msg = "empty eblob storage object at " + std::string(BOOST_CURRENT_FUNCTION);
-		error_msg += " key: " + key + " column: " + boost::lexical_cast<std::string>(column);
+		error_msg += " key: " + key;
 		throw internal_error(error_msg);
 	}
 
-	return m_storage->read_hashed(key, 0, 0, column);
+	return m_storage->read_hashed(key, 0, 0);
 }
 
 void
@@ -126,14 +112,14 @@ eblob2_t::remove_all(const std::string &key) {
 }
 
 void
-eblob2_t::remove(const std::string& key, int column) {
+eblob2_t::remove(const std::string& key) {
 	if (!m_storage.get()) {
 		std::string error_msg = "empty eblob storage object at " + std::string(BOOST_CURRENT_FUNCTION);
-		error_msg += " key: " + key + " column: " + boost::lexical_cast<std::string>(column);
+		error_msg += " key: " + key;
 		throw internal_error(error_msg);
 	}
 
-	m_storage->remove_hashed(key, column);
+	m_storage->remove_hashed(key);
 }
 
 unsigned long long
@@ -155,7 +141,7 @@ eblob2_t::alive_items_count() {
 		throw internal_error(error_msg);
 	}
 
-	m_iteration_callback = boost::bind(&eblob2_t::counting_iteration_callback, this, _1, _2, _3, _4);
+	m_iteration_callback = boost::bind(&eblob2_t::counting_iteration_callback, this, _1, _2, _3);
 
 	eblob_iterate_control ctl;
     memset(&ctl, 0, sizeof(ctl));
@@ -197,7 +183,7 @@ eblob2_t::iteration_callback(eblob_disk_control* dc,
 	eblob2_t* eb = reinterpret_cast<eblob2_t*>(priv);
 
 	// 2DO MAKE PERSISTENCE SINGLE_COLUMN
-	eb->iteration_callback_instance((char*)dc->key.id, data, rc->size, 0);
+	eb->iteration_callback_instance((char*)dc->key.id, data, rc->size);
 
 	return 0;
 }
@@ -205,19 +191,17 @@ eblob2_t::iteration_callback(eblob_disk_control* dc,
 void
 eblob2_t::iteration_callback_instance(const std::string& key,
 									 void* data,
-									 uint64_t size,
-									 int column)
+									 uint64_t size)
 {
 	if (m_iteration_callback) {
-		m_iteration_callback(key, data, size, column);
+		m_iteration_callback(key, data, size);
 	}
 }
 
 void
 eblob2_t::counting_iteration_callback(const std::string& key,
 									 void* data,
-									 uint64_t size,
-									 int column)
+									 uint64_t size)
 {
 	++m_alive_items_count;
 }
