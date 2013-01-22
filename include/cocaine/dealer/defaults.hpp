@@ -41,7 +41,7 @@ enum e_message_cache_type {
 struct defaults_t {
 	// common
 	static const int		protocol_version	= 1;
-	static const unsigned short	control_port		= 5001; // cocaine server announce port
+	static const unsigned short	control_port	= 5001; // cocaine server announce port
 	static const size_t		max_message_size	= 2147483648; // 2 gb (in bytes)
 	static const float		endpoint_timeout;
 
@@ -61,12 +61,12 @@ struct defaults_t {
 	static const enum e_message_cache_type message_cache_type = RAM_ONLY;
 
 	static const std::string	eblob_path;
-	static const size_t		eblob_blob_size		= 2147483648; // 2 gb (in bytes)
-	static const int		eblob_sync_interval	= 2;
+	static const size_t		eblob_blob_size			= 2147483648; // 2 gb (in bytes)
+	static const int		eblob_sync_interval		= 2;
 	static const int		eblob_thread_pool_size	= 16;
 	static const int		eblob_defrag_timeout	= 9999999;
 
-	static const unsigned short	statistics_port			= 3333;
+	static const unsigned short	statistics_port		= 3333;
 	static const int		statistics_protocol_version	= 1;
 };
 

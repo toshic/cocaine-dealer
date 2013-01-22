@@ -54,28 +54,27 @@ public:
 			   size_t size)
 	{
 		shared_eblob_t eblob = get_eblob(ns);
+		eblob->write(key, data, size);
 	}
 
 	std::string read(const std::string& ns,
 					 const std::string& key)
 	{
-		return "";
-	}
-
-	void remove_all(const std::string& ns)
-	{
-
+		shared_eblob_t eblob = get_eblob(ns);
+		return eblob->read(key);
 	}
 
 	void remove(const std::string& ns,
 				const std::string& key)
 	{
-
+		shared_eblob_t eblob = get_eblob(ns);
+		return eblob->remove(key);
 	}
 
 	unsigned long long items_count(const std::string& ns = "")
 	{
-		return 0;
+		shared_eblob_t eblob = get_eblob(ns);
+		return eblob->items_count();
 	}
 
 private:
@@ -87,7 +86,7 @@ private:
 		}
 
 		std::map<std::string, shared_eblob_t>::const_iterator it = m_eblobs.find(ns);
-		
+
 		if (it == m_eblobs.end()) {
 			shared_eblob_t eb(new eblob2_t(eblob_name, context(), true));
 			m_eblobs.insert(std::make_pair(eblob_name, eb));

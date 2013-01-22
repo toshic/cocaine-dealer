@@ -64,18 +64,12 @@ public:
 
 	void iterate(iteration_callback_t callback);
 
-public:
-	static const uint64_t DEFAULT_BLOB_SIZE = 2147483648;	// 2 gb
-	static const int DEFAULT_SYNC_INTERVAL = 2; 			// secs
-	static const int DEFAULT_DEFRAG_TIMEOUT = -1; 			// secs
-	static const int DEFAULT_THREAD_POOL_SIZE = 4;
-
 private:
 	static int iteration_callback(eblob_disk_control* dc,
-								 eblob_ram_control* rc,
-								 void* data,
-								 void* priv,
-								 void* thread_priv);
+								  eblob_ram_control* rc,
+								  void* data,
+								  void* priv,
+								  void* thread_priv);
 
 	void iteration_callback_instance(const std::string& key, void* data, uint64_t size);
 	void counting_iteration_callback(const std::string& key, void* data, uint64_t size);
