@@ -2,12 +2,12 @@
 	"version" : 1,
 	
 	"use_persistense" : false,
-	"endpoint_timeout" : 2,
+	"endpoint_timeout" : 7,
 
 	"logger" :
 	{
 		"type" : "STDOUT_LOGGER",
-		"flags" : "PLOG_INTRO | PLOG_INFO"
+		"flags" : "PLOG_INTRO | PLOG_ALL"
 
 //		"type" : "FILE_LOGGER",
 //		"file" : "/home/rimz/dealer.log",

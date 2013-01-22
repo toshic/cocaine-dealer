@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.13) lucid; urgency=low
+
+  * experimental build
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Wed, 23 Jan 2012 02:10:34 +0400
+
 cocaine-dealer (0.9.12) lucid; urgency=low
 
   * default cocaine server announce port set to 5001

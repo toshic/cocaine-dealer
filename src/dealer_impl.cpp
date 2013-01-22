@@ -95,6 +95,8 @@ dealer_impl_t::process_overseer_event(e_overseer_event event_type,
 									  const std::string& handle_name,
 									  const std::set<cocaine_endpoint_t>& endpoints)
 {
+	//std::cout << "process_overseer_event\n";
+
 	// find corresponding service
 	services_map_t::iterator it = m_services.find(service_name);
 
