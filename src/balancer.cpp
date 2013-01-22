@@ -215,7 +215,7 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 		message->set_destination_endpoint(endpoint.as_string());
 
 		msgpack::sbuffer sbuf;
-        msgpack::pack(sbuf, endpoint.route);
+		msgpack::pack(sbuf, endpoint.route);
 
 		zmq::message_t ident_chunk(sbuf.size());
 		memcpy((void *)ident_chunk.data(), sbuf.data(), sbuf.size());

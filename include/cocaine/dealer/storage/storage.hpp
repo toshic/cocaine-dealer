@@ -26,6 +26,8 @@
 #include <boost/utility.hpp>
 #include <boost/shared_ptr.hpp>
 
+#include <msgpack.hpp>
+
 #include "cocaine/dealer/core/context.hpp"
 
 namespace cocaine {
@@ -68,6 +70,27 @@ public:
 		m_storage.write(ns, key, data, size);
 	}
 
+	template <typename S>
+	void write(const std::string& ns,
+			   const std::string& key,
+			   const S& obj)
+	{
+		msgpack::sbuffer sbuf;
+        msgpack::pack(sbuf, obj);
+
+		m_storage.write(ns, key, sbuf.data(), sbuf.size());
+	}
+
+	template <typename S>
+	void write(const std::string& key,
+			   const S& obj)
+	{
+		msgpack::sbuffer sbuf;
+        msgpack::pack(sbuf, obj);
+
+		m_storage.write("", key, sbuf.data(), sbuf.size());
+	}
+
 	// read
 	std::string read(const std::string& key)
 	{
@@ -78,6 +101,27 @@ public:
 					 const std::string& key)
 	{
 		return m_storage.read(ns, key);
+	}
+
+	template <typename S>
+	void read(const std::string& key,
+			  S& obj)
+	{
+		std::string val = m_storage.read("", key);
+		msgpack::unpacked unpacked;
+		msgpack::unpack(&unpacked, reinterpret_cast<const char*>(val.data()), val.size());
+		unpacked.get().convert(&obj);
+	}
+
+	template <typename S>
+	void read(const std::string& ns,
+			  const std::string& key,
+			  S& obj)
+	{
+		std::string val = m_storage.read(ns, key);
+		msgpack::unpacked unpacked;
+		msgpack::unpack(&unpacked, reinterpret_cast<const char*>(val.data()), val.size());
+		unpacked.get().convert(&obj);
 	}
 
 	// remove

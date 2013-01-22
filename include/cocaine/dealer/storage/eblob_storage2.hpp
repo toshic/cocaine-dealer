@@ -27,12 +27,7 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/utility.hpp>
-#include <boost/lexical_cast.hpp>
 
-#include <eblob/eblob.hpp>
-
-#include "cocaine/dealer/utils/smart_logger.hpp"
-#include "cocaine/dealer/utils/error.hpp"
 #include "cocaine/dealer/storage/eblob2.hpp"
 #include "cocaine/dealer/core/dealer_object.hpp"
 
