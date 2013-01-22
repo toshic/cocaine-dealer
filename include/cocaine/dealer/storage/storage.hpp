@@ -32,7 +32,7 @@ namespace cocaine {
 namespace dealer {
 
 template <typename T>
-class storage : private boost::noncopyable {
+class storage_t : private boost::noncopyable {
 public:
 	storage_t(const boost::shared_ptr<context_t>& ctx,
 			  bool logging_enabled = false) : m_storage(ctx, logging_enabled) {}
@@ -46,11 +46,11 @@ public:
 		m_storage.write("", key, value.data(), value.size());
 	}
 
-	void write(const std::string& namespace,
+	void write(const std::string& ns,
 			   const std::string& key,
 			   const std::string& value)
 	{
-		m_storage.write(namespace, key, value.data(), value.size());
+		m_storage.write(ns, key, value.data(), value.size());
 	}
 
 	void write(const std::string& key,
@@ -60,12 +60,12 @@ public:
 		m_storage.write("", key, data, size);
 	}
 
-	void write(const std::string& namespace,
+	void write(const std::string& ns,
 			   const std::string& key,
 			   void* data,
 			   size_t size)
 	{
-		m_storage.write(namespace, key, data, size);
+		m_storage.write(ns, key, data, size);
 	}
 
 	// read
@@ -74,22 +74,22 @@ public:
 		return m_storage.read("", key);
 	}
 
-	std::string read(const std::string& namespace,
+	std::string read(const std::string& ns,
 					 const std::string& key)
 	{
-		return m_storage.read(namespace, key);
+		return m_storage.read(ns, key);
 	}
 
 	// remove
-	void remove_all(const std::string& namespace = "")
+	void remove_all(const std::string& ns = "")
 	{
-		m_storage.remove_all(namespace);
+		m_storage.remove_all(ns);
 	}
 
-	void remove(const std::string& namespace,
+	void remove(const std::string& ns,
 				const std::string& key)
 	{
-		m_storage.remove(namespace, key);
+		m_storage.remove(ns, key);
 	}
 
 	void remove(const std::string& key)
@@ -98,7 +98,7 @@ public:
 	}
 
 	// info
-	unsigned long long items_count(const std::string& namespace = "");
+	unsigned long long items_count(const std::string& ns = "");
 
 private:
 	T m_storage;

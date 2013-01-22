@@ -33,6 +33,7 @@
 #include "cocaine/dealer/utils/refresher.hpp"
 #include "cocaine/dealer/utils/networking.hpp"
 #include "cocaine/dealer/utils/math.hpp"
+#include "cocaine/dealer/core/context.hpp"
 
 #include <eblob/eblob.hpp>
 
@@ -141,29 +142,8 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 
 int
 main(int argc, char** argv) {
-	dealer_t			d("../tests/config.json");
-	message_path_t		path("time_echo", "echo");
-	std::string			payload = "message ";
-
-	boost::shared_ptr<response_t> responce;
-
-	try {
-		responce = d.send_message(payload.data(), payload.size(), path);
-
-		data_container data;
-		while (responce->get(&data)) {
-			std::cout << std::string(reinterpret_cast<const char*>(data.data()), 0, data.size()) << std::endl;
-		}
-	}
-	catch (const dealer_error& err) {
-		std::cout << "error code: " << err.code() << ", error message: " << err.what() << std::endl;
-	}
-	catch (const std::exception& ex) {
-		std::cout << "error message: " << ex.what() << std::endl;
-	}
-	catch (...) {
-		std::cout << "caught exception, no error message." << std::endl;
-	}
+	cocaine::dealer::context_t ctx("../tests/config.json");
+	ctx.create_storage();
 
 	return EXIT_SUCCESS;
 

@@ -21,7 +21,10 @@
 #include "cocaine/dealer/core/context.hpp"
 #include "cocaine/dealer/utils/error.hpp"
 #include "cocaine/dealer/storage/eblob_storage.hpp"
-    
+
+#include "cocaine/dealer/storage/eblob_storage2.hpp"
+#include "cocaine/dealer/storage/storage.hpp"
+
 namespace cocaine {
 namespace dealer {
 
@@ -65,6 +68,11 @@ context_t::context_t(const std::string& config_path) {
 	// create zmq context
 	m_zmq_context.reset(new zmq::context_t(1));
 
+	// create new storage
+	if (config()->message_cache_type() == PERSISTENT) {
+		m_storage2.reset(new storage_t<eblob_storage2_t>(shared_pointer(), true));
+	}
+
 	// create statistics collector
 	//m_stats.reset(new statistics_collector(m_config, m_zmq_context, logger()));
 }
@@ -86,7 +94,9 @@ context_t::create_storage() {
 		return;
 	}
 
+	// create old storage
 	logger()->log(PLOG_DEBUG, "loading cache from eblobs...");
+
 	std::string st_path = config()->eblob_path();
 	int64_t st_blob_size = config()->eblob_blob_size();
 	int st_sync = config()->eblob_sync_interval();
@@ -133,6 +143,11 @@ context_t::zmq_context() {
 boost::shared_ptr<eblob_storage_t>
 context_t::storage() {
 	return m_storage;
+}
+
+context_t::shared_storage_t
+context_t::storage2() {
+	return m_storage2;	
 }
 
 } // namespace dealer

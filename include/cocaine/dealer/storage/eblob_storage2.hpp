@@ -52,7 +52,7 @@ public:
 
 	~eblob_storage2_t() {}
 
-	void write(const std::string& namespace,
+	void write(const std::string& ns,
 			   const std::string& key,
 			   void* data,
 			   size_t size)
@@ -60,43 +60,42 @@ public:
 
 	}
 
-	std::string read(const std::string& namespace,
+	std::string read(const std::string& ns,
 					 const std::string& key)
 	{
-
+		return "";
 	}
 
-	void remove_all(const std::string& namespace)
+	void remove_all(const std::string& ns)
 	{
 
 	}
 
-	void remove(const std::string& namespace,
+	void remove(const std::string& ns,
 				const std::string& key)
 	{
 
 	}
 
-	unsigned long long items_count(const std::string& namespace = "")
+	unsigned long long items_count(const std::string& ns = "")
 	{
-
+		return 0;
 	}
 
 private:
-	/*
-	boost::shared_ptr<eblob_t> get_eblob(const std::string& namespace) {
-		std::map<std::string, boost::shared_ptr<eblob_t> >::const_iterator it = m_eblobs.find(nm);
+	// boost::shared_ptr<eblob_t> get_eblob(const std::string& ns) {
+	// 	std::map<std::string, boost::shared_ptr<eblob_t> >::const_iterator it = m_eblobs.find(nm);
 
-		// no such eblob_t was opened
-		if (it == m_eblobs.end()) {
-			std::string error_msg = "no eblob_t storage object with path: " + m_path + nm;
-			error_msg += " at " + std::string(BOOST_CURRENT_FUNCTION);
-			throw internal_error(error_msg);
-		}
+	// 	// no such eblob_t was opened
+	// 	if (it == m_eblobs.end()) {
+	// 		std::string error_msg = "no eblob_t storage object with path: " + m_path + nm;
+	// 		error_msg += " at " + std::string(BOOST_CURRENT_FUNCTION);
+	// 		throw internal_error(error_msg);
+	// 	}
 
-		return it->second;
-	}
-	*/
+	// 	return it->second;
+	// }
+	
 	std::map<std::string, boost::shared_ptr<eblob_t> > m_eblobs;
 };
 
