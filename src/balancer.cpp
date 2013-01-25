@@ -144,19 +144,19 @@ balancer_t::create_socket() {
 
 	try {
 		int timeout = balancer_t::socket_timeout;
-		m_socket.reset(new zmq::socket_t(*(context()->zmq_context()), ZMQ_ROUTER));
-		m_socket->setsockopt(ZMQ_LINGER, &timeout, sizeof(timeout));
+		m_socket.reset(new socket_t(context(), ZMQ_ROUTER));
+		m_socket->set_sockopt(ZMQ_LINGER, &timeout, sizeof(timeout));
 
 		#if ZMQ_VERSION_MAJOR < 3
 			int64_t hwm = balancer_t::socket_hwm;
-			m_socket->setsockopt(ZMQ_HWM, &hwm, sizeof(hwm));
+			m_socket->set_sockopt(ZMQ_HWM, &hwm, sizeof(hwm));
 		#else
 			int hwm = balancer_t::socket_hwm;
-			m_socket->setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
-			m_socket->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+			m_socket->set_sockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+			m_socket->set_sockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
 		#endif
 
-		m_socket->setsockopt(ZMQ_IDENTITY, m_socket_identity.c_str(), m_socket_identity.length());
+		m_socket->set_sockopt(ZMQ_IDENTITY, m_socket_identity.c_str(), m_socket_identity.length());
 	}
 	catch (const zmq::error_t& ex) {
 		log(PLOG_ERROR, "could not recreate socket, details: %s", ex.what());
@@ -209,6 +209,31 @@ balancer_t::get_next_endpoint() {
 }
 
 bool
+balancer_t::check_for_responses(int poll_timeout) const {
+	assert(m_socket);
+
+	// poll for responce
+	zmq_pollitem_t poll_items[1];
+	poll_items[0].socket = m_socket->zmq_socket();
+	poll_items[0].fd = 0;
+	poll_items[0].events = ZMQ_POLLIN;
+	poll_items[0].revents = 0;
+
+	int socket_response = zmq_poll(poll_items, 1, poll_timeout);
+
+	if (socket_response <= 0) {
+		return false;
+	}
+
+	// in case we received response
+	if ((ZMQ_POLLIN & poll_items[0].revents) == ZMQ_POLLIN) {
+		return true;
+	}
+
+    return false;
+}
+
+bool
 balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& endpoint) {
 	assert(m_socket);
 
@@ -217,27 +242,17 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 		endpoint = get_next_endpoint();
 		message->set_destination_endpoint(endpoint.as_string());
 
-		zmq::message_t ident_chunk(endpoint.route.size());
-		memcpy((void *)ident_chunk.data(), endpoint.route.data(), endpoint.route.size());
-
-		if (true != m_socket->send(ident_chunk, ZMQ_SNDMORE)) {
+		if (true != m_socket->send(endpoint.route, ZMQ_SNDMORE)) {
 			return false;
 		}
 
 		// send header
-		zmq::message_t empty_message(0);
-		if (true != m_socket->send(empty_message, ZMQ_SNDMORE)) {
+		if (true != m_socket->send_empty(ZMQ_SNDMORE)) {
 			return false;
 		}
 
 		// send message uuid
-		const std::string& uuid = message->uuid().as_string();
-		msgpack::sbuffer sbuf;
-		msgpack::pack(sbuf, uuid);
-		zmq::message_t uuid_chunk(sbuf.size());
-		memcpy((void *)uuid_chunk.data(), sbuf.data(), sbuf.size());
-
-		if (true != m_socket->send(uuid_chunk, ZMQ_SNDMORE)) {
+		if (true != m_socket->send_packed(message->uuid().as_string(), ZMQ_SNDMORE)) {
 			return false;
 		}
 
@@ -251,12 +266,7 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 			server_policy.deadline = server_deadline.as_double();
 		}
 
-		sbuf.clear();
-        msgpack::pack(sbuf, server_policy);
-		zmq::message_t policy_chunk(sbuf.size());
-		memcpy((void *)policy_chunk.data(), sbuf.data(), sbuf.size());
-
-		if (true != m_socket->send(policy_chunk, ZMQ_SNDMORE)) {
+		if (true != m_socket->send_packed(server_policy, ZMQ_SNDMORE)) {
 			return false;
 		}
 
@@ -285,31 +295,6 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 }
 
 bool
-balancer_t::check_for_responses(int poll_timeout) const {
-	assert(m_socket);
-
-	// poll for responce
-	zmq_pollitem_t poll_items[1];
-	poll_items[0].socket = *m_socket;
-	poll_items[0].fd = 0;
-	poll_items[0].events = ZMQ_POLLIN;
-	poll_items[0].revents = 0;
-
-	int socket_response = zmq_poll(poll_items, 1, poll_timeout);
-
-	if (socket_response <= 0) {
-		return false;
-	}
-
-	// in case we received response
-	if ((ZMQ_POLLIN & poll_items[0].revents) == ZMQ_POLLIN) {
-		return true;
-	}
-
-    return false;
-}
-
-bool
 balancer_t::is_valid_rpc_code(int rpc_code) {
 	switch (rpc_code) {
 		case SERVER_RPC_MESSAGE_ACK:
@@ -326,71 +311,61 @@ balancer_t::is_valid_rpc_code(int rpc_code) {
 
 bool
 balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
-	zmq::message_t		chunk;
-	msgpack::object		obj;
-
 	std::string			route;
 	std::string			uuid;
 	std::string			data;
 	int					rpc_code;
 
-	int 				error_code = -1;
 	std::string 		error_message;
 
 	// receive route
-	if (!nutils::recv_zmq_message(*m_socket, chunk, route)) {
+	if (!m_socket->recv(route, ZMQ_NOBLOCK)) {
 		return false;
 	}
 
 	// receive rpc code
-	if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+	if (!m_socket->recv_packed(rpc_code, ZMQ_NOBLOCK)) {
 		return false;
 	}
-	obj.convert(&rpc_code);
 
 	if (!is_valid_rpc_code(rpc_code)) {
+		m_socket->drop();
 		return false;
 	}
 
 	// receive uuid
-	if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+	if (!m_socket->recv_packed(uuid, ZMQ_NOBLOCK)) {
 		return false;
 	}
 
-	obj.convert(&uuid);
-
 	// init response
 	response.reset(new response_chunk_t);
-	response->uuid			= uuid;
-	response->route			= route;
-	response->rpc_code		= rpc_code;
+	response->uuid		= uuid;
+	response->route		= route;
+	response->rpc_code	= rpc_code;
 
 	// receive all data
 	switch (rpc_code) {
 		case SERVER_RPC_MESSAGE_CHUNK: {
-			// receive response data
-			if (!nutils::recv_zmq_message(*m_socket, chunk, data)) {
+			zmq::message_t chunk;
+			if (!m_socket->recv(&chunk, ZMQ_NOBLOCK)) {
 				return false;
 			}
 
-			response->data = data_container(data.data(), data.size());
+			response->data = data_container(chunk.data(), chunk.size());
 		}
 		break;
 
 		case SERVER_RPC_MESSAGE_ERROR: {
 			// receive error code
-			if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+			if (!m_socket->recv_packed(response->error_code, ZMQ_NOBLOCK)) {
 				return false;
 			}
-		    obj.convert(&error_code);
-		    response->error_code = error_code;
 
 			// receive error message
-			if (!nutils::recv_zmq_message(*m_socket, chunk, obj)) {
+			if (!m_socket->recv_packed(response->error_message, ZMQ_NOBLOCK)) {
 				return false;
 			}
-		    obj.convert(&error_message);
-		    response->error_message = error_message;
 		}
 		break;
 
@@ -398,21 +373,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 		break;
 	}
 
-	// 2DO довычитать оставшиеся чанки
-	int64_t		more = 1;
-	size_t		more_size = sizeof(more);
-	int			rc = zmq_getsockopt(*m_socket, ZMQ_RCVMORE, &more, &more_size);
-    assert(rc == 0);
-
-	while (more) {
-		zmq::message_t chunk;
-		if (!m_socket->recv(&chunk, ZMQ_NOBLOCK)) {
-			break;
-		}
-
-		int rc = zmq_getsockopt(*m_socket, ZMQ_RCVMORE, &more, &more_size);
-    	assert(rc == 0);		
-	}
+	m_socket->drop();
 
 	// log the info we received
 	std::string message = "response from: %s for msg with uuid: %s, type: ";
@@ -482,8 +443,8 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 					route.c_str(),
 					readable_uuid.c_str(),
 					times.c_str(),
-					error_message.c_str(),
-					error_code);
+					response->error_message.c_str(),
+					response->error_code);
 			}
 		}
 		break;

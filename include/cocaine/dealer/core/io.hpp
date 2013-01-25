@@ -1,21 +1,21 @@
 /*
-    Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
-    Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
+	Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
+	Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
 
-    This file is part of Cocaine.
+	This file is part of Cocaine.
 
-    Cocaine is free software; you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
+	Cocaine is free software; you can redistribute it and/or modify
+	it under the terms of the GNU Lesser General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
-    Cocaine is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU Lesser General Public License for more details.
+	Cocaine is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program. If not, see <http://www.gnu.org/licenses/>. 
+	You should have received a copy of the GNU Lesser General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>. 
 */
 
 #ifndef _COCAINE_DEALER_SOCKET_HPP_INCLUDED_
@@ -28,7 +28,7 @@
 #include <zmq.hpp>
 
 #if ZMQ_VERSION < 20200
-    #error ZeroMQ version 2.2.0+ required!
+	#error ZeroMQ version 2.2.0+ required!
 #endif
 
 #include "cocaine/dealer/core/birth_control.hpp"
@@ -42,8 +42,8 @@ namespace dealer {
 // Raw message container
 template<class T>
 struct raw {
-    raw(T& value_) : value(value_) {};
-    T& value;
+	raw(T& value_) : value(value_) {};
+	T& value;
 };
 
 // Specialize this to disable specific type serialization.
@@ -52,178 +52,206 @@ struct serialization_traits;
 
 template<>
 struct serialization_traits<std::string> {
-    static void pack(zmq::message_t& message, const std::string& value) {
-        message.rebuild(value.size());
-        memcpy(message.data(), value.data(), value.size());
-    }
+	static void pack(zmq::message_t& message, const std::string& value) {
+		message.rebuild(value.size());
+		memcpy(message.data(), value.data(), value.size());
+	}
 
-    static bool unpack(zmq::message_t& message, std::string& value) {
-        value.assign(
-            static_cast<const char*>(message.data()),
-            message.size()
-        );
+	static bool unpack(zmq::message_t& message, std::string& value) {
+		value.assign(
+			static_cast<const char*>(message.data()),
+			message.size()
+		);
 
-        return true;
-    }
+		return true;
+	}
 };
 
 class socket_t : public boost::noncopyable, public birth_control<socket_t> {
-    public:
-        socket_t(const boost::shared_ptr<context_t>& context, int type);
-        socket_t(const boost::shared_ptr<context_t>& context, int type, const std::string& route);
+	public:
+		socket_t(const boost::shared_ptr<context_t>& context, int type);
+		socket_t(const boost::shared_ptr<context_t>& context, int type, const std::string& route);
 
-        void bind(const inetv4_endpoint_t& endpoint);
-        void bind(const std::string& endpoint);
+		void bind(const inetv4_endpoint_t& endpoint);
+		void bind(const std::string& endpoint);
 
-        void connect(const inetv4_endpoint_t& endpoint);
-        void connect(const std::string& endpoint);
+		void connect(const inetv4_endpoint_t& endpoint);
+		void connect(const std::string& endpoint);
 
-        void drop();
+		void drop();
 
-        bool send(zmq::message_t& message, int flags = 0) {
-            return m_socket.send(message, flags);
-        }
+		bool send(zmq::message_t& message, int flags = 0) {
+			return m_socket.send(message, flags);
+		}
 
-        template<class T>
-        bool send(const T& value, int flags = 0) {
-            msgpack::sbuffer buffer;
-            msgpack::pack(buffer, value);
-            
-            zmq::message_t message(buffer.size());
-            memcpy(message.data(), buffer.data(), buffer.size());
-            
-            return send(message, flags);
-        }
-        
-        template<class T>
-        bool send(const raw<T>& object, int flags = 0) {
-            zmq::message_t message;
-            
-            serialization_traits< typename boost::remove_const<T>::type >::pack(message, object.value);
-            
-            return send(message, flags);
-        }
+		bool send(std::string& message, int flags = 0) {
+			zmq::message_t chunk(message.size());
+			memcpy((void *)chunk.data(), message.data(), message.size());
 
-        bool recv(zmq::message_t* message, int flags = 0) {
-            return m_socket.recv(message, flags);
-        }
+			return m_socket.send(chunk, flags);
+		}
 
-        template<class T>
-        bool recv(T& result, int flags = 0) {
-            zmq::message_t message;
-            msgpack::unpacked unpacked;
+		bool send_empty(int flags = 0) {
+			zmq::message_t chunk(0);
+			return m_socket.send(chunk, flags);
+		}
 
-            if(!recv(&message, flags)) {
-                return false;
-            }
-           
-            try { 
-                msgpack::unpack(
-                    &unpacked,
-                    static_cast<const char*>(message.data()),
-                    message.size()
-                );
-                
-                unpacked.get().convert(&result);
-            }
-            catch(const msgpack::type_error& e) {
-                throw std::runtime_error("corrupted object");
-            }
-            catch(const std::bad_cast& e) {
-                throw std::runtime_error("corrupted object - type mismatch");
-            }
+		template<class T>
+		bool send_packed(const T& value, int flags = 0) {
+			msgpack::sbuffer buffer;
+			msgpack::pack(buffer, value);
+			
+			zmq::message_t message(buffer.size());
+			memcpy(message.data(), buffer.data(), buffer.size());
+			
+			return send(message, flags);
+		}
+		
+		template<class T>
+		bool send(const raw<T>& object, int flags = 0) {
+			zmq::message_t message;
+			
+			serialization_traits< typename boost::remove_const<T>::type >::pack(message, object.value);
+			
+			return send(message, flags);
+		}
 
-            return true;
-        }
-      
-        template<class T>
-        bool recv(raw<T>& result, int flags = 0) {
-            zmq::message_t message;
+		bool recv(zmq::message_t* message, int flags = 0) {
+			return m_socket.recv(message, flags);
+		}
 
-            if(!recv(&message, flags)) {
-                return false;
-            }
+		bool recv(std::string& message, int flags = 0) {
+			zmq::message_t msg;
+			if (!m_socket.recv(&msg, flags)) {
+				return false;
+			}
 
-            return serialization_traits< typename boost::remove_const<T>::type >::unpack(message, result.value);
-        }
+			message.clear();
+			message.append(reinterpret_cast<char*>(msg.data()), msg.size());
 
-        void get_sockopt(int name, void* value, size_t* size) {
-            m_socket.getsockopt(name, value, size);
-        }
+			return true;
+		}
 
-        void set_sockopt(int name, const void* value, size_t size) {
-            m_socket.setsockopt(name, value, size);
-        }
+		template<class T>
+		bool recv_packed(T& result, int flags = 0) {
+			zmq::message_t message;
+			msgpack::unpacked unpacked;
 
-        void set_linger(int value) {
-            set_sockopt(ZMQ_LINGER, &value, sizeof(value));
-        }
+			if(!recv(&message, flags)) {
+				return false;
+			}
+		   
+			try { 
+				msgpack::unpack(
+					&unpacked,
+					static_cast<const char*>(message.data()),
+					message.size()
+				);
+				
+				unpacked.get().convert(&result);
+			}
+			catch(const msgpack::type_error& e) {
+				throw std::runtime_error("corrupted object");
+			}
+			catch(const std::bad_cast& e) {
+				throw std::runtime_error("corrupted object - type mismatch");
+			}
 
-        void set_identity(const std::string& ident, bool gen_uuid = false) {
-            std::string identity = ident;
+			return true;
+		}
+	  
+		template<class T>
+		bool recv(raw<T>& result, int flags = 0) {
+			zmq::message_t message;
 
-            if (gen_uuid) {
-                wuuid_t sock_uuid;
-                sock_uuid.generate();
-                identity += sock_uuid.as_human_readable_string();
-            }
+			if(!recv(&message, flags)) {
+				return false;
+			}
 
-            set_sockopt(ZMQ_IDENTITY, identity.data(), identity.size());
-        }
+			return serialization_traits< typename boost::remove_const<T>::type >::unpack(message, result.value);
+		}
 
-        void subscribe(const std::string& filter = "") {
-            if (m_type != ZMQ_SUB) {
-                return;
-            }
+		void get_sockopt(int name, void* value, size_t* size) {
+			m_socket.getsockopt(name, value, size);
+		}
 
-            set_sockopt(ZMQ_SUBSCRIBE, filter.data(), filter.size());
-        }
+		void set_sockopt(int name, const void* value, size_t size) {
+			m_socket.setsockopt(name, value, size);
+		}
 
-        bool more() {
-            int64_t rcvmore = 0;
-            size_t size = sizeof(rcvmore);
+		void set_linger(int value) {
+			set_sockopt(ZMQ_LINGER, &value, sizeof(value));
+		}
 
-            get_sockopt(ZMQ_RCVMORE, &rcvmore, &size);
+		void set_identity(const std::string& ident, bool gen_uuid = false) {
+			std::string identity = ident;
 
-            return rcvmore != 0;
-        }
+			if (gen_uuid) {
+				wuuid_t sock_uuid;
+				sock_uuid.generate();
+				identity += sock_uuid.as_human_readable_string();
+			}
 
-        std::string identity() {
-            char identity[256] = {0};
-            size_t size = sizeof(identity);
+			set_sockopt(ZMQ_IDENTITY, identity.data(), identity.size());
+		}
 
-            get_sockopt(ZMQ_IDENTITY, &identity, &size);
+		void subscribe(const std::string& filter = "") {
+			if (m_type != ZMQ_SUB) {
+				return;
+			}
 
-            return identity;
-        }
+			set_sockopt(ZMQ_SUBSCRIBE, filter.data(), filter.size());
+		}
 
-        int fd() {
-            int fd = 0;
-            size_t size = sizeof(fd);
+		bool more() {
+			int64_t rcvmore = 0;
+			size_t size = sizeof(rcvmore);
 
-            get_sockopt(ZMQ_FD, &fd, &size);
+			get_sockopt(ZMQ_RCVMORE, &rcvmore, &size);
 
-            return fd;
-        }
+			return rcvmore != 0;
+		}
 
-        bool pending(unsigned long event = ZMQ_POLLIN) {
-            unsigned long events = 0;
-            size_t size = sizeof(events);
+		std::string identity() {
+			char identity[256] = {0};
+			size_t size = sizeof(identity);
 
-            get_sockopt(ZMQ_EVENTS, &events, &size);
+			get_sockopt(ZMQ_IDENTITY, &identity, &size);
 
-            return (events & event) == event;
-        }
+			return identity;
+		}
 
-        std::string identity() const {
-        	return m_identity;
-        }
+		int fd() {
+			int fd = 0;
+			size_t size = sizeof(fd);
 
-    private:
-        zmq::socket_t               m_socket;
-        std::set<inetv4_endpoint_t>   m_endpoints;
-        int         m_type;
-        std::string m_identity;
+			get_sockopt(ZMQ_FD, &fd, &size);
+
+			return fd;
+		}
+
+		bool pending(unsigned long event = ZMQ_POLLIN) {
+			unsigned long events = 0;
+			size_t size = sizeof(events);
+
+			get_sockopt(ZMQ_EVENTS, &events, &size);
+
+			return (events & event) == event;
+		}
+
+		std::string identity() const {
+			return m_identity;
+		}
+
+		zmq::socket_t& zmq_socket() {
+			return m_socket;
+		}
+
+	private:
+		zmq::socket_t				m_socket;
+		std::set<inetv4_endpoint_t>	m_endpoints;
+		int m_type;
+		std::string m_identity;
 };
 
 } // namespace dealer

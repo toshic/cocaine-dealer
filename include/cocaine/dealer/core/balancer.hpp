@@ -51,7 +51,6 @@ public:
 
 	bool send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& endpoint);
 	bool receive(boost::shared_ptr<response_chunk_t>& response);
-
 	bool check_for_responses(int poll_timeout) const;
 
 	static const int socket_timeout = 0;
@@ -73,11 +72,11 @@ private:
 	cocaine_endpoint_t& get_next_endpoint();
 
 private:
-	boost::shared_ptr<zmq::socket_t>	m_socket;
-	std::set<cocaine_endpoint_t>		m_endpoints;
-	std::vector<cocaine_endpoint_t>		m_endpoints_vec;
-	size_t								m_current_endpoint_index;
-	std::string							m_socket_identity;
+	shared_socket_t					m_socket;
+	std::set<cocaine_endpoint_t>	m_endpoints;
+	std::vector<cocaine_endpoint_t>	m_endpoints_vec;
+	size_t							m_current_endpoint_index;
+	std::string						m_socket_identity;
 };
 
 } // namespace dealer

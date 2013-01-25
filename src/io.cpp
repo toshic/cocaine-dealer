@@ -65,7 +65,7 @@ void socket_t::connect(const inetv4_endpoint_t& endpoint) {
 
 void socket_t::connect(const std::string& endpoint) {
     inetv4_endpoint_t v4_endpoint(endpoint);
-    
+
     bool connect_ok = true;
 
     if (m_type == ZMQ_SUB) {
@@ -88,7 +88,7 @@ void socket_t::drop() {
     zmq::message_t null;
 
     while(more()) {
-        recv(&null);
+        recv(&null, ZMQ_NOBLOCK);
     }
 }
 
