@@ -73,7 +73,11 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
         socket_t(const boost::shared_ptr<context_t>& context, int type, const std::string& route);
 
         void bind(const inetv4_endpoint_t& endpoint);
+        void bind(const std::string& endpoint);
+
         void connect(const inetv4_endpoint_t& endpoint);
+        void connect(const std::string& endpoint);
+
         void drop();
 
         bool send(zmq::message_t& message, int flags = 0) {

@@ -79,7 +79,7 @@ balancer_t::connect_socket(const std::set<cocaine_endpoint_t>& endpoints) {
 		log(PLOG_DEBUG, "connected %s to endpoints: ", m_socket_identity.c_str());
 		for (; it != endpoints.end(); ++it) {
 			connection_str = it->endpoint;
-			log(PLOG_DEBUG, it->endpoint);
+			log(PLOG_DEBUG, "connect: %s", connection_str.c_str());
 			m_socket->connect(connection_str.c_str());
 		}
 	}

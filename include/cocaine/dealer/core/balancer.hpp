@@ -27,7 +27,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/ptr_container/ptr_vector.hpp>
 
-#include <zmq.hpp>
+#include "cocaine/dealer/core/io.hpp"
 
 #include "cocaine/dealer/core/message_iface.hpp"
 #include "cocaine/dealer/core/dealer_object.hpp"
@@ -63,6 +63,8 @@ public:
 	#endif
 
 	static bool is_valid_rpc_code(int rpc_code);
+
+	typedef boost::shared_ptr<socket_t> shared_socket_t;
 
 private:
 	void create_socket();

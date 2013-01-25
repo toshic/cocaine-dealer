@@ -51,7 +51,7 @@ time_value::~time_value() {
 double
 time_value::as_double() const {
 	double tv_as_double = value_.tv_sec;
-	tv_as_double += static_cast<double>(value_.tv_usec / 1000000.0);
+	tv_as_double += static_cast<double>(value_.tv_usec) / 1000000.0;
 
 	return tv_as_double;
 }

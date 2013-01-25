@@ -1,21 +1,21 @@
 /*
-    Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
-    Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
+	Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
+	Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
 
-    This file is part of Cocaine.
+	This file is part of Cocaine.
 
-    Cocaine is free software; you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
+	Cocaine is free software; you can redistribute it and/or modify
+	it under the terms of the GNU Lesser General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
-    Cocaine is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU Lesser General Public License for more details.
+	Cocaine is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program. If not, see <http://www.gnu.org/licenses/>. 
+	You should have received a copy of the GNU Lesser General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>. 
 */
 
 #ifndef _COCAINE_DEALER_INETV4_ENDPOINT_HPP_INCLUDED_
@@ -24,9 +24,11 @@
 #include <string>
 #include <map>
 
-#include "boost/lexical_cast.hpp"
+#include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include "cocaine/dealer/core/inetv4_host.hpp"
+#include "cocaine/dealer/defaults.hpp"
 
 namespace cocaine {
 namespace dealer {
@@ -47,37 +49,49 @@ public:
 			init_transport_literals();
 		}
 
+	inetv4_endpoint_t(const std::string& endpoint) :
+		transport(TRANSPORT_UNDEFINED),
+		port(0)
+	{
+		init_transport_literals();
+		*this = endpoint_from_string(endpoint);
+	}
+
 	inetv4_endpoint_t(const inetv4_host_t& host_) :
 		transport(TRANSPORT_UNDEFINED),
 		host(host_),
-		port(0) {
-			init_transport_literals();
-		}
+		port(0)
+	{
+		init_transport_literals();
+	}
 
 	inetv4_endpoint_t(const inetv4_endpoint_t& rhs) :
 		transport(rhs.transport),
 		host(rhs.host),
-		port(rhs.port) {
-			init_transport_literals();
-		}
+		port(rhs.port)
+	{
+		init_transport_literals();
+	}
 
 	inetv4_endpoint_t(const inetv4_host_t& host_,
 					  unsigned short port_,
 					  enum transport_type transport_ = TRANSPORT_UNDEFINED) :
 		transport(transport_),
 		host(host_),
-		port(port_) {
-			init_transport_literals();
-		}
+		port(port_)
+	{
+		init_transport_literals();
+	}
 
 	inetv4_endpoint_t(unsigned int ip_,
 					  unsigned short port_,
 					  enum transport_type transport_ = TRANSPORT_UNDEFINED) :
 		transport(transport_),
 		host(inetv4_host_t(ip_)),
-		port(port_) {
-			init_transport_literals();
-		}
+		port(port_)
+	{
+		init_transport_literals();
+	}
 
 	inetv4_endpoint_t(const std::string& ip_,
 					  const std::string& port_,
@@ -117,12 +131,69 @@ public:
 		return as_connection_string() + " (" + host.hostname + ")";
 	}
 
+	bool empty() const {
+		return (*this == inetv4_endpoint_t());
+	}
+
 	std::string as_connection_string() const {
 		std::string connection_string = transport_literals[transport];
 		connection_string += "://" + nutils::ipv4_to_str(host.ip);
 		connection_string += ":" + boost::lexical_cast<std::string>(port);
 
 		return connection_string;
+	}
+
+	static inetv4_endpoint_t endpoint_from_string(const std::string& endpoint) {
+		std::string str = endpoint;
+		boost::trim(str);
+
+		if (str.empty()) {
+			return inetv4_endpoint_t();
+		}
+
+		// get transport type
+		enum transport_type transport = TRANSPORT_UNDEFINED;
+		std::string transport_suffix = "://";
+		size_t where = str.find(transport_suffix);
+
+		if (where != std::string::npos) {
+			std::string transport_str = str.substr(0, where);
+			transport = transport_from_string(transport_str);
+
+			size_t head_size = where + transport_suffix.length();
+			str = str.substr(head_size, str.length() - head_size);
+		}
+
+		if (transport == TRANSPORT_UNDEFINED) {
+			transport = TRANSPORT_TCP;
+		}
+
+		// look for ip/port parts
+		std::string port_suffix = ":";
+		where = str.find_last_of(port_suffix);
+
+		if (where == std::string::npos) {
+			// str can be hostname or ip v4 addr
+			int ip = nutils::ipv4_from_hint(str);
+
+			if (0 == ip) {
+				return inetv4_endpoint_t();
+			}
+
+			return inetv4_endpoint_t(ip, defaults_t::control_port, transport);
+		}
+		else {
+			std::string host_str = str.substr(0, where);
+			int ip = nutils::ipv4_from_hint(host_str);
+			size_t head_size = where + port_suffix.length();
+			std::string port = str.substr(head_size, str.length() - head_size);
+
+			if (ip == 0) {
+				return inetv4_endpoint_t();
+			}
+
+			return inetv4_endpoint_t(ip, port, transport);
+		}
 	}
 
 	static enum transport_type transport_from_string(const std::string& transport_string) {

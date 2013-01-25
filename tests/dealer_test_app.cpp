@@ -165,27 +165,7 @@ main(int argc, char** argv) {
 		std::cout << "caught exception, no error message." << std::endl;
 	}
 
-	sleep (10);
-
-	try {
-		responce = d.send_message(payload.data(), payload.size(), path);
-
-		data_container data;
-		while (responce->get(&data)) {
-			std::cout << std::string(reinterpret_cast<const char*>(data.data()), 0, data.size()) << std::endl;
-		}
-	}
-	catch (const dealer_error& err) {
-		std::cout << "error code: " << err.code() << ", error message: " << err.what() << std::endl;
-	}
-	catch (const std::exception& ex) {
-		std::cout << "error message: " << ex.what() << std::endl;
-	}
-	catch (...) {
-		std::cout << "caught exception, no error message." << std::endl;
-	}
-
-	sleep (100);
+	sleep(30);
 
 	return EXIT_SUCCESS;
 

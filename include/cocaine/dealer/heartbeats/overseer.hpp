@@ -26,8 +26,6 @@
 #include <set>
 
 #include <ev++.h>
-
-#include <zmq.hpp>
     
 #include "json/json.h"
 
@@ -155,6 +153,8 @@ private:
 	boost::thread			m_thread;
 	wuuid_t					m_uuid;
 	volatile bool			m_stopping;
+
+	progress_timer pt;
 };
 
 } // namespace dealer

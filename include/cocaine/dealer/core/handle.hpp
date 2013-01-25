@@ -26,7 +26,7 @@
 #include <memory>
 #include <cerrno>
 
-#include <zmq.hpp>
+#include <ev++.h>
 
 #include <msgpack.hpp>
 
@@ -46,6 +46,7 @@
 #include "cocaine/dealer/response_chunk.hpp"
 #include "cocaine/dealer/core/cocaine_endpoint.hpp"
 #include "cocaine/dealer/utils/progress_timer.hpp"
+#include "cocaine/dealer/core/io.hpp"
 
 namespace cocaine {
 namespace dealer {

@@ -40,6 +40,10 @@ void socket_t::bind(const inetv4_endpoint_t& endpoint) {
     m_socket.bind(endpoint.as_connection_string().c_str());
 }
 
+void socket_t::bind(const std::string& endpoint) {
+    m_socket.bind(endpoint.c_str());
+}
+
 void socket_t::connect(const inetv4_endpoint_t& endpoint) {
     bool connect_ok = true;
 
@@ -56,6 +60,27 @@ void socket_t::connect(const inetv4_endpoint_t& endpoint) {
 
     if (connect_ok) {
         m_socket.connect(endpoint.as_connection_string().c_str());
+    }
+}
+
+void socket_t::connect(const std::string& endpoint) {
+    inetv4_endpoint_t v4_endpoint(endpoint);
+    
+    bool connect_ok = true;
+
+    if (m_type == ZMQ_SUB) {
+        std::set<inetv4_endpoint_t>::const_iterator it = m_endpoints.find(v4_endpoint);
+
+        if (it != m_endpoints.end()) {
+            connect_ok = false;
+        }
+        else {
+            m_endpoints.insert(endpoint);
+        }
+    }
+
+    if (connect_ok) {
+        m_socket.connect(v4_endpoint.as_connection_string().c_str());
     }
 }
 

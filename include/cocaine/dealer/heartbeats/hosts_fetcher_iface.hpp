@@ -61,48 +61,10 @@ protected:
                     continue;
                 }
 
-                // get transport type
-                enum transport_type transport = TRANSPORT_UNDEFINED;
-                std::string transport_suffix = "://";
-                size_t where = line.find(transport_suffix);
+                inetv4_endpoint_t endpoint(line);
 
-                if (where != std::string::npos) {
-                    std::string transport_str = line.substr(0, where);
-                    transport = inetv4_endpoint_t::transport_from_string(transport_str);
-
-                    size_t head_size = where + transport_suffix.length();
-                    line = line.substr(head_size, line.length() - head_size);
-                }
-
-                if (transport == TRANSPORT_UNDEFINED) {
-                    transport = TRANSPORT_TCP;
-                }
-
-                // look for ip/port parts
-                std::string port_suffix = ":";
-                where = line.find_last_of(port_suffix);
-
-                if (where == std::string::npos) {
-                    // line can be hostname or ip v4 addr
-                    int ip = nutils::ipv4_from_hint(line);
-
-                    if (0 == ip) {
-                        continue;
-                    }
-
-                    endpoints.push_back(inetv4_endpoint_t(ip, defaults_t::control_port, transport));
-                }
-                else {
-                    std::string host_str = line.substr(0, where);
-                    int ip = nutils::ipv4_from_hint(host_str);
-                    size_t head_size = where + port_suffix.length();
-                    std::string port = line.substr(head_size, line.length() - head_size);
-
-                    if (ip == 0) {
-                        continue;
-                    }
-
-                    endpoints.push_back(inetv4_endpoint_t(ip, port, transport));
+                if (!endpoint.empty()) {
+                    endpoints.push_back(endpoint);
                 }
             }
             catch (...) {

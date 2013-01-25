@@ -38,8 +38,6 @@ overseer_t::overseer_t(const boost::shared_ptr<context_t>& ctx, bool logging_ena
 	m_stopping(false)
 {
 	m_uuid.generate();
-
-	socket_t sock(context(), ZMQ_SUB);
 }
 
 overseer_t::~overseer_t() {
@@ -86,8 +84,9 @@ overseer_t::run() {
 
 void
 overseer_t::stop() {
+	log(PLOG_DEBUG, "overseer — stopping...");
 	m_stopping = true;
-	
+
 	m_fetcher_timer.stop();
 	m_timeout_timer.stop();
 
@@ -98,6 +97,7 @@ overseer_t::stop() {
 	m_watchers.clear();
 
 	m_event_loop.unloop(ev::ALL);
+
 	m_thread.join();
 
 	log(PLOG_DEBUG, "overseer — stopped");
@@ -123,7 +123,9 @@ overseer_t::main_loop() {
 		m_event_loop.loop();
 	}
 	
+	log(PLOG_DEBUG, "overseer — loop done.");
 	kill_sockets();
+	log(PLOG_DEBUG, "overseer — sock killed.");
 
 	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
 		m_endpoints_fetchers[i].reset();
@@ -186,7 +188,6 @@ overseer_t::request(ev::io& watcher, int type) {
 	}
 
 	progress_timer t;
-
 	std::map<std::string, std::vector<announce_t> > responces;
 	read_from_sockets(responces);
 
@@ -205,8 +206,6 @@ overseer_t::request(ev::io& watcher, int type) {
 
 	// merge update with routing table, gen create/update handle events
 	update_main_routing_table(routing_table_update);
-
-	log(PLOG_ERROR, "received and parsed in: %.6f", t.elapsed().as_double());
 }
 
 void
@@ -587,6 +586,8 @@ overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& r
 			if (!announce.hostname.empty() && !announce.info.empty()) {
 				socket_responces.push_back(announce);
 			}
+
+			sock->drop();
 		}
 
 		if (!socket_responces.empty()) {
