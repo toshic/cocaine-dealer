@@ -60,10 +60,11 @@ namespace dealer {
 class handle_t : private boost::noncopyable, public dealer_object_t {
 public:
 	typedef std::vector<cocaine_endpoint_t> endpoints_list_t;
-	typedef boost::shared_ptr<zmq::socket_t> socket_ptr_t;
 
 	typedef boost::shared_ptr<response_chunk_t> response_chunk_prt_t;
 	typedef boost::function<void(response_chunk_prt_t)> responce_callback_t;
+
+	typedef boost::shared_ptr<socket_t> shared_socket_t;
 
 public:
 	handle_t(const handle_info_t& info,
@@ -97,8 +98,8 @@ private:
 
 	// working with control messages
 	void dispatch_control_messages(int type, balancer_t& balancer);
-	void establish_control_conection(socket_ptr_t& control_socket);
-	int receive_control_messages(socket_ptr_t& control_socket, int poll_timeout);
+	void establish_control_conection(shared_socket_t& control_socket);
+	int receive_control_messages(shared_socket_t& control_socket, int poll_timeout);
 	bool reshedule_message(const std::string& route, const std::string& uuid);
 
 	// working with messages
@@ -122,7 +123,7 @@ private:
 	std::set<cocaine_endpoint_t>		m_endpoints;
 	boost::shared_ptr<message_cache_t>	m_message_cache;
 
-	std::auto_ptr<zmq::socket_t> m_zmq_control_socket;
+	shared_socket_t m_control_socket;
 	bool m_receiving_control_socket_ok;
 
 	responce_callback_t m_response_callback;

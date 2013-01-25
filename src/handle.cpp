@@ -49,11 +49,10 @@ handle_t::handle_t(const handle_info_t& info,
 
 	// create control socket
 	std::string conn_str = "inproc://service_control_" + description();
-	m_zmq_control_socket.reset(new zmq::socket_t(*(context()->zmq_context()), ZMQ_PAIR));
+	m_control_socket.reset(new socket_t(context(), ZMQ_PAIR));
 
-	int timeout = 0;
-	m_zmq_control_socket->setsockopt(ZMQ_LINGER, &timeout, sizeof(timeout));
-	m_zmq_control_socket->bind(conn_str.c_str());
+	m_control_socket->set_linger(0);
+	m_control_socket->bind(conn_str.c_str());
 
 	// run message dispatch thread
 	m_is_running = true;
@@ -80,7 +79,7 @@ handle_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints) {
 	int control_message = CONTROL_MESSAGE_UPDATE;
 	zmq::message_t message(sizeof(int));
 	memcpy((void *)message.data(), &control_message, sizeof(int));
-	m_zmq_control_socket->send(message);
+	m_control_socket->send(message);
 }
 
 void
@@ -91,8 +90,8 @@ handle_t::kill() {
 
 	m_is_running = false;
 
-	m_zmq_control_socket->close();
-	m_zmq_control_socket.reset(NULL);
+	m_control_socket->close();
+	m_control_socket.reset();
 
 	m_thread.join();
 
@@ -107,7 +106,7 @@ handle_t::dispatch_messages() {
 	balancer_t balancer(balancer_ident, m_endpoints, context());
 	m_is_connected = true;
 
-	socket_ptr_t control_socket;
+	handle_t::shared_socket_t control_socket;
 	establish_control_conection(control_socket);
 
 	log(PLOG_DEBUG, "started message dispatch for " + description());
@@ -438,17 +437,13 @@ handle_t::process_deadlined_messages() {
 }
 
 void
-handle_t::establish_control_conection(socket_ptr_t& control_socket) {
-	control_socket.reset(new zmq::socket_t(*(context()->zmq_context()), ZMQ_PAIR));
+handle_t::establish_control_conection(handle_t::shared_socket_t& control_socket) {
+	control_socket.reset(new socket_t(context(), ZMQ_PAIR));
+	assert(control_socket);
 
-	if (control_socket.get()) {
-		std::string conn_str = "inproc://service_control_" + description();
-
-		int timeout = 0;
-		control_socket->setsockopt(ZMQ_LINGER, &timeout, sizeof(timeout));
-		control_socket->connect(conn_str.c_str());
-		m_receiving_control_socket_ok = true;
-	}
+	control_socket->set_linger(0);
+	control_socket->connect("inproc://service_control_" + description());
+	m_receiving_control_socket_ok = true;
 }
 
 void
@@ -459,14 +454,14 @@ handle_t::enqueue_response(boost::shared_ptr<response_chunk_t>& response) {
 }
 
 int
-handle_t::receive_control_messages(socket_ptr_t& control_socket, int poll_timeout) {
+handle_t::receive_control_messages(handle_t::shared_socket_t& control_socket, int poll_timeout) {
 	if (!m_is_running) {
 		return 0;
 	}
 
 	// poll for responce
 	zmq_pollitem_t poll_items[1];
-	poll_items[0].socket = *control_socket;
+	poll_items[0].socket = control_socket->zmq_socket();
 	poll_items[0].fd = 0;
 	poll_items[0].events = ZMQ_POLLIN;
 	poll_items[0].revents = 0;
@@ -568,7 +563,7 @@ handle_t::connect() {
 	int control_message = CONTROL_MESSAGE_CONNECT;
 	zmq::message_t message(sizeof(int));
 	memcpy((void *)message.data(), &control_message, sizeof(int));
-	m_zmq_control_socket->send(message);
+	m_control_socket->send(message);
 }
 
 void

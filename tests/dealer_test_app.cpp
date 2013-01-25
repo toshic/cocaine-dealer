@@ -165,8 +165,6 @@ main(int argc, char** argv) {
 		std::cout << "caught exception, no error message." << std::endl;
 	}
 
-	sleep(30);
-
 	return EXIT_SUCCESS;
 
 	/*

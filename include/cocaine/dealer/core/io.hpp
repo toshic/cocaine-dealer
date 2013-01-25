@@ -183,6 +183,10 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
 			set_sockopt(ZMQ_LINGER, &value, sizeof(value));
 		}
 
+		void close() {
+			m_socket.close();
+		}
+
 		void set_identity(const std::string& ident, bool gen_uuid = false) {
 			std::string identity = ident;
 
