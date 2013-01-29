@@ -39,6 +39,8 @@ namespace dealer {
 
 class balancer_t : private boost::noncopyable, public dealer_object_t {
 public:
+	typedef boost::shared_ptr<socket_t> shared_socket_t;
+	
 	balancer_t(const std::string& identity,
 			   const std::set<cocaine_endpoint_t>& endpoints,
 			   const boost::shared_ptr<context_t>& ctx,
@@ -53,6 +55,8 @@ public:
 	bool receive(boost::shared_ptr<response_chunk_t>& response);
 	bool check_for_responses(int poll_timeout) const;
 
+	shared_socket_t	socket();
+
 	static const int socket_timeout = 0;
 
 	#if ZMQ_VERSION_MAJOR < 3
@@ -62,8 +66,6 @@ public:
 	#endif
 
 	static bool is_valid_rpc_code(int rpc_code);
-
-	typedef boost::shared_ptr<socket_t> shared_socket_t;
 
 private:
 	void create_socket();

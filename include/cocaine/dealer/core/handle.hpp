@@ -93,18 +93,15 @@ public:
 
 private:
 	void dispatch_messages();
-
+	void notify_enqueued();
+	
 	// working with control messages
 	void dispatch_control_messages(int type, balancer_t& balancer);
-	void establish_control_conection(shared_socket_t& control_socket);
 	bool reshedule_message(const std::string& route, const std::string& uuid);
-
-	void process_control_messages(ev::io& watcher, int type);
 
 	// working with messages
 	bool dispatch_next_available_message(balancer_t& balancer);
 	void dispatch_next_available_response(balancer_t& balancer);
-	void process_deadlined_messages();
 
 	// working with responces
 	void enqueue_response(boost::shared_ptr<response_chunk_t>& response);
@@ -113,8 +110,12 @@ private:
 										const message_policy_t& policy,
 										const std::string& alias);
 
+	// event loop callbacks
+	void process_control_messages(ev::io& watcher, int type);
+	void process_io_messages(ev::io& watcher, int type);
 	void terminate(ev::async& as, int type);
 	void prepare(ev::prepare& as, int type);
+	void process_deadlined_messages(ev::timer& watcher, int type);
 
 private:
 	handle_info_t	m_info;
@@ -126,6 +127,8 @@ private:
 	boost::shared_ptr<ev::async>		m_terminate;
 	boost::shared_ptr<ev::prepare>		m_prepare;
 	boost::shared_ptr<ev::io>			m_control_watcher;
+	boost::shared_ptr<ev::io>			m_io_watcher;
+	boost::shared_ptr<ev::timer>		m_deadline_timer;
 	boost::shared_ptr<ev::dynamic_loop>	m_event_loop;
 
 	//ev::timer			m_harvester_timer;

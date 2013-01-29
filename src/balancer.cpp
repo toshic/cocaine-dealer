@@ -165,6 +165,11 @@ balancer_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints,
 	m_current_endpoint_index = 0;
 }
 
+balancer_t::shared_socket_t
+balancer_t::socket() {
+	return m_socket;
+}
+
 void
 balancer_t::create_socket() {
 	if (log_flag_enabled(PLOG_DEBUG)) {
