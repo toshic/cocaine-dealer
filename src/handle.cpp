@@ -90,14 +90,12 @@ handle_t::kill() {
 
 	m_terminate->send();
 
-	m_control_socket->close();
-	m_control_socket.reset();
+	m_thread.join();
 
+	m_prepare.reset();
 	m_terminate.reset();
 	m_control_watcher.reset();
 	m_event_loop.reset();
-
-	m_thread.join();
 
 	log(PLOG_DEBUG, "DESTROYED HANDLE " + description());
 }
@@ -106,11 +104,17 @@ void
 handle_t::terminate(ev::async& as, int type) {
 	m_control_watcher->stop();
 	m_terminate->stop();
+	m_prepare->stop();
 
 	m_event_loop->unloop(ev::ALL);
 
 	m_control_socket_2->close();
 	m_control_socket_2.reset();
+
+	m_balancer.reset();
+
+	m_control_socket->close();
+	m_control_socket.reset();
 }
 
 void
