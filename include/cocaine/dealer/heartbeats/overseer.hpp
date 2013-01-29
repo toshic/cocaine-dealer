@@ -125,6 +125,7 @@ private:
 	void reset_routing_table(routing_table_t& routing_table);
 	void fetch_and_process_endpoints(ev::timer& watcher, int type);
 	void request(ev::io& watcher, int type);
+	void terminate(ev::async& as, int type);
 
 	// used for debug only
 	void print_all_fetched_endpoints();
@@ -148,11 +149,12 @@ private:
 	ev::default_loop		m_event_loop;
 	ev::timer				m_fetcher_timer;
 	ev::timer				m_timeout_timer;
+	ev::async				m_terminate;
+	
 	std::vector<ev_io_ptr>	m_watchers;
 	boost::mutex			m_mutex;
 	boost::thread			m_thread;
 	wuuid_t					m_uuid;
-	volatile bool			m_stopping;
 
 	progress_timer pt;
 };

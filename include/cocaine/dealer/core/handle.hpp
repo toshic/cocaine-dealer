@@ -51,10 +51,8 @@
 namespace cocaine {
 namespace dealer {
 
-#define CONTROL_MESSAGE_CONNECT 1
-#define CONTROL_MESSAGE_UPDATE 2
-#define CONTROL_MESSAGE_DISCONNECT 3
-#define CONTROL_MESSAGE_KILL 4
+#define CONTROL_MESSAGE_UPDATE 1
+#define CONTROL_MESSAGE_ENQUEUE 2
 
 // predeclaration
 class handle_t : private boost::noncopyable, public dealer_object_t {
@@ -99,8 +97,9 @@ private:
 	// working with control messages
 	void dispatch_control_messages(int type, balancer_t& balancer);
 	void establish_control_conection(shared_socket_t& control_socket);
-	int receive_control_messages(shared_socket_t& control_socket, int poll_timeout);
 	bool reshedule_message(const std::string& route, const std::string& uuid);
+
+	void process_control_messages(ev::io& watcher, int type);
 
 	// working with messages
 	bool dispatch_next_available_message(balancer_t& balancer);
@@ -113,18 +112,31 @@ private:
 	void remove_from_persistent_storage(wuuid_t& uuid,
 										const message_policy_t& policy,
 										const std::string& alias);
+
+	void terminate(ev::async& as, int type);
+	void prepare(ev::prepare& as, int type);
+
 private:
-	handle_info_t		m_info;
-	boost::thread		m_thread;
-	boost::mutex		m_mutex;
-	volatile bool		m_is_running;
-	volatile bool		m_is_connected;
+	handle_info_t	m_info;
+	boost::thread	m_thread;
+	boost::mutex	m_mutex;
+	volatile bool	m_is_running;
+	volatile bool	m_is_connected;
+
+	boost::shared_ptr<ev::async>		m_terminate;
+	boost::shared_ptr<ev::prepare>		m_prepare;
+	boost::shared_ptr<ev::io>			m_control_watcher;
+	boost::shared_ptr<ev::dynamic_loop>	m_event_loop;
+
+	//ev::timer			m_harvester_timer;
+	//ev::io			m_balancer_watcher;
 
 	std::set<cocaine_endpoint_t>		m_endpoints;
 	boost::shared_ptr<message_cache_t>	m_message_cache;
+	boost::shared_ptr<balancer_t>		m_balancer;
 
 	shared_socket_t m_control_socket;
-	bool m_receiving_control_socket_ok;
+	shared_socket_t m_control_socket_2;
 
 	responce_callback_t m_response_callback;
 

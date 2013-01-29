@@ -47,18 +47,10 @@ service_t::~service_t() {
 	// kill handles
 	handles_map_t::iterator it = m_handles.begin();
 	for (;it != m_handles.end(); ++it) {
-		
-		log(PLOG_INFO,
-		"DESTROY HANDLE [%s.%s.%s]",
-		m_info.name.c_str(),
-		m_info.app.c_str(),
-		it->second->info().name.c_str());
-
 		it->second.reset();
 	}
 
 	m_is_running = false;
-
 
 	// detach processed responces
 	{
@@ -317,12 +309,6 @@ void
 service_t::create_handle(const handle_info_t& handle_info, const std::set<cocaine_endpoint_t>& endpoints) {
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
-	log(PLOG_INFO,
-		"CREATE HANDLE [%s].[%s].[%s]",
-		m_info.name.c_str(),
-		m_info.app.c_str(),
-		handle_info.name.c_str());
-
 	// create new handle
 	handle_ptr_t handle(new dealer::handle_t(handle_info, endpoints, context()));
 	handle->set_responce_callback(boost::bind(&service_t::enqueue_responce, this, _1));
@@ -380,8 +366,6 @@ service_t::destroy_handle(const handle_info_t& info) {
 	handle_ptr_t handle = it->second;
 	assert(handle);
 
-	log(PLOG_WARNING, "DESTROY HANDLE [%s]", info.name.c_str());
-
 	// retrieve message cache and terminate all handle activity
 	handle->kill();
 
@@ -403,8 +387,6 @@ service_t::destroy_handle(const handle_info_t& info) {
 
 	m_handles.erase(it);
 	lock.unlock();
-
-	log(PLOG_DEBUG, "DESTROY HANDLE [%s] DONE", info.name.c_str());
 }
 
 void

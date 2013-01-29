@@ -39,8 +39,7 @@ handle_t::handle_t(const handle_info_t& info,
 	m_info(info),
 	m_endpoints(endpoints),
 	m_is_running(false),
-	m_is_connected(false),
-	m_receiving_control_socket_ok(false)
+	m_is_connected(false)
 {
 	log(PLOG_DEBUG, "CREATED HANDLE " + description());
 
@@ -48,11 +47,10 @@ handle_t::handle_t(const handle_info_t& info,
 	m_message_cache.reset(new message_cache_t(context(), true));
 
 	// create control socket
-	std::string conn_str = "inproc://service_control_" + description();
 	m_control_socket.reset(new socket_t(context(), ZMQ_PAIR));
 
 	m_control_socket->set_linger(0);
-	m_control_socket->bind(conn_str.c_str());
+	m_control_socket->bind("inproc://service_control_");
 
 	// run message dispatch thread
 	m_is_running = true;
@@ -90,12 +88,61 @@ handle_t::kill() {
 
 	m_is_running = false;
 
+	m_terminate->send();
+
 	m_control_socket->close();
 	m_control_socket.reset();
 
+	m_terminate.reset();
+	m_control_watcher.reset();
+	m_event_loop.reset();
+
 	m_thread.join();
 
-	log(PLOG_DEBUG, "KILLED HANDLE " + description());
+	log(PLOG_DEBUG, "DESTROYED HANDLE " + description());
+}
+
+void
+handle_t::terminate(ev::async& as, int type) {
+	m_control_watcher->stop();
+	m_terminate->stop();
+
+	m_event_loop->unloop(ev::ALL);
+
+	m_control_socket_2->close();
+	m_control_socket_2.reset();
+}
+
+void
+handle_t::process_control_messages(ev::io& watcher, int type) {
+	if (!m_is_running || type != ev::READ) {
+		return;
+	}
+
+	try {
+		zmq::message_t reply;
+		if (!m_control_socket_2->recv(&reply, ZMQ_NOBLOCK)) {
+			return;
+		}
+		
+		int message = 0;
+		memcpy((void *)&message, reply.data(), reply.size());
+
+		dispatch_control_messages(message, *m_balancer);
+	}
+	catch (const std::exception& ex) {
+		std::string error_msg = "some very ugly shit happend while recv on control socket at ";
+		error_msg += std::string(BOOST_CURRENT_FUNCTION);
+		error_msg += " details: " + std::string(ex.what());
+		throw internal_error(error_msg);
+	}
+}
+
+void
+handle_t::prepare(ev::prepare& as, int type) {
+	if (m_control_socket_2->pending()) {
+		m_event_loop->feed_fd_event(m_control_socket_2->fd(), ev::READ);
+	}
 }
 
 void
@@ -103,13 +150,34 @@ handle_t::dispatch_messages() {
 	wuuid_t balancer_uuid;
 	balancer_uuid.generate();
 	std::string balancer_ident = m_info.as_string() + "." + balancer_uuid.as_human_readable_string();
-	balancer_t balancer(balancer_ident, m_endpoints, context());
+	m_balancer.reset(new balancer_t(balancer_ident, m_endpoints, context()));
 	m_is_connected = true;
 
-	handle_t::shared_socket_t control_socket;
-	establish_control_conection(control_socket);
+	m_control_socket_2.reset(new socket_t(context(), ZMQ_PAIR));
+	assert(m_control_socket_2);
+
+	m_control_socket_2->set_linger(0);
+	m_control_socket_2->connect("inproc://service_control_");
+
+	m_event_loop.reset(new ev::dynamic_loop);
+	m_terminate.reset(new ev::async(*m_event_loop));
+	m_prepare.reset(new ev::prepare(*m_event_loop));
+	m_control_watcher.reset(new ev::io(*m_event_loop));
+
+	m_control_watcher->set<handle_t, &handle_t::process_control_messages>(this);
+	m_control_watcher->start(m_control_socket_2->fd(), ev::READ);
+
+	m_terminate->set<handle_t, &handle_t::terminate>(this);
+	m_terminate->start();
+
+	m_prepare->set<handle_t, &handle_t::prepare>(this);
+	m_prepare->start();
 
 	log(PLOG_DEBUG, "started message dispatch for " + description());
+	m_event_loop->loop();
+
+	//m_event_loop
+	/*
 
 	m_last_response_timer.reset();
 	m_deadlined_messages_timer.reset();
@@ -125,12 +193,7 @@ handle_t::dispatch_messages() {
 		      m_control_messages_timer.reset();
 		}
 
-		if (control_message == CONTROL_MESSAGE_KILL) {
-			// stop message dispatch, finalize everything
-			m_is_running = false;
-			break;
-		}
-		else if (control_message > 0) {
+		if (control_message > 0) {
 			dispatch_control_messages(control_message, balancer);
 		}
 
@@ -179,6 +242,7 @@ handle_t::dispatch_messages() {
 
 	control_socket.reset();
 	log(PLOG_DEBUG, "finished message dispatch for " + description());
+	*/
 }
 
 void
@@ -443,7 +507,6 @@ handle_t::establish_control_conection(handle_t::shared_socket_t& control_socket)
 
 	control_socket->set_linger(0);
 	control_socket->connect("inproc://service_control_" + description());
-	m_receiving_control_socket_ok = true;
 }
 
 void
@@ -451,58 +514,6 @@ handle_t::enqueue_response(boost::shared_ptr<response_chunk_t>& response) {
 	if (m_response_callback && m_is_running) {
 		m_response_callback(response);
 	}
-}
-
-int
-handle_t::receive_control_messages(handle_t::shared_socket_t& control_socket, int poll_timeout) {
-	if (!m_is_running) {
-		return 0;
-	}
-
-	// poll for responce
-	zmq_pollitem_t poll_items[1];
-	poll_items[0].socket = control_socket->zmq_socket();
-	poll_items[0].fd = 0;
-	poll_items[0].events = ZMQ_POLLIN;
-	poll_items[0].revents = 0;
-
-	int socket_response = zmq_poll(poll_items, 1, poll_timeout);
-
-	if (socket_response <= 0) {
-		return 0;
-	}
-
-	// in case we received control message
-    if ((ZMQ_POLLIN & poll_items[0].revents) != ZMQ_POLLIN) {
-    	return 0;
-    }
-
-	int received_message = 0;
-
-	bool recv_failed = false;
-	zmq::message_t reply;
-
-	try {
-		if (!control_socket->recv(&reply)) {
-			recv_failed = true;
-		}
-		else {
-			memcpy((void *)&received_message, reply.data(), reply.size());
-			return received_message;
-		}
-	}
-	catch (const std::exception& ex) {
-		std::string error_msg = "some very ugly shit happend while recv on control socket at ";
-		error_msg += std::string(BOOST_CURRENT_FUNCTION);
-		error_msg += " details: " + std::string(ex.what());
-		throw internal_error(error_msg);
-	}
-
-    if (recv_failed) {
-    	log(PLOG_ERROR, "control socket recv failed on " + description());
-    }
-
-    return 0;
 }
 
 bool
@@ -550,23 +561,6 @@ handle_t::description() {
 }
 
 void
-handle_t::connect() {
-	boost::mutex::scoped_lock lock(m_mutex);
-
-	if (!m_is_running || m_endpoints.empty() || m_is_connected) {
-		return;
-	}
-
-	log(PLOG_DEBUG, "CONNECT HANDLE " + description());
-
-	// connect to hosts
-	int control_message = CONTROL_MESSAGE_CONNECT;
-	zmq::message_t message(sizeof(int));
-	memcpy((void *)message.data(), &control_message, sizeof(int));
-	m_control_socket->send(message);
-}
-
-void
 handle_t::make_all_messages_new() {
 	assert (m_message_cache);
 	m_message_cache->make_all_messages_new();
@@ -587,6 +581,14 @@ handle_t::set_responce_callback(responce_callback_t callback) {
 void
 handle_t::enqueue_message(const boost::shared_ptr<message_iface>& message) {
 	m_message_cache->enqueue(message);
+
+	log(PLOG_DEBUG, "ENQUEUE MESSAGE " + description());
+
+	// connect to hosts
+	int control_message = CONTROL_MESSAGE_ENQUEUE;
+	zmq::message_t msg(sizeof(int));
+	memcpy((void *)msg.data(), &control_message, sizeof(int));
+	m_control_socket->send(msg);	
 }
 
 } // namespace dealer

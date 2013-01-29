@@ -34,8 +34,7 @@ namespace cocaine {
 namespace dealer {
 
 overseer_t::overseer_t(const boost::shared_ptr<context_t>& ctx, bool logging_enabled) :
-	dealer_object_t(ctx, logging_enabled),
-	m_stopping(false)
+	dealer_object_t(ctx, logging_enabled)
 {
 	m_uuid.generate();
 }
@@ -84,9 +83,14 @@ overseer_t::run() {
 
 void
 overseer_t::stop() {
-	log(PLOG_DEBUG, "overseer — stopping...");
-	m_stopping = true;
+	m_terminate.send();
+	m_thread.join();
 
+	log(PLOG_DEBUG, "overseer — stopped");
+}
+
+void
+overseer_t::terminate(ev::async& as, int type) {
 	m_fetcher_timer.stop();
 	m_timeout_timer.stop();
 
@@ -95,12 +99,15 @@ overseer_t::stop() {
 	}
 
 	m_watchers.clear();
+	m_terminate.stop();
 
 	m_event_loop.unloop(ev::ALL);
 
-	m_thread.join();
+	kill_sockets();
 
-	log(PLOG_DEBUG, "overseer — stopped");
+	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
+		m_endpoints_fetchers[i].reset();
+	}
 }
 
 void
@@ -119,17 +126,10 @@ overseer_t::main_loop() {
     m_fetcher_timer.start(15, 15);
     m_timeout_timer.start(0, 0.5);
 
-	if (!m_stopping) {
-		m_event_loop.loop();
-	}
-	
-	log(PLOG_DEBUG, "overseer — loop done.");
-	kill_sockets();
-	log(PLOG_DEBUG, "overseer — sock killed.");
+	m_terminate.set<overseer_t, &overseer_t::terminate>(this);
+	m_terminate.start();
 
-	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
-		m_endpoints_fetchers[i].reset();
-	}
+	m_event_loop.loop();
 }
 
 void
