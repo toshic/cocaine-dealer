@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.15) lucid; urgency=low
+
+  * overseer evloop default->dynamic, proper idents in handle ipc
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Wed, 30 Jan 2012 19:54:10 +0400
+
 cocaine-dealer (0.9.14) lucid; urgency=low
 
   * experimental build - async io pipeline
