@@ -56,6 +56,7 @@ public:
 	bool check_for_responses(int poll_timeout) const;
 
 	shared_socket_t	socket();
+	int fd() { return m_fd; }
 
 	static const int socket_timeout = 0;
 
@@ -79,6 +80,7 @@ private:
 	std::vector<cocaine_endpoint_t>	m_endpoints_vec;
 	size_t							m_current_endpoint_index;
 	std::string						m_socket_identity;
+	int m_fd;
 };
 
 } // namespace dealer

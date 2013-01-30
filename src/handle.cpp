@@ -67,11 +67,10 @@ handle_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints) {
 		return;
 	}
 
+	log(PLOG_DEBUG, "UPDATE HANDLE " + description());
+
 	boost::mutex::scoped_lock lock(m_mutex);
 	m_endpoints = endpoints;
-	lock.unlock();
-
-	log(PLOG_DEBUG, "UPDATE HANDLE " + description());
 
 	// connect to hosts
 	int control_message = CONTROL_MESSAGE_UPDATE;
@@ -97,6 +96,7 @@ handle_t::kill() {
 	m_control_watcher.reset();
 	m_io_watcher.reset();
 	m_deadline_timer.reset();
+	m_queue_check_timer.reset();
 
 	m_event_loop.reset();
 
@@ -110,6 +110,7 @@ handle_t::terminate(ev::async& as, int type) {
 	m_prepare->stop();
 	m_io_watcher->stop();
 	m_deadline_timer->stop();
+	m_queue_check_timer->stop();
 
 	m_event_loop->unloop(ev::ALL);
 
@@ -130,7 +131,7 @@ handle_t::process_io_messages(ev::io& watcher, int type) {
 
 	try {
 		while (m_balancer->socket()->pending()) {
-			dispatch_next_available_response(*m_balancer);
+			dispatch_next_available_response();
 		}
 	}
 	catch (const std::exception& ex) {
@@ -148,7 +149,8 @@ handle_t::process_control_messages(ev::io& watcher, int type) {
 	}
 
 	try {
-		while (m_control_socket_2->pending()) {
+		bool p = m_control_socket_2->pending();
+		while (p) {
 			zmq::message_t reply;
 			if (!m_control_socket_2->recv(&reply, ZMQ_NOBLOCK)) {
 				return;
@@ -157,7 +159,8 @@ handle_t::process_control_messages(ev::io& watcher, int type) {
 			int message = 0;
 			memcpy((void *)&message, reply.data(), reply.size());
 
-			dispatch_control_messages(message, *m_balancer);
+			dispatch_control_messages(message);
+			p = m_control_socket_2->pending();
 		}
 	}
 	catch (const std::exception& ex) {
@@ -170,10 +173,8 @@ handle_t::process_control_messages(ev::io& watcher, int type) {
 
 void
 handle_t::prepare(ev::prepare& as, int type) {
-	if (m_control_socket_2->pending()) {
-		m_event_loop->feed_fd_event(m_control_socket_2->fd(), ev::READ);
-		m_event_loop->feed_fd_event(m_balancer->socket()->fd(), ev::READ);
-	}
+	m_event_loop->feed_fd_event(m_control_socket_2->fd(), ev::READ);
+	m_event_loop->feed_fd_event(m_balancer->fd(), ev::READ);
 }
 
 void
@@ -196,92 +197,43 @@ handle_t::dispatch_messages() {
 	m_control_watcher.reset(new ev::io(*m_event_loop));
 	m_io_watcher.reset(new ev::io(*m_event_loop));
 	m_deadline_timer.reset(new ev::timer(*m_event_loop));
+	m_queue_check_timer.reset(new ev::timer(*m_event_loop));
 
 	m_control_watcher->set<handle_t, &handle_t::process_control_messages>(this);
 	m_control_watcher->start(m_control_socket_2->fd(), ev::READ);
 
 	m_io_watcher->set<handle_t, &handle_t::process_io_messages>(this);
-	m_io_watcher->start(m_balancer->socket()->fd(), ev::READ);
+	m_io_watcher->start(m_balancer->fd(), ev::READ);
 
 	m_terminate->set<handle_t, &handle_t::terminate>(this);
 	m_terminate->start();
 
 	m_deadline_timer->set<handle_t, &handle_t::process_deadlined_messages>(this);
-    m_deadline_timer->start(0, 0.5);
+	m_deadline_timer->start(0, 0.5);
+
+	m_queue_check_timer->set<handle_t, &handle_t::process_incoming_messages>(this);
+    m_queue_check_timer->start(0, 0.0005);
 
 	m_prepare->set<handle_t, &handle_t::prepare>(this);
 	m_prepare->start();
 
 	log(PLOG_DEBUG, "started message dispatch for " + description());
 	m_event_loop->loop();
+}
 
-	//m_event_loop
-	/*
-
-	m_last_response_timer.reset();
-	m_deadlined_messages_timer.reset();
-	m_control_messages_timer.reset();
-
-	// process messages
-	while (m_is_running) {
-		// process incoming control messages every 200 msec
-		int control_message = 0;
-		              
-		if (m_control_messages_timer.elapsed().as_double() > 0.2f) {
-		      control_message = receive_control_messages(control_socket, 0);
-		      m_control_messages_timer.reset();
-		}
-
-		if (control_message > 0) {
-			dispatch_control_messages(control_message, balancer);
-		}
-
-		// send new message if any
-		if (m_is_running && m_is_connected) {
-			for (int i = 0; i < 100; ++i) { // batching
-				if (m_message_cache->new_messages_count() == 0) {
-					break;
-				}
-
-				dispatch_next_available_message(balancer);
-			}
-		}
-
-		// check for message responces
-		bool received_response = false;
-
-		int fast_poll_timeout = 30;		  // microsecs
-		int long_poll_timeout = 300000;   // microsecs
-
-		int response_poll_timeout = fast_poll_timeout;
-		if (m_last_response_timer.elapsed().as_double() > 5.0f) {
-			response_poll_timeout = long_poll_timeout;
-		}
-
-		if (m_is_connected && m_is_running) {
-			received_response = balancer.check_for_responses(response_poll_timeout);
-
-			// process received responce(s)
-			while (received_response) {
-				m_last_response_timer.reset();
-				response_poll_timeout = fast_poll_timeout;
-
-				dispatch_next_available_response(balancer);
-				received_response = balancer.check_for_responses(response_poll_timeout);
-			}
-		}
-
-		if (m_is_running) {
-			if (m_deadlined_messages_timer.elapsed().as_double() > 1.0f) {
-				process_deadlined_messages();
-				m_deadlined_messages_timer.reset();
-			}
-		}
+void
+handle_t::process_incoming_messages(ev::timer& watcher, int type) {
+	if (!m_is_running || !m_is_connected) {
+		return;
 	}
 
-	control_socket.reset();
-	log(PLOG_DEBUG, "finished message dispatch for " + description());
-	*/
+	boost::mutex::scoped_lock lock(m_mutex);
+	int t = m_message_cache->new_messages_count();
+
+	while (t > 0) {
+		dispatch_next_available_message();
+		t = m_message_cache->new_messages_count();
+	}
 }
 
 void
@@ -323,10 +275,10 @@ handle_t::remove_from_persistent_storage(wuuid_t& uuid,
 }
 
 void
-handle_t::dispatch_next_available_response(balancer_t& balancer) {
+handle_t::dispatch_next_available_response() {
 	boost::shared_ptr<response_chunk_t> response;
 
-	if (!balancer.receive(response)) {
+	if (!m_balancer->receive(response)) {
 		return;
 	}
 
@@ -429,7 +381,7 @@ namespace {
 }
 
 void
-handle_t::dispatch_control_messages(int type, balancer_t& balancer) {
+handle_t::dispatch_control_messages(int type) {
 	if (!m_is_running) {
 		return;
 	}
@@ -438,7 +390,7 @@ handle_t::dispatch_control_messages(int type, balancer_t& balancer) {
 		case CONTROL_MESSAGE_UPDATE:
 			if (m_is_connected) {
 				std::set<cocaine_endpoint_t> missing_endpoints;
-				balancer.update_endpoints(m_endpoints, missing_endpoints);
+				m_balancer->update_endpoints(m_endpoints, missing_endpoints);
 
 				if (!missing_endpoints.empty()) {
 					std::for_each(missing_endpoints.begin(), missing_endpoints.end(), resheduler(m_message_cache));
@@ -450,10 +402,11 @@ handle_t::dispatch_control_messages(int type, balancer_t& balancer) {
 
 		case CONTROL_MESSAGE_ENQUEUE:
 			if (m_is_connected) {
+				boost::mutex::scoped_lock lock(m_mutex);
 				int t = m_message_cache->new_messages_count();
 
 				while (t > 0) {
-					dispatch_next_available_message(balancer);
+					dispatch_next_available_message();
 					t = m_message_cache->new_messages_count();
 				}
 			}
@@ -562,7 +515,7 @@ handle_t::enqueue_response(boost::shared_ptr<response_chunk_t>& response) {
 }
 
 bool
-handle_t::dispatch_next_available_message(balancer_t& balancer) {
+handle_t::dispatch_next_available_message() {
 	// send new message if any
 	if (m_message_cache->new_messages_count() == 0) {
 		return false;
@@ -570,7 +523,7 @@ handle_t::dispatch_next_available_message(balancer_t& balancer) {
 
 	boost::shared_ptr<message_iface> new_msg = m_message_cache->get_new_message();
 	cocaine_endpoint_t endpoint;
-	if (balancer.send(new_msg, endpoint)) {
+	if (m_balancer->send(new_msg, endpoint)) {
 		new_msg->mark_as_sent(true);
 		m_message_cache->move_new_message_to_sent(endpoint.route);
 
@@ -633,10 +586,14 @@ handle_t::enqueue_message(const boost::shared_ptr<message_iface>& message) {
 
 void
 handle_t::notify_enqueued() {
+	/*
+	boost::mutex::scoped_lock lock(m_mutex);
+
 	int control_message = CONTROL_MESSAGE_ENQUEUE;
 	zmq::message_t msg(sizeof(int));
 	memcpy((void *)msg.data(), &control_message, sizeof(int));
 	m_control_socket->send(msg);
+	*/
 }
 
 } // namespace dealer

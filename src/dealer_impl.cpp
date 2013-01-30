@@ -155,7 +155,6 @@ dealer_impl_t::get_service(const std::string& service_alias) {
 
 boost::shared_ptr<response_t>
 dealer_impl_t::send_message(const message_t& message) {
-	boost::shared_ptr<service_t> service = get_service(message.path.service_alias);
 	return dealer_impl_t::send_message(message.data.data(),
 									   message.data.size(),
 									   message.path,
@@ -179,7 +178,7 @@ dealer_impl_t::send_message(const void* data,
 {
 	BOOST_VERIFY(!m_is_dead);
 	
-	boost::mutex::scoped_lock lock(m_mutex);
+	//boost::mutex::scoped_lock lock(m_mutex);
 	boost::shared_ptr<service_t> service = get_service(path.service_alias);
 	boost::shared_ptr<message_iface> msg = create_message(data, size, path, policy);
 

@@ -200,6 +200,8 @@ balancer_t::create_socket() {
 		log(PLOG_ERROR, "could not recreate socket, details: %s", ex.what());
 		throw(ex);
 	}
+
+	m_fd = m_socket->fd();
 }
 
 cocaine_endpoint_t&
