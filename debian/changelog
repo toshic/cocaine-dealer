@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.14) lucid; urgency=low
+
+  * experimental build - async io pipeline
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Wed, 30 Jan 2012 17:16:41 +0400
+
 cocaine-dealer (0.9.13) lucid; urgency=low
 
   * experimental build
