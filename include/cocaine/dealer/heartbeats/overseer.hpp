@@ -22,6 +22,7 @@
 #define _COCAINE_DEALER_OVERSEER_HPP_INCLUDED_
 
 #include <string>
+#include <memory>
 #include <map>
 #include <set>
 
@@ -146,10 +147,10 @@ private:
 	routing_table_t			m_routing_table;
 	callback_t				m_callback;
 
-	ev::default_loop		m_event_loop;
-	ev::timer				m_fetcher_timer;
-	ev::timer				m_timeout_timer;
-	ev::async				m_terminate;
+	std::unique_ptr<ev::dynamic_loop>	m_event_loop;
+	std::unique_ptr<ev::timer>			m_fetcher_timer;
+	std::unique_ptr<ev::timer>			m_timeout_timer;
+	std::unique_ptr<ev::async>			m_terminate;
 	
 	std::vector<ev_io_ptr>	m_watchers;
 	boost::mutex			m_mutex;

@@ -50,7 +50,7 @@ handle_t::handle_t(const handle_info_t& info,
 	m_control_socket.reset(new socket_t(context(), ZMQ_PAIR));
 
 	m_control_socket->set_linger(0);
-	m_control_socket->bind("inproc://service_control_");
+	m_control_socket->bind("inproc://service_control_" + description());
 
 	// run message dispatch thread
 	m_is_running = true;
@@ -189,7 +189,7 @@ handle_t::dispatch_messages() {
 	assert(m_control_socket_2);
 
 	m_control_socket_2->set_linger(0);
-	m_control_socket_2->connect("inproc://service_control_");
+	m_control_socket_2->connect("inproc://service_control_" + description());
 
 	m_event_loop.reset(new ev::dynamic_loop);
 	m_terminate.reset(new ev::async(*m_event_loop));
@@ -212,7 +212,7 @@ handle_t::dispatch_messages() {
 	m_deadline_timer->start(0, 0.5);
 
 	m_queue_check_timer->set<handle_t, &handle_t::process_incoming_messages>(this);
-    m_queue_check_timer->start(0, 0.0005);
+    m_queue_check_timer->start(0, 0.001);
 
 	m_prepare->set<handle_t, &handle_t::prepare>(this);
 	m_prepare->start();
