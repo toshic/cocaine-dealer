@@ -40,8 +40,6 @@ namespace dealer {
 typedef cached_message_t<persistent_data_container, persistent_request_metadata_t> p_message_t;
 
 dealer_impl_t::dealer_impl_t(const std::string& config_path) :
-	m_messages_cache_size(0),
-	m_is_dead(false),
 	m_messages_ptr(NULL)
 {
 	// create dealer context
@@ -65,28 +63,64 @@ dealer_impl_t::dealer_impl_t(const std::string& config_path) :
 		throw internal_error(ctx_error_msg + ex.what());
 	}
 
+	boost::function<void()> f = boost::bind(&dealer_impl_t::main_loop, this);
+	m_thread = boost::thread(f);
+}
+
+dealer_impl_t::~dealer_impl_t() {
+	m_terminate->send();
+	m_thread.join();
+	log(PLOG_INFO, "dealer destroyed.");
+}
+
+void
+dealer_impl_t::terminate(ev::async& as, int type) {
+	// kill terminator
+	assert(m_terminate);
+	m_terminate->stop();
+	m_terminate.reset();
+
+	// kill overseer
+	assert(m_overseer);
+	m_overseer->stop();
+	m_overseer.reset();
+
+	// kill services
+	for (auto it = m_services.begin(); it != m_services.end(); ++it) {
+		assert(it->second);
+		it->second.reset();
+	}
+	m_services.clear();
+
+	context()->event_loop().unloop(ev::ALL);
+}
+
+void
+dealer_impl_t::main_loop() {
 	log(PLOG_INFO, "creating dealer.");
 
-	// get services list
-	const configuration_t::services_list_t& services_info_list = config()->services_list();
+	// create terminator
+	ev::async* async = new ev::async(context()->event_loop());
+	m_terminate.reset(async);
+	m_terminate->set<dealer_impl_t, &dealer_impl_t::terminate>(this);
+	m_terminate->start();
 
 	// create services
-	configuration_t::services_list_t::const_iterator it = services_info_list.begin();
-	for (; it != services_info_list.end(); ++it) {
+	const configuration_t::services_list_t& services_info_list = config()->services_list();
+	for (auto it = services_info_list.begin(); it != services_info_list.end(); ++it) {
 		boost::shared_ptr<service_t> service_ptr(new service_t(it->second, context()));
-
 		log(PLOG_INFO, "STARTING NEW SERVICE [%s]", it->second.name.c_str());
 		m_services[it->first] = service_ptr;
 	}
 
-	connect();
-	log(PLOG_INFO, "dealer created.");
-}
+	// create overseer
+	m_overseer.reset(new overseer_t(context()));
+	m_overseer->set_callback(boost::bind(&dealer_impl_t::process_overseer_event, this, _1, _2, _3, _4));
+	m_overseer->run();
 
-dealer_impl_t::~dealer_impl_t() {
-	m_is_dead = true;
-	disconnect();
-	log(PLOG_INFO, "dealer destroyed.");
+	log(PLOG_INFO, "dealer created.");
+
+	context()->event_loop().loop();
 }
 
 void
@@ -95,8 +129,9 @@ dealer_impl_t::process_overseer_event(e_overseer_event event_type,
 									  const std::string& handle_name,
 									  const std::set<cocaine_endpoint_t>& endpoints)
 {
-	//std::cout << "process_overseer_event\n";
+	std::cout << "process_overseer_event\n";
 
+	/*
 	// find corresponding service
 	services_map_t::iterator it = m_services.find(service_name);
 
@@ -126,6 +161,7 @@ dealer_impl_t::process_overseer_event(e_overseer_event event_type,
 		error_msg += " was not found in services. at: ";
 		throw internal_error(error_msg);
 	}
+	*/
 }
 
 boost::shared_ptr<service_t>
@@ -175,9 +211,7 @@ dealer_impl_t::send_message(const void* data,
 							size_t size,
 							const message_path_t& path,
 							const message_policy_t& policy)
-{
-	BOOST_VERIFY(!m_is_dead);
-	
+{	
 	//boost::mutex::scoped_lock lock(m_mutex);
 	boost::shared_ptr<service_t> service = get_service(path.service_alias);
 	boost::shared_ptr<message_iface> msg = create_message(data, size, path, policy);
@@ -266,27 +300,8 @@ dealer_impl_t::regex_match(const std::string& regex_str, const std::string& valu
 }
 
 void
-dealer_impl_t::connect() {
-	m_overseer.reset(new overseer_t(context()));
-	m_overseer->set_callback(boost::bind(&dealer_impl_t::process_overseer_event, this, _1, _2, _3, _4));
-	m_overseer->run();
-}
-
-void
 dealer_impl_t::disconnect() {
-	assert(m_overseer.get());
 
-	// stop collecting heartbeats
-	m_overseer.reset();
-
-	// stop services
-	services_map_t::iterator it = m_services.begin();
-	for (; it != m_services.end(); ++it) {
-		assert(it->second);
-		it->second.reset();
-	}
-
-	m_services.clear();
 }
 
 boost::shared_ptr<message_iface>

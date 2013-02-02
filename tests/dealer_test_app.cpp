@@ -142,6 +142,9 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 
 int
 main(int argc, char** argv) {
+	dealer_t d("../tests/config.json");
+	sleep(10);
+	return 0;
 	/*
 	dealer_t d("../tests/config.json");
 

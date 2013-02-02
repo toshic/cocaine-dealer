@@ -1,21 +1,21 @@
 /*
-    Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
-    Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
+	Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
+	Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
 
-    This file is part of Cocaine.
+	This file is part of Cocaine.
 
-    Cocaine is free software; you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
+	Cocaine is free software; you can redistribute it and/or modify
+	it under the terms of the GNU Lesser General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
-    Cocaine is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU Lesser General Public License for more details.
+	Cocaine is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program. If not, see <http://www.gnu.org/licenses/>. 
+	You should have received a copy of the GNU Lesser General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>. 
 */
 
 #ifndef _COCAINE_DEALER_CLIENT_IMPL_HPP_INCLUDED_
@@ -101,10 +101,10 @@ public:
 	void get_stored_messages(const std::string& service_alias,
 							 std::vector<message_t>& messages);
 
-private:	
-	void connect();
+private:
 	void disconnect();
-
+	void main_loop();
+	
 	void process_overseer_event(e_overseer_event event_type,
 								const std::string& service_name,
 								const std::string& handle_name,
@@ -112,31 +112,29 @@ private:
 
 	// restoring messages from storage cache
 	void storage_iteration_callback(const std::string& key, void* data, uint64_t size, int column);
-
 	bool regex_match(const std::string& regex_str, const std::string& value);
-
 	boost::shared_ptr<service_t> get_service(const std::string& service_alias);
 
+	// async callbacks
+	void terminate(ev::async& as, int type);
+
 private:
+	// <regex string, compiled regex>
 	std::map<std::string, boost::xpressive::sregex> m_regex_cache;
 
-	size_t m_messages_cache_size;
-
-	// dealer service name mapped to service
-	services_map_t m_services;
-
-	std::auto_ptr<overseer_t> m_overseer;
+	// <service name, service ptr>
+	std::map<std::string, service_ptr_t>	m_services;
+	std::unique_ptr<overseer_t>				m_overseer;
+	std::unique_ptr<ev::async>				m_terminate;
 
 	// synchronization
-	boost::mutex m_mutex;
-	boost::mutex m_regex_mutex;
-
-	// alive state
-	bool m_is_dead;
+	boost::thread	m_thread;
+	boost::mutex	m_mutex;
+	boost::mutex	m_regex_mutex;
 
 	// tmp var to fill with unsent data. used in eblob iterator method (this is god awful code, needs proper fix)
-	boost::mutex m_messages_ptr_mutex;
-	std::vector<message_t>* m_messages_ptr;
+	boost::mutex 			m_messages_ptr_mutex;
+	std::vector<message_t>*	m_messages_ptr;
 };
 
 } // namespace dealer

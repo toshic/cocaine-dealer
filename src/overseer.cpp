@@ -1,21 +1,21 @@
 /*
-    Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
-    Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
+	Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
+	Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
 
-    This file is part of Cocaine.
+	This file is part of Cocaine.
 
-    Cocaine is free software; you can redistribute it and/or modify
-    it under the terms of the GNU Lesser General Public License as published by
-    the Free Software Foundation; either version 3 of the License, or
-    (at your option) any later version.
+	Cocaine is free software; you can redistribute it and/or modify
+	it under the terms of the GNU Lesser General Public License as published by
+	the Free Software Foundation; either version 3 of the License, or
+	(at your option) any later version.
 
-    Cocaine is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU Lesser General Public License for more details.
+	Cocaine is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU Lesser General Public License for more details.
 
-    You should have received a copy of the GNU Lesser General Public License
-    along with this program. If not, see <http://www.gnu.org/licenses/>. 
+	You should have received a copy of the GNU Lesser General Public License
+	along with this program. If not, see <http://www.gnu.org/licenses/>. 
 */
 
 #include <memory>
@@ -40,7 +40,6 @@ overseer_t::overseer_t(const boost::shared_ptr<context_t>& ctx, bool logging_ena
 }
 
 overseer_t::~overseer_t() {
-	stop();
 }
 
 void
@@ -75,46 +74,10 @@ overseer_t::run() {
 
 	reset_routing_table(m_routing_table);
 
-	// create main overseer loop
-	boost::function<void()> f = boost::bind(&overseer_t::main_loop, this);
-	m_thread = boost::thread(f);
-}
+	ev::dynamic_loop& loop = context()->event_loop();
 
-
-void
-overseer_t::stop() {
-	m_terminate->send();
-	m_thread.join();
-
-	log(PLOG_DEBUG, "overseer — stopped");
-}
-
-void
-overseer_t::terminate(ev::async& as, int type) {
-	m_fetcher_timer->stop();
-	m_timeout_timer->stop();
-	m_terminate->stop();
-
-	for (size_t i = 0; i < m_watchers.size(); ++i) {
-		m_watchers[i]->stop();
-	}
-	m_watchers.clear();
-
-	m_event_loop->unloop(ev::ALL);
-
-	kill_sockets();
-
-	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
-		m_endpoints_fetchers[i].reset();
-	}
-}
-
-void
-overseer_t::main_loop() {
-	m_event_loop.reset(new ev::dynamic_loop);
-	m_fetcher_timer.reset(new ev::timer(*m_event_loop));
-	m_timeout_timer.reset(new ev::timer(*m_event_loop));
-	m_terminate.reset(new ev::async(*m_event_loop));
+	m_fetcher_timer.reset(new ev::timer(loop));
+	m_timeout_timer.reset(new ev::timer(loop));
 
 	// init
 	create_sockets();
@@ -127,13 +90,35 @@ overseer_t::main_loop() {
 	m_fetcher_timer->set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
 	m_timeout_timer->set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
 
-    m_fetcher_timer->start(15, 15);
-    m_timeout_timer->start(0, 0.5);
+	m_fetcher_timer->start(15, 15);
+	m_timeout_timer->start(0, 0.5);
+}
 
-	m_terminate->set<overseer_t, &overseer_t::terminate>(this);
-	m_terminate->start();
 
-	m_event_loop->loop();
+void
+overseer_t::stop() {
+	if (m_fetcher_timer) {
+		m_fetcher_timer->stop();
+		m_fetcher_timer.reset();
+	}
+
+	if (m_timeout_timer) {
+		m_timeout_timer->stop();
+		m_timeout_timer.reset();
+	}
+
+	for (size_t i = 0; i < m_watchers.size(); ++i) {
+		m_watchers[i]->stop();
+	}
+	m_watchers.clear();
+
+	kill_sockets();
+
+	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
+		m_endpoints_fetchers[i].reset();
+	}
+
+	log(PLOG_DEBUG, "overseer — stopped.");
 }
 
 void
@@ -645,13 +630,7 @@ overseer_t::connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >&
 		return;
 	}
 
-	//std::cout << "connect_sockets\n";
-
-	// // kill watchers
-	// for (size_t i = 0; i < m_watchers.size(); ++i) {
-	// 	m_watchers[i]->stop();
-	// }
-	// m_watchers.clear();
+	ev::dynamic_loop& loop = context()->event_loop();
 
 	// create sockets
 	std::map<std::string, shared_socket_t>::iterator it = m_sockets.begin();
@@ -669,16 +648,16 @@ overseer_t::connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >&
 
 					//create watcher
 					if (sock->fd()) {
-						ev_io_ptr watcher(new ev::io(*m_event_loop));
+						ev_io_ptr watcher(new ev::io(loop));
 						watcher->set<overseer_t, &overseer_t::request>(this);
-	    				watcher->start(sock->fd(), ev::READ);
-	    				m_watchers.push_back(watcher);
-	    			}
+						watcher->start(sock->fd(), ev::READ);
+						m_watchers.push_back(watcher);
+					}
 				}
 				catch (const std::exception& ex) {
 					log_error("overseer - could not connect socket for service %s, details: %s",
 							  it->first.c_str(),
-								ex.what());
+							  ex.what());
 				}
 			}
 		}

@@ -30,14 +30,11 @@
     
 #include "json/json.h"
 
-#include <boost/thread.hpp>
-#include <boost/thread/mutex.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/date_time.hpp>
 #include <boost/bind.hpp>
 #include <boost/tokenizer.hpp>
 #include <boost/function.hpp>
-#include <boost/lexical_cast.hpp>
 
 #include "cocaine/dealer/defaults.hpp"
 #include "cocaine/dealer/utils/error.hpp"
@@ -94,7 +91,6 @@ private:
 	typedef boost::shared_ptr<socket_t> shared_socket_t;
 
 	bool fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >& new_endpoints);
-	void main_loop();
 
 	void create_sockets();
 	void connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& new_endpoints);
@@ -126,7 +122,6 @@ private:
 	void reset_routing_table(routing_table_t& routing_table);
 	void fetch_and_process_endpoints(ev::timer& watcher, int type);
 	void request(ev::io& watcher, int type);
-	void terminate(ev::async& as, int type);
 
 	// used for debug only
 	void print_all_fetched_endpoints();
@@ -147,17 +142,11 @@ private:
 	routing_table_t			m_routing_table;
 	callback_t				m_callback;
 
-	std::unique_ptr<ev::dynamic_loop>	m_event_loop;
 	std::unique_ptr<ev::timer>			m_fetcher_timer;
 	std::unique_ptr<ev::timer>			m_timeout_timer;
-	std::unique_ptr<ev::async>			m_terminate;
 	
 	std::vector<ev_io_ptr>	m_watchers;
-	boost::mutex			m_mutex;
-	boost::thread			m_thread;
 	wuuid_t					m_uuid;
-
-	progress_timer pt;
 };
 
 } // namespace dealer

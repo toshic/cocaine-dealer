@@ -59,11 +59,12 @@ context_t::context_t(const std::string& config_path) {
 			break;
 	}
 	
-	logger()->log(PLOG_DEBUG, "loaded config: %s", config()->config_path().c_str());
-	//logger()->log(config()->as_string());
-	
 	// create zmq context
 	m_zmq_context.reset(new zmq::context_t(1));
+	m_event_loop.reset(new ev::dynamic_loop);
+	
+	logger()->log(PLOG_DEBUG, "loaded config: %s", config()->config_path().c_str());
+	//logger()->log(config()->as_string());
 
 	// create statistics collector
 	//m_stats.reset(new statistics_collector(m_config, m_zmq_context, logger()));
@@ -125,15 +126,20 @@ context_t::zmq_context() {
 	return m_zmq_context;
 }
 
-//boost::shared_ptr<statistics_collector>
-//context_t::stats() {
-//	return m_stats;
-//}
-
 boost::shared_ptr<eblob_storage_t>
 context_t::storage() {
 	return m_storage;
 }
+
+ev::dynamic_loop&
+context_t::event_loop() {
+	return *m_event_loop;
+}
+
+//boost::shared_ptr<statistics_collector>
+//context_t::stats() {
+//	return m_stats;
+//}
 
 } // namespace dealer
 } // namespace cocaine
