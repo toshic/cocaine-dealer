@@ -303,7 +303,6 @@ service_t::get_new_handles(const handles_endpoints_t& handles_endpoints,
 
 void
 service_t::create_handle(const handle_info_t& handle_info, const std::set<cocaine_endpoint_t>& endpoints) {
-	/*
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
 	// create new handle
@@ -327,12 +326,10 @@ service_t::create_handle(const handle_info_t& handle_info, const std::set<cocain
 
 	// append new handle
 	m_handles[handle_info.name] = handle;
-	*/
 }
 
 void
 service_t::update_handle(const handle_info_t& handle_info, const std::set<cocaine_endpoint_t>& endpoints) {
-	/*
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
 	auto it = m_handles.find(handle_info.name);
@@ -346,12 +343,10 @@ service_t::update_handle(const handle_info_t& handle_info, const std::set<cocain
 	shared_handle_t handle = it->second;
 	assert(handle);
 	handle->update_endpoints(endpoints);
-	*/
 }
 
 void
 service_t::destroy_handle(const handle_info_t& info) {
-	/*
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
 	auto it = m_handles.find(info.name);
@@ -385,7 +380,6 @@ service_t::destroy_handle(const handle_info_t& info) {
 
 	m_handles.erase(it);
 	lock.unlock();
-	*/
 }
 
 void

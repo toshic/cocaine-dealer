@@ -38,27 +38,60 @@ handle_t::handle_t(const handle_info_t& info,
 	dealer_object_t(ctx, logging_enabled),
 	m_info(info),
 	m_endpoints(endpoints),
-	m_is_running(false),
-	m_is_connected(false)
+	m_is_running(true)
 {
 	log(PLOG_DEBUG, "CREATED HANDLE " + description());
 
 	// create message cache
 	m_message_cache.reset(new message_cache_t(context(), true));
 
-	// create control socket
-	m_control_socket.reset(new socket_t(context(), ZMQ_PAIR));
+	// create balancer
+	wuuid_t balancer_uuid;
+	balancer_uuid.generate();
+	std::string balancer_ident = m_info.as_string() + "." + balancer_uuid.as_human_readable_string();
+	m_balancer.reset(new balancer_t(balancer_ident, m_endpoints, context()));
 
-	m_control_socket->set_linger(0);
-	m_control_socket->bind("inproc://service_control_" + description());
+	ev::dynamic_loop& loop = context()->event_loop();
 
-	// run message dispatch thread
-	m_is_running = true;
-	m_thread = boost::thread(&handle_t::dispatch_messages, this);
+	// create prepare watcher
+	m_prepare.reset(new ev::prepare(loop));
+	m_prepare->set<handle_t, &handle_t::prepare>(this);
+	m_prepare->start();
+
+	// create io watcher
+	m_io_watcher.reset(new ev::io(loop));
+	m_io_watcher->set<handle_t, &handle_t::process_io_messages>(this);
+	m_io_watcher->start(m_balancer->fd(), ev::READ);
+
+	// create harvester watcher
+	m_deadline_timer.reset(new ev::timer(loop));
+	m_deadline_timer->set<handle_t, &handle_t::process_deadlined_messages>(this);
+	m_deadline_timer->start(0, 0.5);
+
+	// create io pump
+	m_queue_check_timer.reset(new ev::timer(loop));
+	m_queue_check_timer->set<handle_t, &handle_t::process_incoming_messages>(this);
+    m_queue_check_timer->start(0, 0.001);
+
+	log(PLOG_DEBUG, "started message dispatch for " + description());
 }
 
 handle_t::~handle_t() {
 	kill();
+}
+
+namespace {
+	struct resheduler {
+		resheduler(const boost::shared_ptr<message_cache_t>& cache) : m_cache(cache) {
+		}
+
+		template <class T> void operator() (const T& obj) {
+			m_cache->make_all_messages_new_for_route(obj.route);
+		}
+
+	private:
+		boost::shared_ptr<message_cache_t> m_cache;
+	};
 }
 
 void
@@ -69,14 +102,14 @@ handle_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints) {
 
 	log(PLOG_DEBUG, "UPDATE HANDLE " + description());
 
-	boost::mutex::scoped_lock lock(m_mutex);
 	m_endpoints = endpoints;
 
-	// connect to hosts
-	int control_message = CONTROL_MESSAGE_UPDATE;
-	zmq::message_t message(sizeof(int));
-	memcpy((void *)message.data(), &control_message, sizeof(int));
-	m_control_socket->send(message);
+	std::set<cocaine_endpoint_t> missing_endpoints;
+	m_balancer->update_endpoints(m_endpoints, missing_endpoints);
+
+	if (!missing_endpoints.empty()) {
+		std::for_each(missing_endpoints.begin(), missing_endpoints.end(), resheduler(m_message_cache));
+	}
 }
 
 void
@@ -87,40 +120,21 @@ handle_t::kill() {
 
 	m_is_running = false;
 
-	m_terminate->send();
-
-	m_thread.join();
-
-	m_prepare.reset();
-	m_terminate.reset();
-	m_control_watcher.reset();
-	m_io_watcher.reset();
-	m_deadline_timer.reset();
-	m_queue_check_timer.reset();
-
-	m_event_loop.reset();
-
-	log(PLOG_DEBUG, "DESTROYED HANDLE " + description());
-}
-
-void
-handle_t::terminate(ev::async& as, int type) {
-	m_control_watcher->stop();
-	m_terminate->stop();
 	m_prepare->stop();
+	m_prepare.reset();
+
 	m_io_watcher->stop();
+	m_io_watcher.reset();
+
 	m_deadline_timer->stop();
+	m_deadline_timer.reset();
+
 	m_queue_check_timer->stop();
-
-	m_event_loop->unloop(ev::ALL);
-
-	m_control_socket_2->close();
-	m_control_socket_2.reset();
+	m_queue_check_timer.reset();
 
 	m_balancer.reset();
 
-	m_control_socket->close();
-	m_control_socket.reset();
+	log(PLOG_DEBUG, "DESTROYED HANDLE " + description());
 }
 
 void
@@ -143,87 +157,13 @@ handle_t::process_io_messages(ev::io& watcher, int type) {
 }
 
 void
-handle_t::process_control_messages(ev::io& watcher, int type) {
-	if (!m_is_running || type != ev::READ) {
-		return;
-	}
-
-	try {
-		bool p = m_control_socket_2->pending();
-		while (p) {
-			zmq::message_t reply;
-			if (!m_control_socket_2->recv(&reply, ZMQ_NOBLOCK)) {
-				return;
-			}
-			
-			int message = 0;
-			memcpy((void *)&message, reply.data(), reply.size());
-
-			dispatch_control_messages(message);
-			p = m_control_socket_2->pending();
-		}
-	}
-	catch (const std::exception& ex) {
-		std::string error_msg = "some very ugly shit happend while recv on control socket at ";
-		error_msg += std::string(BOOST_CURRENT_FUNCTION);
-		error_msg += " details: " + std::string(ex.what());
-		throw internal_error(error_msg);
-	}
-}
-
-void
 handle_t::prepare(ev::prepare& as, int type) {
-	m_event_loop->feed_fd_event(m_control_socket_2->fd(), ev::READ);
 	m_event_loop->feed_fd_event(m_balancer->fd(), ev::READ);
 }
 
 void
-handle_t::dispatch_messages() {
-	wuuid_t balancer_uuid;
-	balancer_uuid.generate();
-	std::string balancer_ident = m_info.as_string() + "." + balancer_uuid.as_human_readable_string();
-	m_balancer.reset(new balancer_t(balancer_ident, m_endpoints, context()));
-	m_is_connected = true;
-
-	m_control_socket_2.reset(new socket_t(context(), ZMQ_PAIR));
-	assert(m_control_socket_2);
-
-	m_control_socket_2->set_linger(0);
-	m_control_socket_2->connect("inproc://service_control_" + description());
-
-	m_event_loop.reset(new ev::dynamic_loop);
-	m_terminate.reset(new ev::async(*m_event_loop));
-	m_prepare.reset(new ev::prepare(*m_event_loop));
-	m_control_watcher.reset(new ev::io(*m_event_loop));
-	m_io_watcher.reset(new ev::io(*m_event_loop));
-	m_deadline_timer.reset(new ev::timer(*m_event_loop));
-	m_queue_check_timer.reset(new ev::timer(*m_event_loop));
-
-	m_control_watcher->set<handle_t, &handle_t::process_control_messages>(this);
-	m_control_watcher->start(m_control_socket_2->fd(), ev::READ);
-
-	m_io_watcher->set<handle_t, &handle_t::process_io_messages>(this);
-	m_io_watcher->start(m_balancer->fd(), ev::READ);
-
-	m_terminate->set<handle_t, &handle_t::terminate>(this);
-	m_terminate->start();
-
-	m_deadline_timer->set<handle_t, &handle_t::process_deadlined_messages>(this);
-	m_deadline_timer->start(0, 0.5);
-
-	m_queue_check_timer->set<handle_t, &handle_t::process_incoming_messages>(this);
-    m_queue_check_timer->start(0, 0.001);
-
-	m_prepare->set<handle_t, &handle_t::prepare>(this);
-	m_prepare->start();
-
-	log(PLOG_DEBUG, "started message dispatch for " + description());
-	m_event_loop->loop();
-}
-
-void
 handle_t::process_incoming_messages(ev::timer& watcher, int type) {
-	if (!m_is_running || !m_is_connected) {
+	if (!m_is_running) {
 		return;
 	}
 
@@ -306,8 +246,6 @@ handle_t::dispatch_next_available_response() {
 			// handle resource error
 			if (response->error_code == resource_error) {
 				if (m_message_cache->reshedule_message(response->route, response->uuid)) {
-					notify_enqueued();
-
 					if (log_enabled(PLOG_WARNING)) {
 						std::string message_str = "resheduled message with uuid: ";
 						message_str += response->uuid.as_human_readable_string();
@@ -366,54 +304,6 @@ handle_t::dispatch_next_available_response() {
 	}
 }
 
-namespace {
-	struct resheduler {
-		resheduler(const boost::shared_ptr<message_cache_t>& cache) : m_cache(cache) {
-		}
-
-		template <class T> void operator() (const T& obj) {
-			m_cache->make_all_messages_new_for_route(obj.route);
-		}
-
-	private:
-		boost::shared_ptr<message_cache_t> m_cache;
-	};
-}
-
-void
-handle_t::dispatch_control_messages(int type) {
-	if (!m_is_running) {
-		return;
-	}
-
-	switch (type) {
-		case CONTROL_MESSAGE_UPDATE:
-			if (m_is_connected) {
-				std::set<cocaine_endpoint_t> missing_endpoints;
-				m_balancer->update_endpoints(m_endpoints, missing_endpoints);
-
-				if (!missing_endpoints.empty()) {
-					std::for_each(missing_endpoints.begin(), missing_endpoints.end(), resheduler(m_message_cache));
-					notify_enqueued();
-					//m_message_cache->make_all_messages_new();
-				}
-			}
-			break;
-
-		case CONTROL_MESSAGE_ENQUEUE:
-			if (m_is_connected) {
-				boost::mutex::scoped_lock lock(m_mutex);
-				int t = m_message_cache->new_messages_count();
-
-				while (t > 0) {
-					dispatch_next_available_message();
-					t = m_message_cache->new_messages_count();
-				}
-			}
-			break;
-	}
-}
-
 boost::shared_ptr<message_cache_t>
 handle_t::messages_cache() const {
 	return m_message_cache;
@@ -468,7 +358,6 @@ handle_t::process_deadlined_messages(ev::timer& watcher, int type) {
 				expired_messages.at(i)->increment_retries_count();
 				expired_messages.at(i)->reset_ack_timedout();
 				m_message_cache->enqueue_with_priority(expired_messages.at(i));
-				notify_enqueued();
 
 				if (log_enabled(PLOG_WARNING)) {
 					std::string log_str = "no ACK, resheduled message %s, (enqued: %s, sent: %s, curr: %s)";
@@ -568,8 +457,6 @@ void
 handle_t::assign_message_queue(const message_cache_t::message_queue_ptr_t& message_queue) {
 	assert (m_message_cache);
 	m_message_cache->append_message_queue(message_queue);
-
-	notify_enqueued();
 }
 
 void
@@ -581,19 +468,6 @@ handle_t::set_responce_callback(responce_callback_t callback) {
 void
 handle_t::enqueue_message(const boost::shared_ptr<message_iface>& message) {
 	m_message_cache->enqueue(message);
-	notify_enqueued();
-}
-
-void
-handle_t::notify_enqueued() {
-	/*
-	boost::mutex::scoped_lock lock(m_mutex);
-
-	int control_message = CONTROL_MESSAGE_ENQUEUE;
-	zmq::message_t msg(sizeof(int));
-	memcpy((void *)msg.data(), &control_message, sizeof(int));
-	m_control_socket->send(msg);
-	*/
 }
 
 } // namespace dealer

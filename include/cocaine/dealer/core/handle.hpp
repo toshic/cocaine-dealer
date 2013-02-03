@@ -51,9 +51,6 @@
 namespace cocaine {
 namespace dealer {
 
-#define CONTROL_MESSAGE_UPDATE 1
-#define CONTROL_MESSAGE_ENQUEUE 2
-
 // predeclaration
 class handle_t : private boost::noncopyable, public dealer_object_t {
 public:
@@ -92,12 +89,8 @@ private:
 	void connect();
 	void make_all_messages_new();
 	std::string description();
-
-	void dispatch_messages();
-	void notify_enqueued();
 	
 	// working with control messages
-	void dispatch_control_messages(int type);
 	bool reshedule_message(const std::string& route, const std::string& uuid);
 
 	// working with messages
@@ -112,21 +105,16 @@ private:
 										const std::string& alias);
 
 	// event loop callbacks
-	void process_control_messages(ev::io& watcher, int type);
 	void process_io_messages(ev::io& watcher, int type);
-	void terminate(ev::async& as, int type);
 	void prepare(ev::prepare& as, int type);
 	void process_deadlined_messages(ev::timer& watcher, int type);
 	void process_incoming_messages(ev::timer& watcher, int type);
 
 private:
 	handle_info_t	m_info;
-	boost::thread	m_thread;
 	boost::mutex	m_mutex;
 	volatile bool	m_is_running;
-	volatile bool	m_is_connected;
 
-	std::unique_ptr<ev::async>			m_terminate;
 	std::unique_ptr<ev::prepare>		m_prepare;
 	std::unique_ptr<ev::io>				m_control_watcher;
 	std::unique_ptr<ev::io>				m_io_watcher;
@@ -140,9 +128,6 @@ private:
 	std::set<cocaine_endpoint_t>		m_endpoints;
 	boost::shared_ptr<message_cache_t>	m_message_cache;
 	std::unique_ptr<balancer_t>			m_balancer;
-
-	shared_socket_t m_control_socket;
-	shared_socket_t m_control_socket_2;
 
 	responce_callback_t m_response_callback;
 
