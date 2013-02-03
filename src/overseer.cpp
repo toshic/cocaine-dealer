@@ -74,11 +74,6 @@ overseer_t::run() {
 
 	reset_routing_table(m_routing_table);
 
-	ev::dynamic_loop& loop = context()->event_loop();
-
-	m_fetcher_timer.reset(new ev::timer(loop));
-	m_timeout_timer.reset(new ev::timer(loop));
-
 	// init
 	create_sockets();
 
@@ -87,10 +82,14 @@ overseer_t::run() {
 	connect_sockets(new_endpoints);
 
 	// fetch endpoints every 15 secs
-	m_fetcher_timer->set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
-	m_timeout_timer->set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
+	ev::dynamic_loop& loop = context()->event_loop();
 
+	m_fetcher_timer.reset(new ev::timer(loop));
+	m_fetcher_timer->set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
 	m_fetcher_timer->start(15, 15);
+
+	m_timeout_timer.reset(new ev::timer(loop));
+	m_timeout_timer->set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
 	m_timeout_timer->start(0, 0.5);
 }
 

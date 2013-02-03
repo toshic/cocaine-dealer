@@ -18,12 +18,13 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>. 
 */
 
-#include "cocaine/dealer/utils/error.hpp"
-
 #include "cocaine/dealer/core/service.hpp"
 
 namespace cocaine {
 namespace dealer {
+
+const double service_t::message_harvest_interval = 1.0;
+const double service_t::responces_harvest_interval = 1.0;
 
 service_t::service_t(const service_info_t& info,
 					 const boost::shared_ptr<context_t>& ctx,
@@ -31,10 +32,26 @@ service_t::service_t(const service_info_t& info,
 	dealer_object_t(ctx, logging_enabled),
 	m_info(info)
 {
+	ev::dynamic_loop& loop = context()->event_loop();
 
+	m_message_harvester.reset(new ev::timer(loop));
+	m_message_harvester->set<service_t, &service_t::harvest_messages>(this);
+	m_message_harvester->start(message_harvest_interval, message_harvest_interval);
+
+	m_responces_harvester.reset(new ev::timer(loop));
+	m_responces_harvester->set<service_t, &service_t::harvest_responces>(this);
+	m_responces_harvester->start(responces_harvest_interval, responces_harvest_interval);
 }
 
 service_t::~service_t() {
+	// 2DO send all messages ERROR - dealer shut down
+	m_message_harvester->stop();
+	m_message_harvester.reset();
+
+	// 2DO send all responces ERROR - dealer shut down
+	m_responces_harvester->stop();
+	m_responces_harvester.reset();
+
 	// kill handles
 	auto it = m_handles.begin();
 	for (;it != m_handles.end(); ++it) {
@@ -59,13 +76,30 @@ service_t::~service_t() {
 	log_info("FINISHED SERVICE [%s]", m_info.name.c_str());
 }
 
+void
+service_t::harvest_responces(ev::timer& timer, int type) {
+	boost::mutex::scoped_lock lock(m_responces_mutex);
+
+	// check for unique responses and remove them
+	auto it = m_responses.begin();
+
+	while (it != m_responses.end()) {
+		if (it->second.unique()) {
+			m_responses.erase(it++);
+		}
+		else {
+			++it;
+		}
+	}
+}
+
 service_info_t
 service_t::info() const {
 	return m_info;
 }
 
 boost::shared_ptr<response_t>
-service_t::send_message(cached_message_prt_t message) {
+service_t::send_message(const shared_message_t& message) {
 
 	boost::shared_ptr<response_t> resp;
 	resp.reset(new response_t(message->uuid(), message->path()));
@@ -95,23 +129,6 @@ service_t::enqueue_responce(boost::shared_ptr<response_chunk_t>& response) {
 	{
 		boost::mutex::scoped_lock lock(m_responces_mutex);
 
-		// // check for unique responses and remove them
-		//	auto it;
-		// if (m_responces_cleanup_timer.elapsed().as_double() > 1.0f) {
-		// 	it = m_responses.begin();
-
-		// 	while (it != m_responses.end()) {
-		// 		if (it->second.unique()) {
-		// 			m_responses.erase(it++);
-		// 		}
-		// 		else {
-		// 			++it;
-		// 		}
-		// 	}
-
-		// 	m_responces_cleanup_timer.reset();
-		// }
-
 		// find response object for received chunk
 		auto it = m_responses.find(response->uuid.as_string());
 
@@ -133,7 +150,7 @@ service_t::enqueue_responce(boost::shared_ptr<response_chunk_t>& response) {
 }
 
 bool
-service_t::enque_to_handle(const cached_message_prt_t& message) {
+service_t::enque_to_handle(const shared_message_t& message) {
 	//boost::mutex::scoped_lock lock(m_handles_mutex);
 
 	auto it = m_handles.find(message->path().handle_name);
@@ -160,7 +177,7 @@ service_t::enque_to_handle(const cached_message_prt_t& message) {
 }
 
 void
-service_t::enque_to_unhandled(const cached_message_prt_t& message) {
+service_t::enque_to_unhandled(const shared_message_t& message) {
 	boost::mutex::scoped_lock lock(m_unhandled_mutex);
 
 	const std::string& handle_name = message->path().handle_name;
@@ -168,12 +185,12 @@ service_t::enque_to_unhandled(const cached_message_prt_t& message) {
 	
 	// check for existing message queue for handle
 	if (it == m_unhandled_messages.end()) {
-		messages_deque_ptr_t queue(new cached_messages_deque_t);
+		shared_messages_deque_t queue(new messages_deque_t);
 		queue->push_back(message);
 		m_unhandled_messages[handle_name] = queue;
 	}
 	else {
-		messages_deque_ptr_t queue = it->second;
+		shared_messages_deque_t queue = it->second;
 		assert(queue);
 		queue->push_back(message);
 	}
@@ -194,7 +211,7 @@ boost::shared_ptr<std::deque<boost::shared_ptr<message_iface> > >
 service_t::get_and_remove_unhandled_queue(const std::string& handle_name) {
 	boost::mutex::scoped_lock lock(m_unhandled_mutex);
 
-	messages_deque_ptr_t queue(new cached_messages_deque_t);
+	shared_messages_deque_t queue(new messages_deque_t);
 
 	auto it = m_unhandled_messages.find(handle_name);
 	if (it == m_unhandled_messages.end()) {
@@ -209,7 +226,7 @@ service_t::get_and_remove_unhandled_queue(const std::string& handle_name) {
 
 void
 service_t::append_to_unhandled(const std::string& handle_name,
-							  const messages_deque_ptr_t& handle_queue)
+							  const shared_messages_deque_t& handle_queue)
 {
 	assert(handle_queue);
 
@@ -229,9 +246,9 @@ service_t::append_to_unhandled(const std::string& handle_name,
 	// find corresponding unhandled message queue
 	auto it = m_unhandled_messages.find(handle_name);
 
-	messages_deque_ptr_t queue;
+	shared_messages_deque_t queue;
 	if (it == m_unhandled_messages.end()) {
-		queue.reset(new cached_messages_deque_t);
+		queue.reset(new messages_deque_t);
 		m_unhandled_messages[handle_name] = queue;
 	}
 	else {
@@ -294,7 +311,7 @@ service_t::create_handle(const handle_info_t& handle_info, const std::set<cocain
 	handle->set_responce_callback(boost::bind(&service_t::enqueue_responce, this, _1));
 
 	// retrieve unhandled queue
-	messages_deque_ptr_t queue = get_and_remove_unhandled_queue(handle_info.name);
+	shared_messages_deque_t queue = get_and_remove_unhandled_queue(handle_info.name);
 
 	if (!queue->empty()) {
 		handle->assign_message_queue(queue);
@@ -360,7 +377,7 @@ service_t::destroy_handle(const handle_info_t& info) {
 	log_debug("messages cache - end");
 	mcache->log_stats();
 
-	const messages_deque_ptr_t& handle_queue = mcache->new_messages();
+	const shared_messages_deque_t& handle_queue = mcache->new_messages();
 	
 	log_debug("handle_queue size: %d", handle_queue->size());
 
@@ -372,17 +389,17 @@ service_t::destroy_handle(const handle_info_t& info) {
 }
 
 void
-service_t::check_for_deadlined_messages() {
+service_t::harvest_messages(ev::timer& timer, int type) {
 	boost::mutex::scoped_lock lock(m_unhandled_mutex);
 
 	auto it = m_unhandled_messages.begin();
 
 	for (; it != m_unhandled_messages.end(); ++it) {
-		messages_deque_ptr_t queue = it->second;
+		shared_messages_deque_t queue = it->second;
 
 		// create tmp queue
-		messages_deque_ptr_t not_expired_queue(new cached_messages_deque_t);
-		messages_deque_ptr_t expired_queue(new cached_messages_deque_t);
+		shared_messages_deque_t not_expired_queue(new messages_deque_t);
+		shared_messages_deque_t expired_queue(new messages_deque_t);
 		bool found_expired = false;
 
 		auto qit = queue->begin();

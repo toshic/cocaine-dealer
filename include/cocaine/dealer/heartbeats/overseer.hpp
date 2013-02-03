@@ -115,13 +115,16 @@ private:
 							const std::string& service_name,
 							routing_table_t::iterator& it);
 
-	void check_for_timedout_endpoints(ev::timer& timer, int type);
+	
 	bool endpoints_set_equal(const endpoints_set_t& lhs, const endpoints_set_t& rhs);
 	bool all_endpoints_dead(const endpoints_set_t& endpoints);
 	
 	void reset_routing_table(routing_table_t& routing_table);
-	void fetch_and_process_endpoints(ev::timer& watcher, int type);
+	
+	// async callbacks
 	void request(ev::io& watcher, int type);
+	void check_for_timedout_endpoints(ev::timer& timer, int type);
+	void fetch_and_process_endpoints(ev::timer& watcher, int type);
 
 	// used for debug only
 	void print_all_fetched_endpoints();

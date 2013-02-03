@@ -22,7 +22,6 @@
 #define _COCAINE_DEALER_SERVICE_HPP_INCLUDED_
 
 #include <string>
-#include <sstream>
 #include <memory>
 #include <map>
 #include <vector>
@@ -50,17 +49,14 @@ namespace dealer {
 
 class service_t : private boost::noncopyable, public dealer_object_t {
 public:
-	typedef std::vector<handle_info_t> handles_info_list_t;
+	typedef std::vector<handle_info_t>			handles_info_list_t;
+	typedef boost::shared_ptr<handle_t>			shared_handle_t;
+	typedef boost::shared_ptr<response_t>		shared_response_t;
+	typedef boost::shared_ptr<message_iface>	shared_message_t;
+	typedef std::deque<shared_message_t>		messages_deque_t;
+	typedef boost::shared_ptr<messages_deque_t> shared_messages_deque_t;
 
-	typedef boost::shared_ptr<handle_t>		shared_handle_t;
-	typedef boost::shared_ptr<response_t>	shared_response_t;
-
-	typedef boost::shared_ptr<message_iface> cached_message_prt_t;
-
-	typedef std::deque<cached_message_prt_t> cached_messages_deque_t;
-	typedef boost::shared_ptr<cached_messages_deque_t> messages_deque_ptr_t;
-	typedef std::map<std::string, messages_deque_ptr_t> unhandled_messages_map_t;
-
+	typedef std::map<std::string, shared_messages_deque_t> 			unhandled_messages_map_t;
 	typedef std::map<std::string, std::vector<cocaine_endpoint_t> > handles_endpoints_t;
 
 public:
@@ -74,7 +70,7 @@ public:
 	void update_handle(const handle_info_t& handle_info, const std::set<cocaine_endpoint_t>& endpoints);
 	void destroy_handle(const handle_info_t& handle_info);
 
-	boost::shared_ptr<response_t> send_message(cached_message_prt_t message);
+	boost::shared_ptr<response_t> send_message(const shared_message_t& message);
 
 	service_info_t info() const;
 
@@ -83,13 +79,11 @@ private:
 
 	void enqueue_responce(boost::shared_ptr<response_chunk_t>& response);
 
-	void check_for_deadlined_messages();
-
-	bool enque_to_handle(const cached_message_prt_t& message);
-	void enque_to_unhandled(const cached_message_prt_t& message);
+	bool enque_to_handle(const shared_message_t& message);
+	void enque_to_unhandled(const shared_message_t& message);
 	
 	void append_to_unhandled(const std::string& handle_name,
-							 const messages_deque_ptr_t& handle_queue);
+							 const shared_messages_deque_t& handle_queue);
 
 	void get_outstanding_handles(const handles_endpoints_t& handles_endpoints,
 								 handles_info_list_t& outstanding_handles);
@@ -97,13 +91,17 @@ private:
 	void get_new_handles(const handles_endpoints_t& handles_endpoints,
 						 handles_info_list_t& new_handles);
 
-	messages_deque_ptr_t get_and_remove_unhandled_queue(const std::string& handle_name);
+	shared_messages_deque_t get_and_remove_unhandled_queue(const std::string& handle_name);
+
+	// async callbacks
+	void harvest_responces(ev::timer& timer, int type);
+	void harvest_messages(ev::timer& timer, int type);
 
 private:
 	service_info_t m_info;
 
-	std::unique_ptr<ev::timer>	m_fetcher_timer;
-	std::unique_ptr<ev::timer>	m_timeout_timer;
+	std::unique_ptr<ev::timer>	m_message_harvester;
+	std::unique_ptr<ev::timer>	m_responces_harvester;
 
 	// service messages for non-existing handles <handle name, handle ptr>
 	unhandled_messages_map_t m_unhandled_messages;
@@ -118,7 +116,8 @@ private:
 	boost::mutex				m_handles_mutex;
 	boost::mutex				m_unhandled_mutex;
 
-	static const int deadline_check_interval = 1000; // millisecs
+	static const double message_harvest_interval;
+	static const double responces_harvest_interval;
 };
 
 } // namespace dealer
