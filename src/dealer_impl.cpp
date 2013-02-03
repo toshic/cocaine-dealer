@@ -97,6 +97,8 @@ dealer_impl_t::~dealer_impl_t() {
 
 void
 dealer_impl_t::terminate(ev::async& as, int type) {
+	log_info("dealer termination notice received.");
+
 	// kill terminator
 	assert(m_terminate);
 	m_terminate->stop();

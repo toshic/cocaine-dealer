@@ -102,11 +102,13 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 		dealer_messages_count.push_back(messages_count);
 	}
 
-	//std::cout << "preparing dealers...\n";
-	//sleep(5);
+	std::cout << "preparing dealers...\n";
+	sleep(2);
 
 	// create threads
 	std::cout << "sending messages...\n";
+
+	timer.reset();
 
 	thread_pools_list pools;
 	for (size_t i = 0; i < dealers_count; ++i) {
@@ -132,12 +134,15 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 
 	std::cout << "sending messages done.\n";
 
+	double total_elapsed = timer.elapsed().as_double();
+
+	std::cout << "----------------------------------- shutting dealers down -------------------------------\n";
+	dealers.clear();
+
 	std::cout << "----------------------------------- test results ----------------------------------------\n";
 	std::cout << "elapsed: " << timer.elapsed().as_double() << std::endl;
 	std::cout << "sent: " << sent_messages << " messages.\n";
-	std::cout << "approx performance: " << sent_messages / timer.elapsed().as_double() << " rps." << std::endl;
-	
-	std::cout << "----------------------------------- shutting dealers down -------------------------------\n";
+	std::cout << "approx performance: " << sent_messages / total_elapsed << " rps." << std::endl;
 }
 
 int

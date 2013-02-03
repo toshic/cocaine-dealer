@@ -32,9 +32,9 @@
 				"source" : "../tests/hosts"
 			},
 			"policy" : {
-				"deadline" : 3.0,
+				"deadline" : 10.0,
 				"max_retries" : -1,
-				"ack_timeout" : 0.3
+				"ack_timeout" : 1.0
 			}
 		}
 	}
