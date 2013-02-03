@@ -27,13 +27,8 @@ service_t::service_t(const service_info_t& info,
 					 const boost::shared_ptr<context_t>& ctx,
 					 bool logging_enabled) :
 	dealer_object_t(ctx, logging_enabled),
-	m_info(info),
-	m_is_running(false),
-	m_is_dead(false)
+	m_info(info)
 {
-	// run response_t dispatch thread
-	m_is_running = true;
-
 	m_responces_cleanup_timer.reset();
 
 	// run timed out messages checker
@@ -42,15 +37,11 @@ service_t::service_t(const service_info_t& info,
 }
 
 service_t::~service_t() {
-	m_is_dead = true;
-
 	// kill handles
 	handles_map_t::iterator it = m_handles.begin();
 	for (;it != m_handles.end(); ++it) {
 		it->second.reset();
 	}
-
-	m_is_running = false;
 
 	// detach processed responces
 	{
@@ -69,12 +60,7 @@ service_t::~service_t() {
 		}
 	}
 
-	log(PLOG_INFO, "FINISHED SERVICE [%s]", m_info.name.c_str());
-}
-
-bool
-service_t::is_dead() {
-	return m_is_dead;
+	log_info("FINISHED SERVICE [%s]", m_info.name.c_str());
 }
 
 service_info_t
@@ -164,16 +150,15 @@ service_t::enque_to_handle(const cached_message_prt_t& message) {
 	assert(handle);
 	handle->enqueue_message(message);
 
-	if (log_flag_enabled(PLOG_DEBUG)) {
+	if (log_enabled(PLOG_DEBUG)) {
 		const static std::string message_str = "enqued msg (%d bytes) with uuid: %s to existing %s (%s)";
 		std::string enqued_timestamp_str = message->enqued_timestamp().as_string();
 
-		log(PLOG_DEBUG,
-			message_str,
-			message->size(),
-			message->uuid().as_human_readable_string().c_str(),
-			message->path().as_string().c_str(),
-			enqued_timestamp_str.c_str());
+		log_debug(message_str,
+				  message->size(),
+				  message->uuid().as_human_readable_string().c_str(),
+				  message->path().as_string().c_str(),
+				  enqued_timestamp_str.c_str());
 	}
 
 	return true;
@@ -198,16 +183,15 @@ service_t::enque_to_unhandled(const cached_message_prt_t& message) {
 		queue->push_back(message);
 	}
 
-	if (log_flag_enabled(PLOG_DEBUG)) {
+	if (log_enabled(PLOG_DEBUG)) {
 		const static std::string message_str = "enqued msg (%d bytes) with uuid: %s to unhandled %s (%s)";
 		std::string enqued_timestamp_str = message->enqued_timestamp().as_string();
 
-		log(PLOG_DEBUG,
-			message_str,
-			message->size(),
-			message->uuid().as_human_readable_string().c_str(),
-			message->path().as_string().c_str(),
-			enqued_timestamp_str.c_str());
+		log_debug(message_str,
+				  message->size(),
+				  message->uuid().as_human_readable_string().c_str(),
+				  message->path().as_string().c_str(),
+				  enqued_timestamp_str.c_str());
 	}
 }
 
@@ -235,15 +219,15 @@ service_t::append_to_unhandled(const std::string& handle_name,
 	assert(handle_queue);
 
 	if (handle_queue->empty()) {
-		log(PLOG_DEBUG, "handle_queue->empty()");
+		log_debug("handle_queue->empty()");
 		return;
 	}
 
 	// in case there are messages, store them		
-	log(PLOG_DEBUG, "moving message queue from handle [%s.%s] to service, queue size: %d",
-					m_info.name.c_str(),
-					handle_name.c_str(),
-					handle_queue->size());
+	log_debug("moving message queue from handle [%s.%s] to service, queue size: %d",
+			  m_info.name.c_str(),
+			  handle_name.c_str(),
+			  handle_queue->size());
 
 	boost::mutex::scoped_lock lock(m_unhandled_mutex);
 
@@ -268,7 +252,7 @@ service_t::append_to_unhandled(const std::string& handle_name,
 		(*it)->set_ack_received(false);
 	}
 
-	log(PLOG_DEBUG, "moving message queue done.");
+	log_debug("moving message queue done.");
 }
 
 void
@@ -307,6 +291,7 @@ service_t::get_new_handles(const handles_endpoints_t& handles_endpoints,
 
 void
 service_t::create_handle(const handle_info_t& handle_info, const std::set<cocaine_endpoint_t>& endpoints) {
+	/*
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
 	// create new handle
@@ -319,30 +304,29 @@ service_t::create_handle(const handle_info_t& handle_info, const std::set<cocain
 	if (!queue->empty()) {
 		handle->assign_message_queue(queue);
 
-		log(PLOG_DEBUG,
-			"assign unhandled message queue to handle %s, queue size: %d",
-			handle_info.as_string().c_str(),
-			queue->size());
+		log_debug("assign unhandled message queue to handle %s, queue size: %d",
+				  handle_info.as_string().c_str(),
+				  queue->size());
 	}
 	else {
-		log(PLOG_DEBUG,
-			"no unhandled message queue for handle %s",
-			handle_info.as_string().c_str());
+		log_debug("no unhandled message queue for handle %s",
+				  handle_info.as_string().c_str());
 	}
 
 	// append new handle
 	m_handles[handle_info.name] = handle;
+	*/
 }
 
 void
 service_t::update_handle(const handle_info_t& handle_info, const std::set<cocaine_endpoint_t>& endpoints) {
+	/*
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
 	handles_map_t::iterator it = m_handles.find(handle_info.name);
 	if (it == m_handles.end()) {
-		log(PLOG_ERROR,
-			"no existing handle %s to update",
-			handle_info.as_string().c_str());
+		log_error("no existing handle %s to update",
+				  handle_info.as_string().c_str());
 
 		return;
 	}
@@ -350,16 +334,18 @@ service_t::update_handle(const handle_info_t& handle_info, const std::set<cocain
 	handle_ptr_t handle = it->second;
 	assert(handle);
 	handle->update_endpoints(endpoints);
+	*/
 }
 
 void
 service_t::destroy_handle(const handle_info_t& info) {
+	/*
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
 	handles_map_t::iterator it = m_handles.find(info.name);
 
 	if (it == m_handles.end()) {
-		log(PLOG_ERROR, "unable to DESTROY HANDLE [%s], handle object missing.", info.name.c_str());
+		log_error("unable to DESTROY HANDLE [%s], handle object missing.", info.name.c_str());
 		return;
 	}
 
@@ -371,22 +357,23 @@ service_t::destroy_handle(const handle_info_t& info) {
 
 	boost::shared_ptr<message_cache_t> mcache = handle->messages_cache();
 	
-	log(PLOG_DEBUG, "messages cache - start");
+	log_debug("messages cache - start");
 	//mcache->log_stats();
 
 	mcache->make_all_messages_new();
 
-	log(PLOG_DEBUG, "messages cache - end");
+	log_debug("messages cache - end");
 	mcache->log_stats();
 
 	const messages_deque_ptr_t& handle_queue = mcache->new_messages();
 	
-	log(PLOG_DEBUG, "handle_queue size: %d", handle_queue->size());
+	log_debug("handle_queue size: %d", handle_queue->size());
 
 	append_to_unhandled(info.name, handle_queue);
 
 	m_handles.erase(it);
 	lock.unlock();
+	*/
 }
 
 void
@@ -438,15 +425,14 @@ service_t::check_for_deadlined_messages() {
 			sent_timestamp_str = (*expired_qit)->sent_timestamp().as_string();
 			curr_timestamp_str = time_value::get_current_time().as_string();
 
-			if (log_flag_enabled(PLOG_ERROR)) {
-				std::string log_str = "deadline policy exceeded, for unhandled message %s, (enqued: %s, sent: %s, curr: %s)";
+			if (log_enabled(PLOG_ERROR)) {
+				static const std::string log_str = "deadline policy exceeded, for unhandled message %s, (enqued: %s, sent: %s, curr: %s)";
 
-				log(PLOG_ERROR,
-					log_str,
-					response->uuid.as_human_readable_string().c_str(),
-					enqued_timestamp_str.c_str(),
-					sent_timestamp_str.c_str(),
-					curr_timestamp_str.c_str());
+				log_error(log_str,
+						  response->uuid.as_human_readable_string().c_str(),
+						  enqued_timestamp_str.c_str(),
+						  sent_timestamp_str.c_str(),
+						  curr_timestamp_str.c_str());
 			}
 		}
 	}

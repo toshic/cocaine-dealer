@@ -72,8 +72,6 @@ public:
 
 	~handle_t();
 
-	// networking
-	void connect();
 	void update_endpoints(const std::set<cocaine_endpoint_t>& endpoints);
 
 	// responses consumer
@@ -81,17 +79,20 @@ public:
 
 	// message processing
 	void enqueue_message(const boost::shared_ptr<message_iface>& message);
-	void make_all_messages_new();
 	void assign_message_queue(const message_cache_t::message_queue_ptr_t& message_queue);
 
 	// info retrieval
 	const handle_info_t& info() const;
-	std::string description();
 
 	boost::shared_ptr<message_cache_t> messages_cache() const;
 	void kill();
 
 private:
+	// networking
+	void connect();
+	void make_all_messages_new();
+	std::string description();
+
 	void dispatch_messages();
 	void notify_enqueued();
 	

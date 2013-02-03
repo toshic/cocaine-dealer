@@ -393,7 +393,7 @@ message_cache_t::get_expired_messages(message_queue_t& expired_messages) {
 
 void
 message_cache_t::log_stats() {
-	if (!log_flag_enabled(PLOG_DEBUG)) {
+	if (!log_enabled(PLOG_DEBUG)) {
 		return;
 	}
 

@@ -102,9 +102,8 @@ public:
 							 std::vector<message_t>& messages);
 
 private:
-	void disconnect();
 	void main_loop();
-	
+	void terminate(ev::async& as, int type);
 	void process_overseer_event(e_overseer_event event_type,
 								const std::string& service_name,
 								const std::string& handle_name,
@@ -114,9 +113,6 @@ private:
 	void storage_iteration_callback(const std::string& key, void* data, uint64_t size, int column);
 	bool regex_match(const std::string& regex_str, const std::string& value);
 	boost::shared_ptr<service_t> get_service(const std::string& service_alias);
-
-	// async callbacks
-	void terminate(ev::async& as, int type);
 
 private:
 	// <regex string, compiled regex>

@@ -139,7 +139,7 @@ public:
 		m_ctx->logger()->log(type, std::string(buff));
 	}
 
-	bool log_flag_enabled(unsigned int type) {
+	bool log_enabled(unsigned int type) {
 		if (!(m_ctx->logger())) {
 			return false;
 		}

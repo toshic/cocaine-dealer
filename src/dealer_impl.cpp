@@ -43,8 +43,6 @@ dealer_impl_t::dealer_impl_t(const std::string& config_path) :
 	m_messages_ptr(NULL)
 {
 	// create dealer context
-	std::string ctx_error_msg = "could not create dealer context, ";
-
 	char* absolute_config_path;
 	std::string config_path_tmp = config_path;
 
@@ -60,7 +58,8 @@ dealer_impl_t::dealer_impl_t(const std::string& config_path) :
 		set_context(ctx);
 	}
 	catch (const std::exception& ex) {
-		throw internal_error(ctx_error_msg + ex.what());
+		static const std::string error_msg = "could not create dealer context, ";
+		throw internal_error(error_msg + ex.what());
 	}
 
 	boost::function<void()> f = boost::bind(&dealer_impl_t::main_loop, this);
@@ -70,7 +69,7 @@ dealer_impl_t::dealer_impl_t(const std::string& config_path) :
 dealer_impl_t::~dealer_impl_t() {
 	m_terminate->send();
 	m_thread.join();
-	log(PLOG_INFO, "dealer destroyed.");
+	log_info("dealer destroyed.");
 }
 
 void
@@ -97,7 +96,7 @@ dealer_impl_t::terminate(ev::async& as, int type) {
 
 void
 dealer_impl_t::main_loop() {
-	log(PLOG_INFO, "creating dealer.");
+	log_info("creating dealer.");
 
 	// create terminator
 	ev::async* async = new ev::async(context()->event_loop());
@@ -109,7 +108,7 @@ dealer_impl_t::main_loop() {
 	const configuration_t::services_list_t& services_info_list = config()->services_list();
 	for (auto it = services_info_list.begin(); it != services_info_list.end(); ++it) {
 		boost::shared_ptr<service_t> service_ptr(new service_t(it->second, context()));
-		log(PLOG_INFO, "STARTING NEW SERVICE [%s]", it->second.name.c_str());
+		log_info("STARTING NEW SERVICE [%s]", it->second.name.c_str());
 		m_services[it->first] = service_ptr;
 	}
 
@@ -118,7 +117,7 @@ dealer_impl_t::main_loop() {
 	m_overseer->set_callback(boost::bind(&dealer_impl_t::process_overseer_event, this, _1, _2, _3, _4));
 	m_overseer->run();
 
-	log(PLOG_INFO, "dealer created.");
+	log_info("dealer created.");
 
 	context()->event_loop().loop();
 }
@@ -129,9 +128,6 @@ dealer_impl_t::process_overseer_event(e_overseer_event event_type,
 									  const std::string& handle_name,
 									  const std::set<cocaine_endpoint_t>& endpoints)
 {
-	std::cout << "process_overseer_event\n";
-
-	/*
 	// find corresponding service
 	services_map_t::iterator it = m_services.find(service_name);
 
@@ -161,32 +157,20 @@ dealer_impl_t::process_overseer_event(e_overseer_event event_type,
 		error_msg += " was not found in services. at: ";
 		throw internal_error(error_msg);
 	}
-	*/
 }
 
 boost::shared_ptr<service_t>
 dealer_impl_t::get_service(const std::string& service_alias) {
-	const static std::string error_str = "can't sent message. no service with name %s found.";
-
-	// find service to send message to
-	services_map_t::iterator it = m_services.find(service_alias);
+	auto it = m_services.find(service_alias);
 
 	if (it == m_services.end()) {
+		const static std::string error_str = "can't retrieve service with name %s.";
 		throw dealer_error(location_error,
 						   error_str,
 						   service_alias.c_str());
 	}
 
-	boost::shared_ptr<service_t> service_ptr = it->second;
-	assert(service_ptr);
-
-	if (service_ptr->is_dead()) {
-		throw dealer_error(location_error,
-						   error_str,
-						   service_alias.c_str());
-	}
-
-	return service_ptr;
+	return it->second;
 }
 
 boost::shared_ptr<response_t>
@@ -212,7 +196,6 @@ dealer_impl_t::send_message(const void* data,
 							const message_path_t& path,
 							const message_policy_t& policy)
 {	
-	//boost::mutex::scoped_lock lock(m_mutex);
 	boost::shared_ptr<service_t> service = get_service(path.service_alias);
 	boost::shared_ptr<message_iface> msg = create_message(data, size, path, policy);
 
@@ -226,9 +209,9 @@ dealer_impl_t::send_messages(const void* data,
 							 const message_policy_t& policy)
 {
 	std::vector<boost::shared_ptr<response_t> > responces_list;
-
 	const configuration_t::services_list_t& services_info_list = config()->services_list();
-	configuration_t::services_list_t::const_iterator it = services_info_list.begin();
+
+	auto it = services_info_list.begin();
 	for (; it != services_info_list.end(); ++it) {
 		if (regex_match(path.service_alias, it->second.name)) {
 			message_path_t exact_path = path;
@@ -248,9 +231,9 @@ dealer_impl_t::send_messages(const void* data,
 							 const message_path_t& path)
 {
 	std::vector<boost::shared_ptr<response_t> > responces_list;
-
 	const configuration_t::services_list_t& services_info_list = config()->services_list();
-	configuration_t::services_list_t::const_iterator it = services_info_list.begin();
+
+	auto it = services_info_list.begin();
 	for (; it != services_info_list.end(); ++it) {
 		if (regex_match(path.service_alias, it->second.name)) {
 			message_path_t exact_path = path;
@@ -299,11 +282,6 @@ dealer_impl_t::regex_match(const std::string& regex_str, const std::string& valu
 	return boost::xpressive::regex_match(value, what, rex);
 }
 
-void
-dealer_impl_t::disconnect() {
-
-}
-
 boost::shared_ptr<message_iface>
 dealer_impl_t::create_message(const void* data,
 							  size_t size,
@@ -321,9 +299,11 @@ dealer_impl_t::create_message(const void* data,
 	{
 		boost::shared_ptr<eblob_t> eb = context()->storage()->get_eblob(path.service_alias);
 		msg->commit_to_eblob(eb);
-		log(PLOG_DEBUG,
-			"commited message with uuid: %s to persistent storage.",
-			msg->uuid().as_human_readable_string().c_str());
+
+		if (log_enabled(PLOG_DEBUG)) {
+			log_debug("commited message with uuid: %s to persistent storage.",
+					  msg->uuid().as_human_readable_string().c_str());
+		}
 	}
 
 	return msg;
@@ -354,12 +334,12 @@ dealer_impl_t::get_stored_messages(const std::string& service_alias,
 
 	if (unsent_messages_count == 0) {
 		std::string log_str = "no messages to restore for service [%s] from persistent cache...";
-		log(PLOG_DEBUG, log_str, service_alias.c_str());
+		log_debug(log_str, service_alias.c_str());
 		return;
 	}
 
 	std::string log_str = "restoring %d messages for service [%s] from persistent cache...";
-	log(PLOG_DEBUG, log_str, unsent_messages_count, service_alias.c_str());
+	log_debug(log_str, unsent_messages_count, service_alias.c_str());
 
 	m_messages_ptr = &messages;
 

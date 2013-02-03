@@ -45,7 +45,7 @@ balancer_t::balancer_t(const std::string& identity,
 		m_endpoints_vec.push_back(*it);
 	}
 
-	// if (log_flag_enabled(PLOG_DEBUG)) {
+	// if (log_enabled(PLOG_DEBUG)) {
 	// 	log(PLOG_DEBUG, "connect " + m_socket_identity);
 	// }
 
@@ -61,7 +61,7 @@ balancer_t::~balancer_t() {
 		return;
 	}
 
-	if (log_flag_enabled(PLOG_DEBUG)) {
+	if (log_enabled(PLOG_DEBUG)) {
 		log(PLOG_DEBUG, "disconnect balancer " + m_socket_identity);
 	}
 
@@ -172,7 +172,7 @@ balancer_t::socket() {
 
 void
 balancer_t::create_socket() {
-	if (log_flag_enabled(PLOG_DEBUG)) {
+	if (log_enabled(PLOG_DEBUG)) {
 		log(PLOG_DEBUG, "create_socket " + m_socket_identity);
 	}
 
@@ -416,7 +416,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 	switch (rpc_code) {
 		case SERVER_RPC_MESSAGE_ACK: {
-			if (log_flag_enabled(PLOG_DEBUG)) {
+			if (log_enabled(PLOG_DEBUG)) {
 				wuuid_t id(uuid);
 				std::string readable_uuid = id.as_human_readable_string();
 				
@@ -433,7 +433,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 		break;
 
 		case SERVER_RPC_MESSAGE_CHUNK: {
-			if (log_flag_enabled(PLOG_DEBUG)) {
+			if (log_enabled(PLOG_DEBUG)) {
 				wuuid_t id(uuid);
 				std::string readable_uuid = id.as_human_readable_string();
 
@@ -450,7 +450,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 		break;
 
 		case SERVER_RPC_MESSAGE_CHOKE: {
-			if (log_flag_enabled(PLOG_DEBUG)) {
+			if (log_enabled(PLOG_DEBUG)) {
 				wuuid_t id(uuid);
 				std::string readable_uuid = id.as_human_readable_string();
 
@@ -467,7 +467,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 		break;
 
 		case SERVER_RPC_MESSAGE_ERROR: {
-			if (log_flag_enabled(PLOG_ERROR)) {
+			if (log_enabled(PLOG_ERROR)) {
 				wuuid_t id(uuid);
 				std::string readable_uuid = id.as_human_readable_string();
 

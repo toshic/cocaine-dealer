@@ -80,7 +80,6 @@ public:
 	void destroy_handle(const handle_info_t& handle_info);
 
 	boost::shared_ptr<response_t> send_message(cached_message_prt_t message);
-	bool is_dead();
 
 	service_info_t info() const;
 
@@ -122,16 +121,12 @@ private:
 	boost::mutex				m_handles_mutex;
 	boost::mutex				m_unhandled_mutex;
 
-	volatile bool m_is_running;
-
 	// deadlined messages refresher
 	std::auto_ptr<refresher> m_deadlined_messages_refresher;
 
 	static const int deadline_check_interval = 1000; // millisecs
 
 	progress_timer m_responces_cleanup_timer;
-
-	bool m_is_dead;
 };
 
 } // namespace dealer

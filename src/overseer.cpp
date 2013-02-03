@@ -44,7 +44,7 @@ overseer_t::~overseer_t() {
 
 void
 overseer_t::run() {
-	log(PLOG_DEBUG, "overseer — started.");
+	log_debug("overseer — started.");
 
 	const std::map<std::string, service_info_t>& services_list = config()->services_list();
 	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
@@ -118,7 +118,7 @@ overseer_t::stop() {
 		m_endpoints_fetchers[i].reset();
 	}
 
-	log(PLOG_DEBUG, "overseer — stopped.");
+	log_debug("overseer — stopped.");
 }
 
 void
@@ -353,9 +353,8 @@ overseer_t::service_from_table(routing_table_t& routing_table,
 		return true;
 	}
 	else {
-		log(PLOG_ERROR,
-			"overseer is terribly broken! service %s is missing in routing table",
-			service_name.c_str());
+		log_error("overseer is terribly broken! service %s is missing in routing table",
+				  service_name.c_str());
 	}
 }
 
@@ -416,7 +415,7 @@ overseer_t::routing_table_from_responces(const std::map<std::string, cocaine_nod
 			app_info_at_host += app_name + " at host: " + service_node_list[i].hostname;
 
 			if (app.tasks.size() == 0) {
-				log(PLOG_WARNING, app_info_at_host + " has no tasks!");
+				log_warning(app_info_at_host + " has no tasks!");
 				continue;
 			}
 
@@ -425,7 +424,7 @@ overseer_t::routing_table_from_responces(const std::map<std::string, cocaine_nod
 			// verify app status
 			switch (app.status) {
 				case APP_STATUS_UNKNOWN:
-					log(PLOG_WARNING, app_info_at_host + " has unknown status!");
+					log_warning(app_info_at_host + " has unknown status!");
 					continue;
 					break;
 
@@ -438,12 +437,12 @@ overseer_t::routing_table_from_responces(const std::map<std::string, cocaine_nod
 					break;
 
 				case APP_STATUS_STOPPED:
-					log(PLOG_WARNING, app_info_at_host + " is stopped!");
+					log_warning(app_info_at_host + " is stopped!");
 					continue;
 					break;
 
 				case APP_STATUS_BROKEN:
-					log(PLOG_WARNING, app_info_at_host + " is broken!");
+					log_warning(app_info_at_host + " is broken!");
 					continue;
 					break;
 
@@ -682,7 +681,7 @@ overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >&
 			if (m_endpoints_fetchers[i]->get_hosts(endpoints, service_info)) {
 				if (endpoints.empty()) {
 					std::string error_msg = "overseer - fetcher returned no endpoints for service %s";
-					log(PLOG_ERROR, error_msg.c_str(), service_info.name.c_str());
+					log_error(error_msg.c_str(), service_info.name.c_str());
 					continue;
 				}
 
@@ -742,11 +741,11 @@ overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >&
 		}
 		catch (const std::exception& ex) {
 			std::string error_msg = "overseer - failed fo retrieve hosts list, details: %s";
-			log(PLOG_ERROR, error_msg.c_str(), ex.what());
+			log_error(error_msg.c_str(), ex.what());
 		}
 		catch (...) {
 			std::string error_msg = "overseer - failed fo retrieve hosts list, no further details available.";
-			log(PLOG_ERROR, error_msg.c_str());
+			log_error(error_msg.c_str());
 		}
 	}
 

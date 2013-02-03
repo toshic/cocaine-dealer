@@ -308,7 +308,7 @@ handle_t::dispatch_next_available_response() {
 				if (m_message_cache->reshedule_message(response->route, response->uuid)) {
 					notify_enqueued();
 
-					if (log_flag_enabled(PLOG_WARNING)) {
+					if (log_enabled(PLOG_WARNING)) {
 						std::string message_str = "resheduled message with uuid: ";
 						message_str += response->uuid.as_human_readable_string();
 						message_str += " from " + description() + ", reason: error received, error code: %d";
@@ -322,7 +322,7 @@ handle_t::dispatch_next_available_response() {
 					remove_from_persistent_storage(response);
 					m_message_cache->remove_message_from_cache(response->route, response->uuid);
 
-					if (log_flag_enabled(PLOG_ERROR)) {
+					if (log_enabled(PLOG_ERROR)) {
 						std::string message_str = "error received for message with uuid: ";
 						message_str += response->uuid.as_human_readable_string();
 						message_str += " from " + description() + ", error code: %d";
@@ -337,7 +337,7 @@ handle_t::dispatch_next_available_response() {
 				remove_from_persistent_storage(response);
 				m_message_cache->remove_message_from_cache(response->route, response->uuid);
 
-				if (log_flag_enabled(PLOG_ERROR)) {
+				if (log_enabled(PLOG_ERROR)) {
 					std::string message_str = "error received for message with uuid: ";
 					message_str += response->uuid.as_human_readable_string();
 					message_str += " from " + description() + ", error code: %d";
@@ -354,7 +354,7 @@ handle_t::dispatch_next_available_response() {
 			remove_from_persistent_storage(response);
 			m_message_cache->remove_message_from_cache(response->route, response->uuid);
 
-			if (log_flag_enabled(PLOG_ERROR)) {
+			if (log_enabled(PLOG_ERROR)) {
 				std::string message_str = "unknown RPC code received for message with uuid: ";
 				message_str += response->uuid.as_human_readable_string();
 				message_str += " from " + description() + ", code: %d";
@@ -434,7 +434,7 @@ handle_t::process_deadlined_messages(ev::timer& watcher, int type) {
 	std::string curr_timestamp_str;
 
 	for (size_t i = 0; i < expired_messages.size(); ++i) {
-		if (log_flag_enabled(PLOG_WARNING) || log_flag_enabled(PLOG_ERROR)) {
+		if (log_enabled(PLOG_WARNING) || log_enabled(PLOG_ERROR)) {
 			enqued_timestamp_str = expired_messages.at(i)->enqued_timestamp().as_string();
 			sent_timestamp_str = expired_messages.at(i)->sent_timestamp().as_string();
 			curr_timestamp_str = time_value::get_current_time().as_string();
@@ -452,7 +452,7 @@ handle_t::process_deadlined_messages(ev::timer& watcher, int type) {
 										   expired_messages.at(i)->policy(),
 										   expired_messages.at(i)->path().service_alias);
 
-			if (log_flag_enabled(PLOG_ERROR)) {
+			if (log_enabled(PLOG_ERROR)) {
 				std::string log_str = "deadline policy exceeded, for message %s, (enqued: %s, sent: %s, curr: %s)";
 
 				log(PLOG_ERROR,
@@ -470,7 +470,7 @@ handle_t::process_deadlined_messages(ev::timer& watcher, int type) {
 				m_message_cache->enqueue_with_priority(expired_messages.at(i));
 				notify_enqueued();
 
-				if (log_flag_enabled(PLOG_WARNING)) {
+				if (log_enabled(PLOG_WARNING)) {
 					std::string log_str = "no ACK, resheduled message %s, (enqued: %s, sent: %s, curr: %s)";
 
 					log(PLOG_WARNING, log_str,
@@ -492,7 +492,7 @@ handle_t::process_deadlined_messages(ev::timer& watcher, int type) {
 											   expired_messages.at(i)->policy(),
 											   expired_messages.at(i)->path().service_alias);
 
-				if (log_flag_enabled(PLOG_WARNING)) {
+				if (log_enabled(PLOG_WARNING)) {
 					std::string log_str = "reshedule message policy exceeded, did not receive ACK ";
 					log_str += "for %s, (enqued: %s, sent: %s, curr: %s)";
 
@@ -527,7 +527,7 @@ handle_t::dispatch_next_available_message() {
 		new_msg->mark_as_sent(true);
 		m_message_cache->move_new_message_to_sent(endpoint.route);
 
-		if (log_flag_enabled(PLOG_DEBUG)) {
+		if (log_enabled(PLOG_DEBUG)) {
 			std::string log_msg = "sent msg with uuid: %s to endpoint: %s with route: %s (%s)";
 			std::string sent_timestamp_str = new_msg->sent_timestamp().as_string();
 

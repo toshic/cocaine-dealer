@@ -81,7 +81,7 @@ public:
 
 		if (!reader.parse(json_string, root)) {
 			
-			if (log_flag_enabled(PLOG_WARNING)) {
+			if (log_enabled(PLOG_WARNING)) {
 				std::string log_str = "cocaine node %s routing info could not be parsed";
 				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
 			}
@@ -93,7 +93,7 @@ public:
 		const Json::Value apps = root["apps"];
 		if (!apps.isObject() || !apps.size()) {
 
-			if (log_flag_enabled(PLOG_WARNING)) {
+			if (log_enabled(PLOG_WARNING)) {
 				std::string log_str = "no apps found in cocaine node %s rounting info";
 				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
 			}
@@ -119,7 +119,7 @@ public:
 	    const Json::Value jobs_props = root["jobs"];
 	    if (!jobs_props.isObject()) {
 
-	    	if (log_flag_enabled(PLOG_WARNING)) {
+	    	if (log_enabled(PLOG_WARNING)) {
 	    		std::string log_str = "no jobs object found in cocaine node %s rounting info";
 				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
 			}
@@ -143,7 +143,7 @@ private:
 		Json::Value tasks(json_app_data["drivers"]);
     	if (!tasks.isObject() || !tasks.size()) {
 
-    		if (log_flag_enabled(PLOG_WARNING)) {
+    		if (log_enabled(PLOG_WARNING)) {
     			std::string log_str = "no drivers info for app [" + app_info.name;
     			log_str += "] found in cocaine node %s rounting info";
 				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
@@ -159,7 +159,7 @@ private:
 
     		if (!task.isObject() || !task.size()) {
 
-    			if (log_flag_enabled(PLOG_WARNING)) {
+    			if (log_enabled(PLOG_WARNING)) {
     				std::string log_str = "no drivers info for app [" + app_info.name;
 	    			log_str += "], task [" + task_name + "] found in cocaine node %s rounting info";
 					log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
@@ -200,7 +200,7 @@ private:
 		const Json::Value slaves_props = json_app_data["slaves"];
 	    if (!slaves_props.isObject()) {
 
-	    	if (log_flag_enabled(PLOG_WARNING)) {
+	    	if (log_enabled(PLOG_WARNING)) {
 	    		std::string log_str = "no slaves info for app [" + app_info.name;
 	    		log_str += "] found in cocaine node %s rounting info";
 				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
