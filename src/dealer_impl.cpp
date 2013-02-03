@@ -62,8 +62,31 @@ dealer_impl_t::dealer_impl_t(const std::string& config_path) :
 		throw internal_error(error_msg + ex.what());
 	}
 
+	log_info("creating dealer.");
+
+	// create terminator
+	ev::async* async = new ev::async(context()->event_loop());
+	m_terminate.reset(async);
+	m_terminate->set<dealer_impl_t, &dealer_impl_t::terminate>(this);
+	m_terminate->start();
+
+	// create services
+	const configuration_t::services_list_t& services_info_list = config()->services_list();
+	for (auto it = services_info_list.begin(); it != services_info_list.end(); ++it) {
+		boost::shared_ptr<service_t> service_ptr(new service_t(it->second, context()));
+		log_info("STARTING NEW SERVICE [%s]", it->second.name.c_str());
+		m_services[it->first] = service_ptr;
+	}
+
+	// create overseer
+	m_overseer.reset(new overseer_t(context()));
+	m_overseer->set_callback(boost::bind(&dealer_impl_t::process_overseer_event, this, _1, _2, _3, _4));
+	m_overseer->run();
+
 	boost::function<void()> f = boost::bind(&dealer_impl_t::main_loop, this);
 	m_thread = boost::thread(f);
+
+	log_info("dealer created.");
 }
 
 dealer_impl_t::~dealer_impl_t() {
@@ -96,29 +119,6 @@ dealer_impl_t::terminate(ev::async& as, int type) {
 
 void
 dealer_impl_t::main_loop() {
-	log_info("creating dealer.");
-
-	// create terminator
-	ev::async* async = new ev::async(context()->event_loop());
-	m_terminate.reset(async);
-	m_terminate->set<dealer_impl_t, &dealer_impl_t::terminate>(this);
-	m_terminate->start();
-
-	// create services
-	const configuration_t::services_list_t& services_info_list = config()->services_list();
-	for (auto it = services_info_list.begin(); it != services_info_list.end(); ++it) {
-		boost::shared_ptr<service_t> service_ptr(new service_t(it->second, context()));
-		log_info("STARTING NEW SERVICE [%s]", it->second.name.c_str());
-		m_services[it->first] = service_ptr;
-	}
-
-	// create overseer
-	m_overseer.reset(new overseer_t(context()));
-	m_overseer->set_callback(boost::bind(&dealer_impl_t::process_overseer_event, this, _1, _2, _3, _4));
-	m_overseer->run();
-
-	log_info("dealer created.");
-
 	context()->event_loop().loop();
 }
 

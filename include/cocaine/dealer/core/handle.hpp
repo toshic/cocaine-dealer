@@ -120,7 +120,6 @@ private:
 	std::unique_ptr<ev::io>				m_io_watcher;
 	std::unique_ptr<ev::timer>			m_deadline_timer;
 	std::unique_ptr<ev::timer>			m_queue_check_timer;
-	std::unique_ptr<ev::dynamic_loop>	m_event_loop;
 
 	//ev::timer			m_harvester_timer;
 	//ev::io			m_balancer_watcher;

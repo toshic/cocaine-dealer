@@ -158,7 +158,8 @@ handle_t::process_io_messages(ev::io& watcher, int type) {
 
 void
 handle_t::prepare(ev::prepare& as, int type) {
-	m_event_loop->feed_fd_event(m_balancer->fd(), ev::READ);
+	ev::dynamic_loop& loop = context()->event_loop();
+	loop.feed_fd_event(m_balancer->fd(), ev::READ);
 }
 
 void
