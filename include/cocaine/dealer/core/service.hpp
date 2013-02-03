@@ -26,7 +26,8 @@
 #include <memory>
 #include <map>
 #include <vector>
-#include <list>
+
+#include <ev++.h>
 
 #include <boost/shared_ptr.hpp>
 #include <boost/utility.hpp>
@@ -37,16 +38,10 @@
 
 #include "cocaine/dealer/core/handle.hpp"
 #include "cocaine/dealer/core/context.hpp"
-#include "cocaine/dealer/core/handle_info.hpp"
 #include "cocaine/dealer/core/service_info.hpp"
 #include "cocaine/dealer/core/dealer_object.hpp"
 #include "cocaine/dealer/core/message_iface.hpp"
 #include "cocaine/dealer/core/cocaine_endpoint.hpp"
-
-#include "cocaine/dealer/utils/error.hpp"
-#include "cocaine/dealer/utils/smart_logger.hpp"
-#include "cocaine/dealer/utils/refresher.hpp"
-#include "cocaine/dealer/utils/progress_timer.hpp"
 
 #include "cocaine/dealer/storage/eblob.hpp"
 
@@ -57,8 +52,8 @@ class service_t : private boost::noncopyable, public dealer_object_t {
 public:
 	typedef std::vector<handle_info_t> handles_info_list_t;
 
-	typedef boost::shared_ptr<handle_t> handle_ptr_t;
-	typedef std::map<std::string, handle_ptr_t> handles_map_t;
+	typedef boost::shared_ptr<handle_t>		shared_handle_t;
+	typedef boost::shared_ptr<response_t>	shared_response_t;
 
 	typedef boost::shared_ptr<message_iface> cached_message_prt_t;
 
@@ -105,28 +100,25 @@ private:
 	messages_deque_ptr_t get_and_remove_unhandled_queue(const std::string& handle_name);
 
 private:
-	// service information
 	service_info_t m_info;
 
-	// handles map (handle name, handle ptr)
-	handles_map_t m_handles;
+	std::unique_ptr<ev::timer>	m_fetcher_timer;
+	std::unique_ptr<ev::timer>	m_timeout_timer;
 
 	// service messages for non-existing handles <handle name, handle ptr>
 	unhandled_messages_map_t m_unhandled_messages;
 
-	// responces map <uuid, response_t>
-	std::map<std::string, boost::shared_ptr<response_t> > m_responses;
+	// responces map <uuid, response>
+	std::map<std::string, shared_response_t>	m_responses;
+
+	// handles map (handle name, handle ptr)
+	std::map<std::string, shared_handle_t>		m_handles;
 
 	boost::mutex				m_responces_mutex;
 	boost::mutex				m_handles_mutex;
 	boost::mutex				m_unhandled_mutex;
 
-	// deadlined messages refresher
-	std::auto_ptr<refresher> m_deadlined_messages_refresher;
-
 	static const int deadline_check_interval = 1000; // millisecs
-
-	progress_timer m_responces_cleanup_timer;
 };
 
 } // namespace dealer

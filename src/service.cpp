@@ -18,6 +18,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>. 
 */
 
+#include "cocaine/dealer/utils/error.hpp"
+
 #include "cocaine/dealer/core/service.hpp"
 
 namespace cocaine {
@@ -29,16 +31,12 @@ service_t::service_t(const service_info_t& info,
 	dealer_object_t(ctx, logging_enabled),
 	m_info(info)
 {
-	m_responces_cleanup_timer.reset();
 
-	// run timed out messages checker
-	m_deadlined_messages_refresher.reset(new refresher(boost::bind(&service_t::check_for_deadlined_messages, this),
-										 deadline_check_interval));
 }
 
 service_t::~service_t() {
 	// kill handles
-	handles_map_t::iterator it = m_handles.begin();
+	auto it = m_handles.begin();
 	for (;it != m_handles.end(); ++it) {
 		it->second.reset();
 	}
@@ -46,9 +44,7 @@ service_t::~service_t() {
 	// detach processed responces
 	{
 		boost::mutex::scoped_lock lock(m_responces_mutex);
-
-		std::map<std::string, boost::shared_ptr<response_t> >::iterator it;
-		it = m_responses.begin();
+		auto it = m_responses.begin();
 
 		while (it != m_responses.end()) {
 			if (it->second.unique()) {
@@ -99,26 +95,25 @@ service_t::enqueue_responce(boost::shared_ptr<response_chunk_t>& response) {
 	{
 		boost::mutex::scoped_lock lock(m_responces_mutex);
 
-		std::map<std::string, boost::shared_ptr<response_t> >::iterator it;
+		// // check for unique responses and remove them
+		//	auto it;
+		// if (m_responces_cleanup_timer.elapsed().as_double() > 1.0f) {
+		// 	it = m_responses.begin();
 
-		// check for unique responses and remove them
-		if (m_responces_cleanup_timer.elapsed().as_double() > 1.0f) {
-			it = m_responses.begin();
+		// 	while (it != m_responses.end()) {
+		// 		if (it->second.unique()) {
+		// 			m_responses.erase(it++);
+		// 		}
+		// 		else {
+		// 			++it;
+		// 		}
+		// 	}
 
-			while (it != m_responses.end()) {
-				if (it->second.unique()) {
-					m_responses.erase(it++);
-				}
-				else {
-					++it;
-				}
-			}
-
-			m_responces_cleanup_timer.reset();
-		}
+		// 	m_responces_cleanup_timer.reset();
+		// }
 
 		// find response object for received chunk
-		it = m_responses.find(response->uuid.as_string());
+		auto it = m_responses.find(response->uuid.as_string());
 
 		// no response object -> discard chunk
 		if (it == m_responses.end()) {
@@ -141,12 +136,12 @@ bool
 service_t::enque_to_handle(const cached_message_prt_t& message) {
 	//boost::mutex::scoped_lock lock(m_handles_mutex);
 
-	handles_map_t::iterator it = m_handles.find(message->path().handle_name);
+	auto it = m_handles.find(message->path().handle_name);
 	if (it == m_handles.end()) {
 		return false;
 	}
 
-	handle_ptr_t handle = it->second;
+	shared_handle_t handle = it->second;
 	assert(handle);
 	handle->enqueue_message(message);
 
@@ -169,7 +164,7 @@ service_t::enque_to_unhandled(const cached_message_prt_t& message) {
 	boost::mutex::scoped_lock lock(m_unhandled_mutex);
 
 	const std::string& handle_name = message->path().handle_name;
-	unhandled_messages_map_t::iterator it = m_unhandled_messages.find(handle_name);
+	auto it = m_unhandled_messages.find(handle_name);
 	
 	// check for existing message queue for handle
 	if (it == m_unhandled_messages.end()) {
@@ -201,7 +196,7 @@ service_t::get_and_remove_unhandled_queue(const std::string& handle_name) {
 
 	messages_deque_ptr_t queue(new cached_messages_deque_t);
 
-	unhandled_messages_map_t::iterator it = m_unhandled_messages.find(handle_name);
+	auto it = m_unhandled_messages.find(handle_name);
 	if (it == m_unhandled_messages.end()) {
 		return queue;
 	}
@@ -232,7 +227,7 @@ service_t::append_to_unhandled(const std::string& handle_name,
 	boost::mutex::scoped_lock lock(m_unhandled_mutex);
 
 	// find corresponding unhandled message queue
-	unhandled_messages_map_t::iterator it = m_unhandled_messages.find(handle_name);
+	auto it = m_unhandled_messages.find(handle_name);
 
 	messages_deque_ptr_t queue;
 	if (it == m_unhandled_messages.end()) {
@@ -247,7 +242,7 @@ service_t::append_to_unhandled(const std::string& handle_name,
 	queue->insert(queue->end(), handle_queue->begin(), handle_queue->end());
 
 	// clear metadata
-	for (cached_messages_deque_t::iterator it = queue->begin(); it != queue->end(); ++it) {
+	for (auto it = queue->begin(); it != queue->end(); ++it) {
 		(*it)->mark_as_sent(false);
 		(*it)->set_ack_received(false);
 	}
@@ -261,10 +256,10 @@ service_t::get_outstanding_handles(const handles_endpoints_t& handles_endpoints,
 {
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
-	for (handles_map_t::iterator it = m_handles.begin(); it != m_handles.end(); ++it) {
+	for (auto it = m_handles.begin(); it != m_handles.end(); ++it) {
 		const std::string& handle_name = it->first;
 
-		handles_endpoints_t::const_iterator hit = handles_endpoints.find(handle_name);
+		auto hit = handles_endpoints.find(handle_name);
 		if (hit == handles_endpoints.end()) {
 			outstanding_handles.push_back(it->second->info());
 		}
@@ -277,11 +272,11 @@ service_t::get_new_handles(const handles_endpoints_t& handles_endpoints,
 {
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
-	handles_endpoints_t::const_iterator it = handles_endpoints.begin();
+	auto it = handles_endpoints.begin();
 	for (; it != handles_endpoints.end(); ++it) {
 		const std::string& handle_name = it->first;
 
-		handles_map_t::iterator hit = m_handles.find(handle_name);
+		auto hit = m_handles.find(handle_name);
 		if (hit == m_handles.end()) {
 			handle_info_t hinfo(handle_name, m_info.app, m_info.name);
 			new_handles.push_back(hinfo);
@@ -295,7 +290,7 @@ service_t::create_handle(const handle_info_t& handle_info, const std::set<cocain
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
 	// create new handle
-	handle_ptr_t handle(new dealer::handle_t(handle_info, endpoints, context()));
+	shared_handle_t handle(new dealer::handle_t(handle_info, endpoints, context()));
 	handle->set_responce_callback(boost::bind(&service_t::enqueue_responce, this, _1));
 
 	// retrieve unhandled queue
@@ -323,7 +318,7 @@ service_t::update_handle(const handle_info_t& handle_info, const std::set<cocain
 	/*
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
-	handles_map_t::iterator it = m_handles.find(handle_info.name);
+	auto it = m_handles.find(handle_info.name);
 	if (it == m_handles.end()) {
 		log_error("no existing handle %s to update",
 				  handle_info.as_string().c_str());
@@ -331,7 +326,7 @@ service_t::update_handle(const handle_info_t& handle_info, const std::set<cocain
 		return;
 	}
 	
-	handle_ptr_t handle = it->second;
+	shared_handle_t handle = it->second;
 	assert(handle);
 	handle->update_endpoints(endpoints);
 	*/
@@ -342,14 +337,14 @@ service_t::destroy_handle(const handle_info_t& info) {
 	/*
 	boost::mutex::scoped_lock lock(m_handles_mutex);
 
-	handles_map_t::iterator it = m_handles.find(info.name);
+	auto it = m_handles.find(info.name);
 
 	if (it == m_handles.end()) {
 		log_error("unable to DESTROY HANDLE [%s], handle object missing.", info.name.c_str());
 		return;
 	}
 
-	handle_ptr_t handle = it->second;
+	shared_handle_t handle = it->second;
 	assert(handle);
 
 	// retrieve message cache and terminate all handle activity
@@ -380,7 +375,7 @@ void
 service_t::check_for_deadlined_messages() {
 	boost::mutex::scoped_lock lock(m_unhandled_mutex);
 
-	unhandled_messages_map_t::iterator it = m_unhandled_messages.begin();
+	auto it = m_unhandled_messages.begin();
 
 	for (; it != m_unhandled_messages.end(); ++it) {
 		messages_deque_ptr_t queue = it->second;
@@ -390,7 +385,7 @@ service_t::check_for_deadlined_messages() {
 		messages_deque_ptr_t expired_queue(new cached_messages_deque_t);
 		bool found_expired = false;
 
-		cached_messages_deque_t::iterator qit = queue->begin();
+		auto qit = queue->begin();
 		for (;qit != queue->end(); ++qit) {
 			if ((*qit)->is_expired() && (*qit)->is_deadlined()) {
 				expired_queue->push_back(*qit);
@@ -412,7 +407,7 @@ service_t::check_for_deadlined_messages() {
 		std::string sent_timestamp_str;
 		std::string curr_timestamp_str;
 
-		cached_messages_deque_t::iterator expired_qit = expired_queue->begin();
+		auto expired_qit = expired_queue->begin();
 		for (;expired_qit != expired_queue->end(); ++expired_qit) {
 			boost::shared_ptr<response_chunk_t> response(new response_chunk_t);
 			response->uuid = (*expired_qit)->uuid();

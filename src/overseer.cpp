@@ -647,7 +647,7 @@ overseer_t::connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >&
 
 					//create watcher
 					if (sock->fd()) {
-						ev_io_ptr watcher(new ev::io(loop));
+						overseer_t::shared_ev_io_t watcher(new ev::io(loop));
 						watcher->set<overseer_t, &overseer_t::request>(this);
 						watcher->start(sock->fd(), ev::READ);
 						m_watchers.push_back(watcher);

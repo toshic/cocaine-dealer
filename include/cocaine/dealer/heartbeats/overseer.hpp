@@ -128,7 +128,7 @@ private:
 	void print_routing_table();
 
 private:
-	typedef boost::shared_ptr<ev::io> 	ev_io_ptr;
+	typedef boost::shared_ptr<ev::io> 	shared_ev_io_t;
 	typedef std::set<inetv4_endpoint_t> inetv4_endpoints_t;
 	typedef std::set<std::string>		plain_endpoints_t;
 
@@ -137,16 +137,15 @@ private:
 	std::vector<hosts_fetcher_ptr>				m_endpoints_fetchers;
 
 	// <service, socket>
-	std::map<std::string, shared_socket_t>	m_sockets;
+	std::map<std::string, shared_socket_t>		m_sockets;
 
-	routing_table_t			m_routing_table;
-	callback_t				m_callback;
-
-	std::unique_ptr<ev::timer>			m_fetcher_timer;
-	std::unique_ptr<ev::timer>			m_timeout_timer;
+	std::unique_ptr<ev::timer>	m_fetcher_timer;
+	std::unique_ptr<ev::timer>	m_timeout_timer;
 	
-	std::vector<ev_io_ptr>	m_watchers;
-	wuuid_t					m_uuid;
+	routing_table_t				m_routing_table;
+	callback_t					m_callback;
+	std::vector<shared_ev_io_t>	m_watchers;
+	wuuid_t						m_uuid;
 };
 
 } // namespace dealer
