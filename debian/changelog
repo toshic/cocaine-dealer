@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.16) lucid; urgency=low
+
+  * dealer operated by one thread and one global event loop, fully async model
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Sun, 3 Feb 2012 09:34:59 +0400
+
 cocaine-dealer (0.9.15) lucid; urgency=low
 
   * overseer evloop default->dynamic, proper idents in handle ipc
