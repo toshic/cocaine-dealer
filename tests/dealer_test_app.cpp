@@ -143,6 +143,7 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 	std::cout << "elapsed: " << timer.elapsed().as_double() << std::endl;
 	std::cout << "sent: " << sent_messages << " messages.\n";
 	std::cout << "approx performance: " << sent_messages / total_elapsed << " rps." << std::endl;
+	sleep(100);
 }
 
 int
