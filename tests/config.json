@@ -7,7 +7,7 @@
 	"logger" :
 	{
 		"type" : "STDOUT_LOGGER",
-		"flags" : "PLOG_INTRO | PLOG_INFO"
+		"flags" : "PLOG_INTRO | PLOG_ALL"
 
 //		"type" : "FILE_LOGGER",
 //		"file" : "/home/rimz/dealer.log",
@@ -25,8 +25,8 @@
 
 	"services" :
 	{
-		"time_echo" : {
-			"app" : "time echo_212b40755644f278251b281e650c6534417a06cc",
+		"dummy" : {
+			"app" : "dummy_a0e93bb373a14b050aa83e240be96dfbfa2864fb",
 			"autodiscovery" : {
 				"type" : "FILE",
 				"source" : "../tests/hosts"
