@@ -153,7 +153,7 @@ balancer_t::create_socket() {
 			m_socket->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
 		#endif
 
-		m_socket->setsockopt(ZMQ_IDENTITY, m_socket_identity.c_str(), m_socket_identity.length());
+		m_socket->setsockopt(ZMQ_IDENTITY, m_socket_identity.data(), m_socket_identity.size());
 	}
 	catch (const zmq::error_t& ex) {
 		log(PLOG_ERROR, "could not recreate socket, details: %s", ex.what());
@@ -212,10 +212,12 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 	try {
 		// send ident
 		endpoint = get_next_endpoint();
-		message->set_destination_endpoint(endpoint.as_string());
+		message->set_destination_endpoint(endpoint.endpoint);
+
+		std::string new_route = endpoint.route;
 
 		msgpack::sbuffer sbuf;
-        msgpack::pack(sbuf, endpoint.route);
+        msgpack::pack(sbuf, new_route);
 
 		zmq::message_t ident_chunk(sbuf.size());
 		memcpy((void *)ident_chunk.data(), sbuf.data(), sbuf.size());
@@ -232,10 +234,9 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 
 		// send message uuid
 		const std::string& uuid = message->uuid().as_string();
-		sbuf.clear();
-		msgpack::pack(sbuf, uuid);
-		zmq::message_t uuid_chunk(sbuf.size());
-		memcpy((void *)uuid_chunk.data(), sbuf.data(), sbuf.size());
+
+		zmq::message_t uuid_chunk(uuid.size());
+		memcpy((void *)uuid_chunk.data(), uuid.data(), uuid.size());
 
 		if (true != m_socket->send(uuid_chunk, ZMQ_SNDMORE)) {
 			return false;
@@ -325,14 +326,22 @@ balancer_t::is_valid_rpc_code(int rpc_code) {
 }
 
 namespace {
-	struct unpacked_data_chunk {
+	template <typename T>
+	struct unpacked_response_t {
+		int code;
+		T data;
+
+		MSGPACK_DEFINE(code, data)
+	};
+
+	struct unpacked_chunk {
 		std::string uuid;
 		std::string data;
 
 		MSGPACK_DEFINE(uuid, data)
 	};
 
-	struct unpacked_error_chunk {
+	struct unpacked_error {
 		std::string uuid;
 		int			code;
 		std::string message;
@@ -341,6 +350,12 @@ namespace {
 	};
 
 	struct unpacked_choke {
+		std::string uuid;
+
+		MSGPACK_DEFINE(uuid)
+	};
+
+	struct unpacked_ack {
 		std::string uuid;
 
 		MSGPACK_DEFINE(uuid)
@@ -373,11 +388,12 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 		return false;
 	}
 
-	// receive rpc code
+	// receive response
 	if (!nutils::recv_zmq_message(*m_socket, chunk, unpacked)) {
 		return false;
 	}
-	unpacked.get().convert(&rpc_code);
+
+	rpc_code = unpacked.get().via.array.ptr[0].as<int>();
 
 	if (!is_valid_rpc_code(rpc_code)) {
 		if (log_flag_enabled(PLOG_ERROR)) {
@@ -395,42 +411,37 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 	// receive all data
 	switch (rpc_code) {
 		case SERVER_RPC_MESSAGE_CHUNK: {
-			unpacked_data_chunk udc;
-			if (!nutils::recv_zmq_message(*m_socket, chunk, unpacked)) {
-				log_error("could not receive message body for identity: %s", identity.c_str());
-				return false;
-			}
-			unpacked.get().convert(&udc);
+			unpacked_chunk chunk_resp;
+			unpacked.get().via.array.ptr[1].convert(&chunk_resp);
 
-			response->uuid = udc.uuid;
-			response->data = data_container(udc.data.data(), udc.data.size());
+			response->uuid = chunk_resp.uuid;
+			response->data = data_container(chunk_resp.data.data(), chunk_resp.data.size());
 		}
 		break;
 
 		case SERVER_RPC_MESSAGE_ERROR: {
-			unpacked_error_chunk uec;
-			if (!nutils::recv_zmq_message(*m_socket, chunk, unpacked)) {
-				log_error("could not receive message body for identity: %s", identity.c_str());
-				return false;
-			}
-			unpacked.get().convert(&uec);
+			unpacked_error error_resp;
+			unpacked.get().via.array.ptr[1].convert(&error_resp);
 
-			response->uuid = uec.uuid;
-			response->error_code = uec.code;
-			response->error_message = uec.message;
+			response->uuid = error_resp.uuid;
+			response->error_code = error_resp.code;
+			response->error_message = error_resp.message;
 		}
 		break;
 
-		case SERVER_RPC_MESSAGE_ACK:
-		case SERVER_RPC_MESSAGE_CHOKE: {
-			unpacked_choke uc;
-			if (!nutils::recv_zmq_message(*m_socket, chunk, unpacked)) {
-				log_error("could not receive message body for identity: %s", identity.c_str());
-				return false;
-			}
-			unpacked.get().convert(&uc);
+		case SERVER_RPC_MESSAGE_ACK: {
+			unpacked_ack ack_resp;
+			unpacked.get().via.array.ptr[1].convert(&ack_resp);
 
-			response->uuid = uc.uuid;
+			response->uuid = ack_resp.uuid;
+		}
+		break;
+
+		case SERVER_RPC_MESSAGE_CHOKE: {
+			unpacked_choke choke_resp;
+			unpacked.get().via.array.ptr[1].convert(&choke_resp);
+
+			response->uuid = choke_resp.uuid;
 		}
 		break;
 

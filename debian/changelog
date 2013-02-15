@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.10003) lucid; urgency=low
+
+  * cocaine v10 protocol compatibility
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Fri, 15 Feb 2013 20:48:18 +0400
+
 cocaine-dealer (0.9.10002) lucid; urgency=low
 
   * fix resheduling when app server queue is full
