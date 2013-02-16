@@ -39,7 +39,7 @@ public:
         m_service_info(service_info) {}
 
 	typedef std::vector<inetv4_endpoint_t> inetv4_endpoints_t;
-    const static int default_control_port = 5000;
+
 	virtual bool get_hosts(inetv4_endpoints_t& endpoints, service_info_t& service_info) = 0;
     virtual bool get_hosts(inetv4_endpoints_t& endpoints, const std::string& source) = 0;
 
@@ -90,7 +90,7 @@ protected:
                         continue;
                     }
 
-                    endpoints.push_back(inetv4_endpoint_t(ip, default_control_port, transport));
+                    endpoints.push_back(inetv4_endpoint_t(ip, 0, transport));
                 }
                 else {
                     std::string host_str = line.substr(0, where);

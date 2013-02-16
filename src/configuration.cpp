@@ -201,7 +201,7 @@ configuration_t::parse_services_settings(const Json::Value& config_value) {
 	for (Json::Value::Members::iterator it = services_names.begin(); it != services_names.end(); ++it) {
 	    std::string service_name(*it);
 	    Json::Value service_data(services_list[service_name]);
-	    
+
 	    if (!service_data.isObject()) {
 			std::string error_str = "\"service\" (with alias: " + service_name + ") is malformed, ";
 			error_str += "see documentation for more info.";

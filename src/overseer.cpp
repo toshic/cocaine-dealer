@@ -1,34 +1,33 @@
 /*
-	Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
-	Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
+    Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
+    Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
 
-	This file is part of Cocaine.
+    This file is part of Cocaine.
 
-	Cocaine is free software; you can redistribute it and/or modify
-	it under the terms of the GNU Lesser General Public License as published by
-	the Free Software Foundation; either version 3 of the License, or
-	(at your option) any later version.
+    Cocaine is free software; you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or
+    (at your option) any later version.
 
-	Cocaine is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU Lesser General Public License for more details.
+    Cocaine is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Lesser General Public License for more details.
 
-	You should have received a copy of the GNU Lesser General Public License
-	along with this program. If not, see <http://www.gnu.org/licenses/>. 
+    You should have received a copy of the GNU Lesser General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>. 
 */
 
 #include <memory>
-#include <sstream>
 
 #include <boost/tuple/tuple.hpp>
 
 #include "cocaine/dealer/heartbeats/overseer.hpp"
-
 #include "cocaine/dealer/heartbeats/file_hosts_fetcher.hpp"
 #include "cocaine/dealer/heartbeats/http_hosts_fetcher.hpp"
 #include "cocaine/dealer/core/inetv4_endpoint.hpp"
 #include "cocaine/dealer/cocaine_node_info/cocaine_node_info_parser.hpp"
+#include "cocaine/dealer/utils/progress_timer.hpp"
 
 #include <cocaine/traits.hpp>
 #include <cocaine/traits/json.hpp>
@@ -37,12 +36,9 @@ namespace cocaine {
 namespace dealer {
 
 overseer_t::overseer_t(const boost::shared_ptr<context_t>& ctx, bool logging_enabled) :
-	dealer_object_t(ctx, logging_enabled),
-	m_stopping(false)
+	dealer_object_t(ctx, logging_enabled)
 {
 	m_uuid.generate();
-
-	socket_t sock(context(), ZMQ_SUB);
 }
 
 overseer_t::~overseer_t() {
@@ -89,45 +85,71 @@ overseer_t::run() {
 
 void
 overseer_t::stop() {
-	m_stopping = true;
-	
-	m_fetcher_timer.stop();
-	m_timeout_timer.stop();
-
-	for (size_t i = 0; i < m_watchers.size(); ++i) {
-		m_watchers[i]->stop();
-	}
-
-	m_watchers.clear();
-
-	m_event_loop.unloop(ev::ALL);
+	m_terminate->send();
 	m_thread.join();
 
 	log(PLOG_DEBUG, "overseer — stopped");
 }
 
 void
-overseer_t::main_loop() {
-	// init
-	create_sockets();
-	fetch_endpoints();
-	connect_sockets();
+overseer_t::terminate(ev::async& as, int type) {
+	m_fetcher_timer->stop();
+	m_timeout_timer->stop();
+	m_terminate->stop();
 
-	// fetch endpoints every 15 secs
-	m_fetcher_timer.set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
-	m_timeout_timer.set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
-
-	m_fetcher_timer.start(15, 15);
-	m_timeout_timer.start(0, 0.5);
-
-	if (!m_stopping) {
-		m_event_loop.loop();
+	for (size_t i = 0; i < m_watchers.size(); ++i) {
+		m_watchers[i]->stop();
 	}
-	
+	m_watchers.clear();
+
+	m_event_loop->unloop(ev::ALL);
+
 	kill_sockets();
 
 	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
 		m_endpoints_fetchers[i].reset();
+	}
+}
+
+void
+overseer_t::main_loop() {
+	m_event_loop.reset(new ev::dynamic_loop);
+	m_fetcher_timer.reset(new ev::timer(*m_event_loop));
+	m_timeout_timer.reset(new ev::timer(*m_event_loop));
+	m_terminate.reset(new ev::async(*m_event_loop));
+
+	// create prepare watcher
+	m_prepare.reset(new ev::prepare(*m_event_loop));
+	m_prepare->set<overseer_t, &overseer_t::prepare>(this);
+	m_prepare->start();
+
+	// init
+	create_sockets();
+
+	std::map<std::string, std::set<inetv4_endpoint_t> > new_endpoints;
+	fetch_endpoints(new_endpoints);
+	connect_sockets(new_endpoints);
+
+	// fetch endpoints every 15 secs
+	m_fetcher_timer->set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
+	m_timeout_timer->set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
+
+    m_fetcher_timer->start(15, 15);
+    m_timeout_timer->start(0, 0.5);
+
+	m_terminate->set<overseer_t, &overseer_t::terminate>(this);
+	m_terminate->start();
+
+	m_event_loop->loop();
+}
+
+void
+overseer_t::prepare(ev::prepare& as, int type) {
+	std::map<std::string, shared_socket_t>::iterator it;
+	it = m_sockets.begin();
+
+	for (; it != m_sockets.end(); ++it) {
+		m_event_loop->feed_fd_event(it->second->fd(), ev::READ);
 	}
 }
 
@@ -169,14 +191,15 @@ overseer_t::print_all_fetched_endpoints() {
 
 void
 overseer_t::fetch_and_process_endpoints(ev::timer& watcher, int type) {
-	bool found_missing_endpoints = fetch_endpoints();
+	std::map<std::string, std::set<inetv4_endpoint_t> > new_endpoints;
+	bool found_missing_endpoints = fetch_endpoints(new_endpoints);
 
-	if (found_missing_endpoints) {
-		kill_sockets();
-		create_sockets();
-	}
+	// if (found_missing_endpoints) {
+	// 	kill_sockets();
+	// 	create_sockets();
+	// }
 
-	connect_sockets();
+	connect_sockets(new_endpoints);
 }
 
 void
@@ -185,6 +208,7 @@ overseer_t::request(ev::io& watcher, int type) {
 		return;
 	}
 
+	progress_timer t;
 	std::map<std::string, std::vector<announce_t> > responces;
 	read_from_sockets(responces);
 
@@ -535,6 +559,7 @@ overseer_t::parse_responces(const std::map<std::string, std::vector<announce_t> 
 				continue;
 			}
 
+			node_info.identity = it->second[i].hostname;
 			parsed_nodes_for_service.push_back(node_info);
 		}
 
@@ -609,6 +634,8 @@ overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& r
 
 void
 overseer_t::create_sockets() {
+	//std::cout << "create_sockets\n";
+
 	const std::map<std::string, service_info_t>& services_list = config()->services_list();
 	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
 	
@@ -627,6 +654,7 @@ overseer_t::create_sockets() {
 
 void
 overseer_t::kill_sockets() {
+	//std::cout << "kill_sockets\n";
 	std::map<std::string, shared_socket_t>::iterator it = m_sockets.begin();
 	
 	// create sockets
@@ -644,19 +672,25 @@ overseer_t::kill_sockets() {
 }
 
 void
-overseer_t::connect_sockets() {
-	// kill watchers
-	for (size_t i = 0; i < m_watchers.size(); ++i) {
-		m_watchers[i]->stop();
+overseer_t::connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& new_endpoints) {
+	if (new_endpoints.empty()) {
+		return;
 	}
-	m_watchers.clear();
+
+	//std::cout << "connect_sockets\n";
+
+	// // kill watchers
+	// for (size_t i = 0; i < m_watchers.size(); ++i) {
+	// 	m_watchers[i]->stop();
+	// }
+	// m_watchers.clear();
 
 	// create sockets
 	std::map<std::string, shared_socket_t>::iterator it = m_sockets.begin();
 	for (; it != m_sockets.end(); ++it) {
 		const std::string& service_name = it->first;
 
-		std::set<inetv4_endpoint_t>& service_endpoints = m_endpoints[service_name];
+		std::set<inetv4_endpoint_t>& service_endpoints = new_endpoints[service_name];
 		shared_socket_t sock = m_sockets[service_name];
 
 		if (sock) {
@@ -667,11 +701,11 @@ overseer_t::connect_sockets() {
 
 					//create watcher
 					if (sock->fd()) {
-						ev_io_ptr watcher(new ev::io);
+						ev_io_ptr watcher(new ev::io(*m_event_loop));
 						watcher->set<overseer_t, &overseer_t::request>(this);
-						watcher->start(sock->fd(), ev::READ);
-						m_watchers.push_back(watcher);
-					}
+	    				watcher->start(sock->fd(), ev::READ);
+	    				m_watchers.push_back(watcher);
+	    			}
 				}
 				catch (const std::exception& ex) {
 					log_error("overseer - could not connect socket for service %s, details: %s",
@@ -688,7 +722,7 @@ overseer_t::connect_sockets() {
 }
 
 bool
-overseer_t::fetch_endpoints() {
+overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >& new_endpoints) {
 	bool found_missing_endpoints = false;
 
 	// for each hosts fetcher
@@ -731,15 +765,30 @@ overseer_t::fetch_endpoints() {
 				}
 
 				// check for missing endpoints
-				std::set<inetv4_endpoint_t>::iterator ite = service_endpoints.begin();
-				for (; ite != service_endpoints.end(); ++ite) {
-					std::set<inetv4_endpoint_t>::iterator nit = new_service_endpoints.find(*ite);
-					if (nit == new_service_endpoints.end()) {
-						found_missing_endpoints = true;
-						break;
+				// std::set<inetv4_endpoint_t>::iterator ite = service_endpoints.begin();
+				// for (; ite != service_endpoints.end(); ++ite) {
+				// 	std::set<inetv4_endpoint_t>::iterator nit = new_service_endpoints.find(*ite);
+				// 	if (nit == new_service_endpoints.end()) {
+				// 		found_missing_endpoints = true;
+				// 		break;
+				// 	}
+				// }
+
+				std::set<inetv4_endpoint_t> new_enpoints_set;
+
+				// check for new endpoints
+				std::set<inetv4_endpoint_t>::iterator ite = new_service_endpoints.begin();
+				for (; ite != new_service_endpoints.end(); ++ite) {
+					std::set<inetv4_endpoint_t>::iterator nit = service_endpoints.find(*ite);
+					if (nit == service_endpoints.end()) {
+						new_enpoints_set.insert(*ite);
 					}
 				}
 
+				if (!new_enpoints_set.empty()) {
+					new_endpoints[service_info.name] = new_enpoints_set;
+				}
+				
 				service_endpoints.clear();
 				service_endpoints.insert(new_service_endpoints.begin(), new_service_endpoints.end());
 			}

@@ -139,8 +139,9 @@ void create_client(size_t dealers_count, size_t threads_per_dealer, size_t messa
 
 int
 main(int argc, char** argv) {
-	dealer_t			d("../tests/config.json");
-	message_path_t		path("time echo", "echo");
+	dealer_t d("/home/rimz/dealer.conf");
+	sleep (100);
+	message_path_t		path("time", "echo");
 	std::string			payload = "server time: ";
 
 	boost::shared_ptr<response_t> responce;

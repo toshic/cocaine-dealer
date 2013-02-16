@@ -22,12 +22,11 @@
 #define _COCAINE_DEALER_OVERSEER_HPP_INCLUDED_
 
 #include <string>
+#include <memory>
 #include <map>
 #include <set>
 
 #include <ev++.h>
-
-#include <zmq.hpp>
     
 #include "json/json.h"
 
@@ -94,11 +93,11 @@ private:
 	typedef boost::shared_ptr<hosts_fetcher_iface> hosts_fetcher_ptr;
 	typedef boost::shared_ptr<socket_t> shared_socket_t;
 
-	bool fetch_endpoints();
+	bool fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >& new_endpoints);
 	void main_loop();
 
 	void create_sockets();
-	void connect_sockets();
+	void connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& new_endpoints);
 	void kill_sockets();
 
 	void read_from_sockets(std::map<std::string, std::vector<announce_t> >& responces);
@@ -127,10 +126,13 @@ private:
 	void reset_routing_table(routing_table_t& routing_table);
 	void fetch_and_process_endpoints(ev::timer& watcher, int type);
 	void request(ev::io& watcher, int type);
+	void terminate(ev::async& as, int type);
 
 	// used for debug only
 	void print_all_fetched_endpoints();
 	void print_routing_table();
+
+	void prepare(ev::prepare& as, int type);
 
 private:
 	typedef boost::shared_ptr<ev::io> 	ev_io_ptr;
@@ -147,14 +149,18 @@ private:
 	routing_table_t			m_routing_table;
 	callback_t				m_callback;
 
-	ev::default_loop		m_event_loop;
-	ev::timer				m_fetcher_timer;
-	ev::timer				m_timeout_timer;
+	std::unique_ptr<ev::dynamic_loop>	m_event_loop;
+	std::unique_ptr<ev::timer>			m_fetcher_timer;
+	std::unique_ptr<ev::timer>			m_timeout_timer;
+	std::unique_ptr<ev::async>			m_terminate;
+	std::unique_ptr<ev::prepare>		m_prepare;
+
 	std::vector<ev_io_ptr>	m_watchers;
 	boost::mutex			m_mutex;
 	boost::thread			m_thread;
 	wuuid_t					m_uuid;
-	volatile bool			m_stopping;
+
+	progress_timer pt;
 };
 
 } // namespace dealer
