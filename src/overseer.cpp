@@ -87,11 +87,11 @@ overseer_t::run() {
 	ev::dynamic_loop& loop = context()->event_loop();
 
 	m_fetcher_timer.reset(new ev::timer(loop));
-	m_fetcher_timer->set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
+	m_fetcher_timer->set<overseer_t, &overseer_t::fetch_and_process_hosts>(this);
 	m_fetcher_timer->start(15, 15);
 
 	m_timeout_timer.reset(new ev::timer(loop));
-	m_timeout_timer->set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
+	m_timeout_timer->set<overseer_t, &overseer_t::check_for_timedout_hosts>(this);
 	m_timeout_timer->start(0, 0.5);
 }
 
@@ -159,17 +159,13 @@ overseer_t::print_all_fetched_endpoints() {
 }
 
 void
-overseer_t::fetch_and_process_endpoints(ev::timer& watcher, int type) {
+overseer_t::fetch_and_process_hosts(ev::timer& watcher, int type) {
 	std::map<std::string, std::set<inetv4_endpoint_t> > new_hosts;
 	std::map<std::string, std::set<inetv4_endpoint_t> > missing_hosts;
 	fetch_hosts(new_hosts, missing_hosts);
 
-	// if (found_missing_endpoints) {
-	// 	kill_sockets();
-	// 	create_sockets();
-	// }
-
 	connect_sockets(new_hosts);
+	//dicsonnect_sockets(missing_hosts);
 }
 
 void
@@ -271,7 +267,7 @@ overseer_t::all_endpoints_dead(const endpoints_set_t& endpoints) {
 }
 
 void
-overseer_t::check_for_timedout_endpoints(ev::timer& timer, int type) {
+overseer_t::check_for_timedout_hosts(ev::timer& timer, int type) {
 	// service
 	routing_table_t::iterator it = m_routing_table.begin();
 	for (; it != m_routing_table.end(); ++it) {
@@ -586,12 +582,11 @@ overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& r
 
 void
 overseer_t::create_sockets() {
-	//std::cout << "create_sockets\n";
-
 	const std::map<std::string, service_info_t>& services_list = config()->services_list();
 	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
 	
-	// create sockets
+	ev::dynamic_loop& loop = context()->event_loop();
+
 	for (; it != services_list.end(); ++it) {
 		const std::string& service_name = it->second.name;
 
@@ -601,6 +596,14 @@ overseer_t::create_sockets() {
 		sock->subscribe();
 
 		m_sockets[service_name] = sock;
+
+		//create watcher
+		if (sock->fd()) {
+			overseer_t::shared_ev_io_t watcher(new ev::io(loop));
+			watcher->set<overseer_t, &overseer_t::request>(this);
+			watcher->start(sock->fd(), ev::READ);
+			m_watchers.push_back(watcher);
+		}
 	}
 }
 
@@ -624,38 +627,28 @@ overseer_t::kill_sockets() {
 }
 
 void
-overseer_t::connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& new_endpoints) {
-	if (new_endpoints.empty()) {
+overseer_t::connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& hosts) {
+	if (hosts.empty()) {
 		return;
 	}
 
-	ev::dynamic_loop& loop = context()->event_loop();
+	std::map<std::string, std::set<inetv4_endpoint_t> >::iterator it;
+	it = hosts.begin();
 
-	// create sockets
-	std::map<std::string, shared_socket_t>::iterator it = m_sockets.begin();
-	for (; it != m_sockets.end(); ++it) {
+	for (; it != hosts.end(); ++it) {
 		const std::string& service_name = it->first;
-
-		std::set<inetv4_endpoint_t>& service_endpoints = new_endpoints[service_name];
+		std::set<inetv4_endpoint_t> service_hosts = it->second;
 		shared_socket_t sock = m_sockets[service_name];
 
 		if (sock) {
-			std::set<inetv4_endpoint_t>::iterator endpoint_it = service_endpoints.begin();
-			for (; endpoint_it != service_endpoints.end(); ++endpoint_it) {
+			std::set<inetv4_endpoint_t>::iterator host_it = service_hosts.begin();
+			for (; host_it != service_hosts.end(); ++host_it) {
 				try {
-					sock->connect(*endpoint_it);
-
-					//create watcher
-					if (sock->fd()) {
-						overseer_t::shared_ev_io_t watcher(new ev::io(loop));
-						watcher->set<overseer_t, &overseer_t::request>(this);
-						watcher->start(sock->fd(), ev::READ);
-						m_watchers.push_back(watcher);
-					}
+					sock->connect(*host_it);
 				}
 				catch (const std::exception& ex) {
 					log_error("overseer - could not connect socket for service %s, details: %s",
-							  it->first.c_str(),
+							  service_name.c_str(),
 							  ex.what());
 				}
 			}

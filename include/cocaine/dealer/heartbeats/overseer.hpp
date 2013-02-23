@@ -96,7 +96,7 @@ private:
 	std::set<inetv4_endpoint_t>& get_cached_hosts_for_service(const std::string& service_name);
 
 	void create_sockets();
-	void connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& new_endpoints);
+	void connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& hosts);
 	void kill_sockets();
 
 	void read_from_sockets(std::map<std::string, std::vector<announce_t> >& responces);
@@ -126,8 +126,8 @@ private:
 	
 	// async callbacks
 	void request(ev::io& watcher, int type);
-	void check_for_timedout_endpoints(ev::timer& timer, int type);
-	void fetch_and_process_endpoints(ev::timer& watcher, int type);
+	void check_for_timedout_hosts(ev::timer& timer, int type);
+	void fetch_and_process_hosts(ev::timer& watcher, int type);
 
 	// used for debug only
 	void print_all_fetched_endpoints();
