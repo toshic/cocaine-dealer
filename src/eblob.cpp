@@ -182,21 +182,17 @@ eblob_t::create_eblob(const std::string& path,
 {
 	m_path = path;
 
-	// create eblob logger
-	m_eblob_logger.reset(new ioremap::eblob::eblob_logger("/dev/stdout", 0));
-
 	// create config
     eblob_config cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.file = const_cast<char*>(m_path.c_str());
-    cfg.log = m_eblob_logger->log();
     cfg.sync = sync_interval;
     cfg.blob_size = blob_size;
     cfg.defrag_timeout = defrag_timeout;
     cfg.iterate_threads = m_thread_pool_size;
 
     // create eblob
-    m_storage.reset(new ioremap::eblob::eblob(&cfg));
+    m_storage.reset(new ioremap::eblob::eblob("/dev/null", 0, &cfg));
 
 	log("eblob at path: %s created.", m_path.c_str());
 }

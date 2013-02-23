@@ -95,8 +95,7 @@ private:
 	int 					m_alive_items_count;
 	int						m_thread_pool_size;
 
-	boost::shared_ptr<ioremap::eblob::eblob>			m_storage;
-	boost::shared_ptr<ioremap::eblob::eblob_logger>		m_eblob_logger;
+	boost::shared_ptr<ioremap::eblob::eblob> m_storage;
 };
 
 } // namespace dealer
