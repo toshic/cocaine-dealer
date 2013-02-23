@@ -162,7 +162,7 @@ void
 overseer_t::fetch_and_process_endpoints(ev::timer& watcher, int type) {
 	std::map<std::string, std::set<inetv4_endpoint_t> > new_hosts;
 	std::map<std::string, std::set<inetv4_endpoint_t> > missing_hosts;
-	bool found_missing_endpoints = fetch_endpoints(new_hosts, missing_hosts);
+	fetch_endpoints(new_hosts, missing_hosts);
 
 	// if (found_missing_endpoints) {
 	// 	kill_sockets();
@@ -667,21 +667,30 @@ overseer_t::connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >&
 	}
 }
 
-bool
+std::set<inetv4_endpoint_t>&
+overseer_t::get_cached_hosts_for_service(const std::string& service_name) {
+	std::map<std::string, std::set<inetv4_endpoint_t> >::iterator it;
+	it = m_service_hosts.find(service_name);
+
+	if (it == m_service_hosts.end()) {
+		std::set<inetv4_endpoint_t> new_set;
+		m_service_hosts[service_name] = new_set;
+	}
+
+	return m_service_hosts[service_name];
+}
+
+void
 overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >& new_hosts,
 							std::map<std::string, std::set<inetv4_endpoint_t> >& missing_hosts)
 {
-	return false;
-	/*
-	bool found_missing_endpoints = false;
-
 	// for each hosts fetcher
 	for (size_t i = 0; i < m_hosts_fetchers.size(); ++i) {
 		hosts_fetcher_iface::inetv4_endpoints_t fetched_hosts;
 		service_info_t service_info;
 
 		try {
-			// get service endpoints list
+			// get service hosts from source
 			if (m_hosts_fetchers[i]->get_hosts(fetched_hosts, service_info)) {
 				if (fetched_hosts.empty()) {
 					std::string error_msg = "overseer - fetcher returned no hosts for service %s";
@@ -689,31 +698,9 @@ overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >&
 					continue;
 				}
 
-				// get storage for endpoints
-				std::map<std::string, std::set<inetv4_endpoint_t> >::iterator it;
-				it = m_service_hosts.find(service_info.name);
+				std::set<inetv4_endpoint_t>& cached_hosts = get_cached_hosts_for_service(service_info.name);
 
-				if (it == m_service_hosts.end()) {
-					std::set<inetv4_endpoint_t> new_set;
-					m_service_hosts[service_info.name] = new_set;
-				}
-
-				std::set<inetv4_endpoint_t>& service_endpoints = m_service_hosts[service_info.name];
-				std::set<inetv4_endpoint_t> new_service_endpoints;
-
-				// update endpoints with default values
-				for (size_t j = 0; j < endpoints.size(); ++j) {
-					if (endpoints[j].port == 0) {
-						endpoints[j].port = defaults_t::control_port;
-					}
-
-					if (endpoints[j].transport == TRANSPORT_UNDEFINED) {
-						endpoints[j].transport = TRANSPORT_TCP;
-					}
-
-					new_service_endpoints.insert(endpoints[j]);
-				}
-
+				/*
 				// check for missing endpoints
 				std::set<inetv4_endpoint_t> missing_hosts_set;
 
@@ -742,6 +729,7 @@ overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >&
 				
 				service_endpoints.clear();
 				service_endpoints.insert(new_service_endpoints.begin(), new_service_endpoints.end());
+				*/
 			}
 		}
 		catch (const std::exception& ex) {
@@ -753,9 +741,6 @@ overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >&
 			log_error(error_msg.c_str());
 		}
 	}
-
-	return found_missing_endpoints;
-	*/
 }
 
 } // namespace dealer

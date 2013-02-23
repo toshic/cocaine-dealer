@@ -202,7 +202,7 @@ public:
 				return inetv4_endpoint_t();
 			}
 
-			return inetv4_endpoint_t(ip, defaults_t::control_port, transport);
+			return inetv4_endpoint_t(ip, 0, transport);
 		}
 		else {
 			std::string host_str = str.substr(0, where);
