@@ -90,8 +90,8 @@ private:
 	typedef boost::shared_ptr<hosts_fetcher_iface> hosts_fetcher_ptr;
 	typedef boost::shared_ptr<socket_t> shared_socket_t;
 
-	void fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >& new_hosts,
-						 std::map<std::string, std::set<inetv4_endpoint_t> >& missing_hosts);
+	void fetch_hosts(std::map<std::string, std::set<inetv4_endpoint_t> >& new_hosts,
+					 std::map<std::string, std::set<inetv4_endpoint_t> >& missing_hosts);
 
 	std::set<inetv4_endpoint_t>& get_cached_hosts_for_service(const std::string& service_name);
 

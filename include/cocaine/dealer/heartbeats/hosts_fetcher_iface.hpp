@@ -21,7 +21,7 @@
 #ifndef _COCAINE_DEALER_HOSTS_FETCHER_IFACE_HPP_INCLUDED_
 #define _COCAINE_DEALER_HOSTS_FETCHER_IFACE_HPP_INCLUDED_
 
-#include <vector>
+#include <set>
 
 #include <boost/tokenizer.hpp>
 #include <boost/algorithm/string.hpp>
@@ -39,7 +39,7 @@ public:
 	explicit hosts_fetcher_iface(const service_info_t& service_info) :
 		m_service_info(service_info) {}
 
-	typedef std::vector<inetv4_endpoint_t> inetv4_endpoints_t;
+	typedef std::set<inetv4_endpoint_t> inetv4_endpoints_t;
 	virtual bool get_hosts(inetv4_endpoints_t& endpoints, service_info_t& service_info) = 0;
 	virtual bool get_hosts(inetv4_endpoints_t& endpoints, const std::string& source) = 0;
 
@@ -64,18 +64,15 @@ protected:
 				inetv4_endpoint_t endpoint(line);
 
 				if (!endpoint.empty()) {
-					endpoints.push_back(endpoint);
+					if (endpoint.port == 0) {
+						endpoint.port = defaults_t::control_port;
+					}
+
+					endpoints.insert(endpoint);
 				}
 			}
 			catch (const std::exception& ex) {
 				// log parsing failure
-			}
-		}
-
-		// update hosts with default values
-		for (size_t j = 0; j < endpoints.size(); ++j) {
-			if (endpoints[j].port == 0) {
-				endpoints[j].port = defaults_t::control_port;
 			}
 		}
 	}

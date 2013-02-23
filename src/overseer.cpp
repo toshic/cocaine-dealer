@@ -80,7 +80,7 @@ overseer_t::run() {
 	std::map<std::string, std::set<inetv4_endpoint_t> > new_hosts;
 	std::map<std::string, std::set<inetv4_endpoint_t> > missing_hosts;
 
-	fetch_endpoints(new_hosts, missing_hosts);
+	fetch_hosts(new_hosts, missing_hosts);
 	connect_sockets(new_hosts);
 
 	// fetch endpoints every 15 secs
@@ -162,7 +162,7 @@ void
 overseer_t::fetch_and_process_endpoints(ev::timer& watcher, int type) {
 	std::map<std::string, std::set<inetv4_endpoint_t> > new_hosts;
 	std::map<std::string, std::set<inetv4_endpoint_t> > missing_hosts;
-	fetch_endpoints(new_hosts, missing_hosts);
+	fetch_hosts(new_hosts, missing_hosts);
 
 	// if (found_missing_endpoints) {
 	// 	kill_sockets();
@@ -681,8 +681,8 @@ overseer_t::get_cached_hosts_for_service(const std::string& service_name) {
 }
 
 void
-overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >& new_hosts,
-							std::map<std::string, std::set<inetv4_endpoint_t> >& missing_hosts)
+overseer_t::fetch_hosts(std::map<std::string, std::set<inetv4_endpoint_t> >& new_hosts,
+						std::map<std::string, std::set<inetv4_endpoint_t> >& missing_hosts)
 {
 	// for each hosts fetcher
 	for (size_t i = 0; i < m_hosts_fetchers.size(); ++i) {
