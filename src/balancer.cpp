@@ -95,40 +95,66 @@ balancer_t::connect_socket(const std::set<cocaine_endpoint_t>& endpoints) {
 }
 
 void
-balancer_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints,
+balancer_t::disconnect_socket(const std::set<cocaine_endpoint_t>& endpoints) {
+	assert(m_socket);
+
+	if (endpoints.empty()) {
+		return;
+	}
+
+	std::string connection_str;
+	try {
+		std::set<cocaine_endpoint_t>::const_iterator it = endpoints.begin();
+
+		log(PLOG_DEBUG, "disconnected %s from endpoints: ", m_socket_identity.c_str());
+		for (; it != endpoints.end(); ++it) {
+			connection_str = it->endpoint;
+			log(PLOG_DEBUG, connection_str);
+			m_socket->disconnect(connection_str.c_str());
+		}
+	}
+	catch (const std::exception& ex) {
+		std::string error_msg = "balancer with identity " + m_socket_identity + " could not disconnect from ";
+		error_msg += connection_str + " at " + std::string(BOOST_CURRENT_FUNCTION);
+		throw internal_error(error_msg);
+	}
+}
+
+void
+balancer_t::update_endpoints(const std::set<cocaine_endpoint_t>& updated_endpoints,
 							 std::set<cocaine_endpoint_t>& missing_endpoints)
 {
-	static bool display_missing = true;
+	//static bool display_missing = true;
 	static const double delta = 0.00001;
-	static bool display_new = true;
+	//static bool display_new = true;
 
 	// get missing endpoints
 	std::set<cocaine_endpoint_t>::iterator curr_it = m_endpoints.begin();
 	for (; curr_it != m_endpoints.end(); ++curr_it) {
 
-		std::set<cocaine_endpoint_t>::iterator upd_it = endpoints.find(*curr_it);
+		std::set<cocaine_endpoint_t>::iterator upd_it = updated_endpoints.find(*curr_it);
 		
-		if (upd_it != endpoints.end()) {
+		if (upd_it != updated_endpoints.end()) {
 			if (curr_it->weight > delta && upd_it->weight < delta) {
 				std::string connection_str = upd_it->endpoint;
 				missing_endpoints.insert(*upd_it);
 
-				if (display_missing) {
-					log(PLOG_DEBUG, "disconnected %s from endpoints: ", m_socket_identity.c_str());
-					display_missing = false;
-				}
+				// if (display_missing) {
+				// 	log(PLOG_DEBUG, "disconnected %s from endpoints: ", m_socket_identity.c_str());
+				// 	display_missing = false;
+				// }
 
-				log(PLOG_DEBUG, connection_str);
+				// log(PLOG_DEBUG, connection_str);
 			}
 		}
 	}
 
-	display_missing = true;
+	//display_missing = true;
 	
 	// get new endpoints
 	std::set<cocaine_endpoint_t> new_endpoints;
-	std::set<cocaine_endpoint_t>::iterator upd_it = endpoints.begin();
-	for (; upd_it != endpoints.end(); ++upd_it) {
+	std::set<cocaine_endpoint_t>::iterator upd_it = updated_endpoints.begin();
+	for (; upd_it != updated_endpoints.end(); ++upd_it) {
 
 		std::set<cocaine_endpoint_t>::iterator curr_it = m_endpoints.find(*upd_it);
 		std::string connection_str = upd_it->endpoint;
@@ -136,31 +162,35 @@ balancer_t::update_endpoints(const std::set<cocaine_endpoint_t>& endpoints,
 		if (curr_it == m_endpoints.end()) {
 			new_endpoints.insert(*upd_it);
 		}
-		else {
-			if (curr_it->weight < delta && upd_it->weight > delta) {
-				if (display_new) {
-					log(PLOG_DEBUG, "connected %s to endpoints: ", m_socket_identity.c_str());
-					display_new = false;
-				}
+		// else {
+		// 	if (curr_it->weight < delta && upd_it->weight > delta) {
+		// 		if (display_new) {
+		// 			log(PLOG_DEBUG, "connected %s to endpoints: ", m_socket_identity.c_str());
+		// 			display_new = false;
+		// 		}
 
-				log(PLOG_DEBUG, connection_str);
-			}
-		}
+		// 		log(PLOG_DEBUG, connection_str);
+		// 	}
+		// }
 	}
 
-	display_new = true;
+	//display_new = true;
 
 	// replace current endpoints data
 	m_endpoints.clear();
-	m_endpoints.insert(endpoints.begin(), endpoints.end());
+	m_endpoints.insert(updated_endpoints.begin(), updated_endpoints.end());
 
 	m_endpoints_vec.clear();
 	curr_it = m_endpoints.begin();
 	for (; curr_it != m_endpoints.end(); ++curr_it) {
-		m_endpoints_vec.push_back(*curr_it);
+
+		if (curr_it->weight > delta) {
+			m_endpoints_vec.push_back(*curr_it);
+		}
 	}
 
 	connect_socket(new_endpoints);
+	disconnect_socket(missing_endpoints);
 
 	m_current_endpoint_index = 0;
 }
@@ -213,33 +243,6 @@ balancer_t::get_next_endpoint() {
 	else {
 		m_current_endpoint_index = 0;
 	}
-
-	// make sure endpoint is avail
-	if (m_endpoints_vec[m_current_endpoint_index].weight > 0) {
-		return m_endpoints_vec[m_current_endpoint_index];
-	}
-
-	// if not — find the one that is
-	bool found = false;
-	for (size_t i = m_current_endpoint_index; i < m_endpoints_vec.size(); ++i) {
-		if (m_endpoints_vec[i].weight > 0) {
-			m_current_endpoint_index = i;
-			found = true;
-			break;
-		}
-	}
-
-	if (!found) {
-		for (size_t i = 0; i < m_current_endpoint_index; ++i) {
-			if (m_endpoints_vec[i].weight > 0) {
-				m_current_endpoint_index = i;
-				found = true;
-				break;
-			}
-		}
-	}
-
-	assert(found);
 	
 	return m_endpoints_vec[m_current_endpoint_index];
 }

@@ -77,6 +77,8 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
 
 		void connect(const inetv4_endpoint_t& endpoint);
 		void connect(const std::string& endpoint);
+		void disconnect(const inetv4_endpoint_t& endpoint);
+		void disconnect(const std::string& endpoint);
 
 		void drop();
 
@@ -249,6 +251,22 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
 
 		zmq::socket_t& zmq_socket() {
 			return m_socket;
+		}
+
+		bool can_connect(const std::string& endpoint) {
+			inetv4_endpoint_t v4_endpoint(endpoint);
+			return can_connect(v4_endpoint);
+		}
+
+		bool can_connect(const inetv4_endpoint_t& endpoint) {
+			std::set<inetv4_endpoint_t>::const_iterator it = m_endpoints.find(endpoint);
+
+			if (it == m_endpoints.end()) {
+				m_endpoints.insert(endpoint);
+				return true;
+			}
+			
+			return false;
 		}
 
 	private:

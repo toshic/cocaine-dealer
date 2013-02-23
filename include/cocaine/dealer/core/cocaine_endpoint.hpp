@@ -60,8 +60,7 @@ public:
 	}
 
 	bool operator == (const cocaine_endpoint_t& rhs) const {
-		return (endpoint == rhs.endpoint &&
-				route == rhs.route);
+		return (route == rhs.route);
 	}
 
 	bool operator != (const cocaine_endpoint_t& rhs) const {
@@ -69,7 +68,7 @@ public:
 	}
 
 	bool operator < (const cocaine_endpoint_t& rhs) const {
-		return ((endpoint + route) < (rhs.endpoint + rhs.route));
+		return (route < rhs.route);
 	}
 
 	std::string as_string() const {

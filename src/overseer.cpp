@@ -198,55 +198,77 @@ overseer_t::request(ev::io& watcher, int type) {
 void
 overseer_t::update_main_routing_table(routing_table_t& routing_table_update) {
 	// for each service in update
-	routing_table_t::iterator it = routing_table_update.begin();
-	for (; it != routing_table_update.end(); ++it) {
+	routing_table_t::iterator updated_service_it = routing_table_update.begin();
+	for (; updated_service_it != routing_table_update.end(); ++updated_service_it) {
 
-		std::string						service_name = it->first;
-		handle_endpoints_t& 			handle_endpoints = it->second;
+		std::string				service_name = updated_service_it->first;
+		handle_endpoints_t& 	updated_handles = updated_service_it->second;
 
 		// get handle in update, see whether it exists in main table
-		handle_endpoints_t::iterator 	hit = handle_endpoints.begin();
-		for (; hit != handle_endpoints.end(); ++hit) {
-			std::string 					handle_name = hit->first;
-			endpoints_set_t					new_endpoints_set = hit->second;
-			handle_endpoints_t::iterator 	main_table_hit;
+		handle_endpoints_t::iterator updated_handles_it = updated_handles.begin();
 
+		for (; updated_handles_it != updated_handles.end(); ++updated_handles_it) {
+			std::string 	handle_name = updated_handles_it->first;
+			endpoints_set_t	new_endpoints_set = updated_handles_it->second;
+
+			handle_endpoints_t::iterator main_table_handle_it;
 			bool handle_exists = handle_exists_for_service(m_routing_table,
 														   service_name,
 														   handle_name,
-														   main_table_hit);
+														   main_table_handle_it);
 
 			bool was_dead = true;
 
 			if (handle_exists) {
-				was_dead = all_endpoints_dead(main_table_hit->second);
+				was_dead = all_endpoints_dead(main_table_handle_it->second);
 			}
 
 			if (!handle_exists || was_dead) {
-				routing_table_t::iterator sit;
-				if (service_from_table(m_routing_table, service_name, sit)) {
+				routing_table_t::iterator service_it;
+				if (service_from_table(m_routing_table, service_name, service_it)) {
 
-					new_endpoints_set.insert(sit->second[handle_name].begin(),
-											 sit->second[handle_name].end());
+					handle_endpoints_t& handles = service_it->second;
 
-					sit->second[handle_name].clear();
-					sit->second[handle_name].insert(new_endpoints_set.begin(), new_endpoints_set.end());
+					// create new handle
+					if (!handle_exists) {
+						endpoints_set_t new_set;
+						handles[handle_name] = new_set;
+					}
+
+					endpoints_set_t& existing_endpoints_set = handles[handle_name];
+
+					new_endpoints_set.insert(existing_endpoints_set.begin(),
+											 existing_endpoints_set.end());
+
+					existing_endpoints_set.clear();
+					existing_endpoints_set.insert(new_endpoints_set.begin(), new_endpoints_set.end());
 
 					if (m_callback) {
-						m_callback(CREATE_HANDLE, service_name, handle_name, new_endpoints_set);
+						m_callback(CREATE_HANDLE, service_name, handle_name, existing_endpoints_set);
 					}
 				}
 			}
 			else {
-				new_endpoints_set.insert(main_table_hit->second.begin(), main_table_hit->second.end());
+				endpoints_set_t& existing_endpoints_set = main_table_handle_it->second;
 
-				bool sets_equal = endpoints_set_equal(new_endpoints_set, main_table_hit->second);
+				new_endpoints_set.insert(existing_endpoints_set.begin(),
+										 existing_endpoints_set.end());
 
-				main_table_hit->second.clear();
-				main_table_hit->second.insert(new_endpoints_set.begin(), new_endpoints_set.end());
+				bool sets_equal = endpoints_set_equal(new_endpoints_set, existing_endpoints_set);
 
-				if (m_callback && !sets_equal) {
-					m_callback(UPDATE_HANDLE, service_name, handle_name, main_table_hit->second);
+				existing_endpoints_set.clear();
+				existing_endpoints_set.insert(new_endpoints_set.begin(), new_endpoints_set.end());
+
+				assert(m_callback);
+
+				if (all_endpoints_dead(existing_endpoints_set)) {
+					existing_endpoints_set.clear();
+					m_callback(DESTROY_HANDLE, service_name, handle_name, existing_endpoints_set);
+				}
+				else {
+					if (!sets_equal) {
+						m_callback(UPDATE_HANDLE, service_name, handle_name, main_table_handle_it->second);
+					}
 				}
 			}
 		}
@@ -300,14 +322,15 @@ overseer_t::check_for_timedout_hosts(ev::timer& timer, int type) {
 				updated_endpoints_set.insert(endpoint);
 			}
 
-			if (some_endpoints_timed_out && all_endpoints_dead(updated_endpoints_set) && m_callback) {
+			assert(m_callback);
+			
+			if (some_endpoints_timed_out && all_endpoints_dead(updated_endpoints_set)) {
 				endpoints_set.clear();
-				endpoints_set.insert(updated_endpoints_set.begin(), updated_endpoints_set.end());
-
-				endpoints_set_t empty_set;
-				m_callback(DESTROY_HANDLE, service_name, handle_name, empty_set);
+				m_callback(DESTROY_HANDLE, service_name, handle_name, endpoints_set);
+				continue;
 			}
-			else if (some_endpoints_timed_out && m_callback) {
+
+			if (some_endpoints_timed_out) {
 				bool sets_equal = endpoints_set_equal(endpoints_set, updated_endpoints_set);
 				endpoints_set.clear();
 				endpoints_set.insert(updated_endpoints_set.begin(), updated_endpoints_set.end());
@@ -358,10 +381,6 @@ overseer_t::service_from_table(routing_table_t& routing_table,
 
 bool
 overseer_t::endpoints_set_equal(const endpoints_set_t& lhs, const endpoints_set_t& rhs) {
-	if (lhs != rhs) {
-		return false;
-	}
-
 	endpoints_set_t::iterator it = lhs.begin();
 	for (; it != lhs.end(); ++it) {
 		endpoints_set_t::iterator it2 = rhs.find(*it);
@@ -637,6 +656,7 @@ overseer_t::connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >&
 
 	for (; it != hosts.end(); ++it) {
 		const std::string& service_name = it->first;
+
 		std::set<inetv4_endpoint_t> service_hosts = it->second;
 		shared_socket_t sock = m_sockets[service_name];
 
@@ -728,24 +748,32 @@ overseer_t::fetch_hosts(std::map<std::string, std::set<inetv4_endpoint_t> >& new
 				std::set<inetv4_endpoint_t>& cached_hosts = get_cached_hosts_for_service(service_info.name);
 				std::set<inetv4_endpoint_t>::iterator it;
 
-				// check for missing endpoints
-				std::set<inetv4_endpoint_t> missing_hosts;
-
-				for (it = cached_hosts.begin(); it != cached_hosts.end(); ++it) {
-					std::set<inetv4_endpoint_t>::iterator it2 = fetched_hosts.find(*it);
-					if (it2 == fetched_hosts.end()) {
-						missing_hosts.insert(*it);
-					}
-				}
-
 				// check for new endpoints
-				std::set<inetv4_endpoint_t> new_hosts;
+				std::set<inetv4_endpoint_t> new_hosts_for_service;
 
 				for (it = fetched_hosts.begin(); it != fetched_hosts.end(); ++it) {
 					std::set<inetv4_endpoint_t>::iterator it2 = cached_hosts.find(*it);
 					if (it2 == cached_hosts.end()) {
-						new_hosts.insert(*it);
+						new_hosts_for_service.insert(*it);
 					}
+				}
+
+				if (!new_hosts_for_service.empty()) {
+					new_hosts[service_info.name] = new_hosts_for_service;
+				}
+
+				// check for missing endpoints
+				std::set<inetv4_endpoint_t> missing_hosts_for_service;
+
+				for (it = cached_hosts.begin(); it != cached_hosts.end(); ++it) {
+					std::set<inetv4_endpoint_t>::iterator it2 = fetched_hosts.find(*it);
+					if (it2 == fetched_hosts.end()) {
+						missing_hosts_for_service.insert(*it);
+					}
+				}
+
+				if (!missing_hosts_for_service.empty()) {
+					missing_hosts[service_info.name] = missing_hosts_for_service;
 				}
 
 				// store fetched hosts

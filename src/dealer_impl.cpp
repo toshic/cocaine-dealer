@@ -142,17 +142,14 @@ dealer_impl_t::process_overseer_event(e_overseer_event event_type,
 
 		switch (event_type) {
 			case CREATE_HANDLE:
-				std::cout << "CREATE_HANDLE\n";
 				service->create_handle(info, endpoints);
 				break;
 
 			case UPDATE_HANDLE:
-				std::cout << "UPDATE_HANDLE\n";
 				service->update_handle(info, endpoints);
 				break;
 
 			case DESTROY_HANDLE:
-				std::cout << "DESTROY_HANDLE\n";
 				service->destroy_handle(info);
 				break;
 		}
