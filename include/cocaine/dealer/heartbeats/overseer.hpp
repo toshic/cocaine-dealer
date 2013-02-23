@@ -97,6 +97,7 @@ private:
 
 	void create_sockets();
 	void connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& hosts);
+	void disconnect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& hosts);
 	void kill_sockets();
 
 	void read_from_sockets(std::map<std::string, std::vector<announce_t> >& responces);

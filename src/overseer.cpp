@@ -165,7 +165,7 @@ overseer_t::fetch_and_process_hosts(ev::timer& watcher, int type) {
 	fetch_hosts(new_hosts, missing_hosts);
 
 	connect_sockets(new_hosts);
-	//dicsonnect_sockets(missing_hosts);
+	disconnect_sockets(missing_hosts);
 }
 
 void
@@ -648,6 +648,40 @@ overseer_t::connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >&
 				}
 				catch (const std::exception& ex) {
 					log_error("overseer - could not connect socket for service %s, details: %s",
+							  service_name.c_str(),
+							  ex.what());
+				}
+			}
+		}
+		else {
+			log_error("overseer - invalid socket for service %s",
+					  it->first.c_str());
+		}
+	}
+}
+
+void
+overseer_t::disconnect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& hosts) {
+	if (hosts.empty()) {
+		return;
+	}
+
+	std::map<std::string, std::set<inetv4_endpoint_t> >::iterator it;
+	it = hosts.begin();
+
+	for (; it != hosts.end(); ++it) {
+		const std::string& service_name = it->first;
+		std::set<inetv4_endpoint_t> service_hosts = it->second;
+		shared_socket_t sock = m_sockets[service_name];
+
+		if (sock) {
+			std::set<inetv4_endpoint_t>::iterator host_it = service_hosts.begin();
+			for (; host_it != service_hosts.end(); ++host_it) {
+				try {
+					sock->disconnect(*host_it);
+				}
+				catch (const std::exception& ex) {
+					log_error("overseer - could not disconnect socket for service %s, details: %s",
 							  service_name.c_str(),
 							  ex.what());
 				}
