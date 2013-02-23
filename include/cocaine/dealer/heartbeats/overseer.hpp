@@ -90,7 +90,8 @@ private:
 	typedef boost::shared_ptr<hosts_fetcher_iface> hosts_fetcher_ptr;
 	typedef boost::shared_ptr<socket_t> shared_socket_t;
 
-	bool fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >& new_endpoints);
+	bool fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >& new_hosts,
+						 std::map<std::string, std::set<inetv4_endpoint_t> >& missing_hosts);
 
 	void create_sockets();
 	void connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& new_endpoints);
@@ -133,11 +134,10 @@ private:
 private:
 	typedef boost::shared_ptr<ev::io> 	shared_ev_io_t;
 	typedef std::set<inetv4_endpoint_t> inetv4_endpoints_t;
-	typedef std::set<std::string>		plain_endpoints_t;
 
-	// <service, endpoints>
-	std::map<std::string, inetv4_endpoints_t>	m_endpoints;
-	std::vector<hosts_fetcher_ptr>				m_endpoints_fetchers;
+	// <service, hosts>
+	std::map<std::string, inetv4_endpoints_t>	m_service_hosts;
+	std::vector<hosts_fetcher_ptr>				m_hosts_fetchers;
 
 	// <service, socket>
 	std::map<std::string, shared_socket_t>		m_sockets;

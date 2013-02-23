@@ -38,6 +38,23 @@ Package: libcocaine-dealer-dev
 Architecture: any
 Section: libdevel
 Depends:
+ cdbs,
+ cmake,
+ build-essential,
+ devscripts,
+ debhelper (>= 7.0.13),
+ libzmq-dev (>= 2.2.0+yandex1),
+ libmsgpack-dev,
+ uuid-dev,
+ libssl-dev,
+ libcurl4-dev | libcurl4-openssl-dev,
+ eblob,
+ libev-dev,
+ libboost-dev,
+ libboost-thread-dev,
+ libboost-system-dev,
+ libboost-regex-dev,
+ libboost-program-options-dev,
  libcocaine-dealer1 (= ${Source-Version})
 Description: Cocaine - Dealer Development Files
  Files needed to use Cocaine Dealer in development.

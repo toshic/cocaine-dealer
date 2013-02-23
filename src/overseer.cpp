@@ -69,7 +69,7 @@ overseer_t::run() {
 			}
 		}
 
-		m_endpoints_fetchers.push_back(fetcher);
+		m_hosts_fetchers.push_back(fetcher);
 	}
 
 	reset_routing_table(m_routing_table);
@@ -77,9 +77,11 @@ overseer_t::run() {
 	// init
 	create_sockets();
 
-	std::map<std::string, std::set<inetv4_endpoint_t> > new_endpoints;
-	fetch_endpoints(new_endpoints);
-	connect_sockets(new_endpoints);
+	std::map<std::string, std::set<inetv4_endpoint_t> > new_hosts;
+	std::map<std::string, std::set<inetv4_endpoint_t> > missing_hosts;
+
+	fetch_endpoints(new_hosts, missing_hosts);
+	connect_sockets(new_hosts);
 
 	// fetch endpoints every 15 secs
 	ev::dynamic_loop& loop = context()->event_loop();
@@ -113,8 +115,8 @@ overseer_t::stop() {
 
 	kill_sockets();
 
-	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
-		m_endpoints_fetchers[i].reset();
+	for (size_t i = 0; i < m_hosts_fetchers.size(); ++i) {
+		m_hosts_fetchers[i].reset();
 	}
 
 	log_debug("overseer — stopped.");
@@ -142,9 +144,9 @@ overseer_t::reset_routing_table(routing_table_t& routing_table) {
 void
 overseer_t::print_all_fetched_endpoints() {
 	std::map<std::string, std::set<inetv4_endpoint_t> >::iterator it;
-	it = m_endpoints.begin();
+	it = m_service_hosts.begin();
 
-	for (; it != m_endpoints.end(); ++it) {
+	for (; it != m_service_hosts.end(); ++it) {
 		std::cout << "service: " << it->first << std::endl;
 
 		std::set<inetv4_endpoint_t>::iterator its;
@@ -158,15 +160,16 @@ overseer_t::print_all_fetched_endpoints() {
 
 void
 overseer_t::fetch_and_process_endpoints(ev::timer& watcher, int type) {
-	std::map<std::string, std::set<inetv4_endpoint_t> > new_endpoints;
-	bool found_missing_endpoints = fetch_endpoints(new_endpoints);
+	std::map<std::string, std::set<inetv4_endpoint_t> > new_hosts;
+	std::map<std::string, std::set<inetv4_endpoint_t> > missing_hosts;
+	bool found_missing_endpoints = fetch_endpoints(new_hosts, missing_hosts);
 
 	// if (found_missing_endpoints) {
 	// 	kill_sockets();
 	// 	create_sockets();
 	// }
 
-	connect_sockets(new_endpoints);
+	connect_sockets(new_hosts);
 }
 
 void
@@ -539,10 +542,8 @@ void
 overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& responces) {
 	std::map<std::string, shared_socket_t>::iterator it = m_sockets.begin();
 	for (; it != m_sockets.end(); ++it) {
-		std::string service_name = it->first;
-
-		std::set<inetv4_endpoint_t>& service_endpoints = m_endpoints[service_name];
-		shared_socket_t sock = m_sockets[it->first];
+		const std::string& service_name = it->first;
+		shared_socket_t& sock = m_sockets[it->first];
 
 		if (!sock) {
 			log_error("overseer is terribly broken! bad socket for service %s, can't read from socket",
@@ -667,33 +668,37 @@ overseer_t::connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >&
 }
 
 bool
-overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >& new_endpoints) {
+overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >& new_hosts,
+							std::map<std::string, std::set<inetv4_endpoint_t> >& missing_hosts)
+{
+	return false;
+	/*
 	bool found_missing_endpoints = false;
 
 	// for each hosts fetcher
-	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
-		hosts_fetcher_iface::inetv4_endpoints_t endpoints;
+	for (size_t i = 0; i < m_hosts_fetchers.size(); ++i) {
+		hosts_fetcher_iface::inetv4_endpoints_t fetched_hosts;
 		service_info_t service_info;
 
 		try {
 			// get service endpoints list
-			if (m_endpoints_fetchers[i]->get_hosts(endpoints, service_info)) {
-				if (endpoints.empty()) {
-					std::string error_msg = "overseer - fetcher returned no endpoints for service %s";
+			if (m_hosts_fetchers[i]->get_hosts(fetched_hosts, service_info)) {
+				if (fetched_hosts.empty()) {
+					std::string error_msg = "overseer - fetcher returned no hosts for service %s";
 					log_error(error_msg.c_str(), service_info.name.c_str());
 					continue;
 				}
 
 				// get storage for endpoints
 				std::map<std::string, std::set<inetv4_endpoint_t> >::iterator it;
-				it = m_endpoints.find(service_info.name);
+				it = m_service_hosts.find(service_info.name);
 
-				if (it == m_endpoints.end()) {
+				if (it == m_service_hosts.end()) {
 					std::set<inetv4_endpoint_t> new_set;
-					m_endpoints[service_info.name] = new_set;
+					m_service_hosts[service_info.name] = new_set;
 				}
 
-				std::set<inetv4_endpoint_t>& service_endpoints = m_endpoints[service_info.name];
+				std::set<inetv4_endpoint_t>& service_endpoints = m_service_hosts[service_info.name];
 				std::set<inetv4_endpoint_t> new_service_endpoints;
 
 				// update endpoints with default values
@@ -710,18 +715,19 @@ overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >&
 				}
 
 				// check for missing endpoints
-				// std::set<inetv4_endpoint_t>::iterator ite = service_endpoints.begin();
-				// for (; ite != service_endpoints.end(); ++ite) {
-				// 	std::set<inetv4_endpoint_t>::iterator nit = new_service_endpoints.find(*ite);
-				// 	if (nit == new_service_endpoints.end()) {
-				// 		found_missing_endpoints = true;
-				// 		break;
-				// 	}
-				// }
+				std::set<inetv4_endpoint_t> missing_hosts_set;
 
-				std::set<inetv4_endpoint_t> new_enpoints_set;
+				std::set<inetv4_endpoint_t>::iterator ite = service_endpoints.begin();
+				for (; ite != service_endpoints.end(); ++ite) {
+					std::set<inetv4_endpoint_t>::iterator nit = new_service_hosts.find(*ite);
+					if (nit == new_service_endpoints.end()) {
+						missing_hosts_set.insert(*ite);
+					}
+				}
 
 				// check for new endpoints
+				std::set<inetv4_endpoint_t> new_hosts_set;
+
 				std::set<inetv4_endpoint_t>::iterator ite = new_service_endpoints.begin();
 				for (; ite != new_service_endpoints.end(); ++ite) {
 					std::set<inetv4_endpoint_t>::iterator nit = service_endpoints.find(*ite);
@@ -749,6 +755,7 @@ overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >&
 	}
 
 	return found_missing_endpoints;
+	*/
 }
 
 } // namespace dealer
