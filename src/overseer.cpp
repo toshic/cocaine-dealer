@@ -699,37 +699,33 @@ overseer_t::fetch_endpoints(std::map<std::string, std::set<inetv4_endpoint_t> >&
 				}
 
 				std::set<inetv4_endpoint_t>& cached_hosts = get_cached_hosts_for_service(service_info.name);
+				std::set<inetv4_endpoint_t>::iterator it;
 
-				/*
 				// check for missing endpoints
-				std::set<inetv4_endpoint_t> missing_hosts_set;
+				std::set<inetv4_endpoint_t> missing_hosts;
 
-				std::set<inetv4_endpoint_t>::iterator ite = service_endpoints.begin();
-				for (; ite != service_endpoints.end(); ++ite) {
-					std::set<inetv4_endpoint_t>::iterator nit = new_service_hosts.find(*ite);
-					if (nit == new_service_endpoints.end()) {
-						missing_hosts_set.insert(*ite);
+				for (it = cached_hosts.begin(); it != cached_hosts.end(); ++it) {
+					std::set<inetv4_endpoint_t>::iterator it2 = fetched_hosts.find(*it);
+					if (it2 == fetched_hosts.end()) {
+						missing_hosts.insert(*it);
 					}
 				}
 
 				// check for new endpoints
-				std::set<inetv4_endpoint_t> new_hosts_set;
+				std::set<inetv4_endpoint_t> new_hosts;
 
-				std::set<inetv4_endpoint_t>::iterator ite = new_service_endpoints.begin();
-				for (; ite != new_service_endpoints.end(); ++ite) {
-					std::set<inetv4_endpoint_t>::iterator nit = service_endpoints.find(*ite);
-					if (nit == service_endpoints.end()) {
-						new_enpoints_set.insert(*ite);
+				for (it = fetched_hosts.begin(); it != fetched_hosts.end(); ++it) {
+					std::set<inetv4_endpoint_t>::iterator it2 = cached_hosts.find(*it);
+					if (it2 == cached_hosts.end()) {
+						new_hosts.insert(*it);
 					}
 				}
 
-				if (!new_enpoints_set.empty()) {
-					new_endpoints[service_info.name] = new_enpoints_set;
+				// store fetched hosts
+				if (!fetched_hosts.empty()) {
+					cached_hosts.clear();
+					cached_hosts.insert(fetched_hosts.begin(), fetched_hosts.end());
 				}
-				
-				service_endpoints.clear();
-				service_endpoints.insert(new_service_endpoints.begin(), new_service_endpoints.end());
-				*/
 			}
 		}
 		catch (const std::exception& ex) {
