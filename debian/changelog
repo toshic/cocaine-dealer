@@ -1,3 +1,11 @@
+cocaine-dealer (0.9.17) lucid; urgency=low
+
+  * memory leaks in overseer
+  * proper routing table updates in overseer
+  * proper endpoints handling in balancer
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Sun, 24 Feb 2013 03:48:11 +0300
+
 cocaine-dealer (0.9.16) lucid; urgency=low
 
   * dealer operated by one thread and one global event loop, fully async model
