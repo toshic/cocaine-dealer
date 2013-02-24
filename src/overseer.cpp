@@ -186,10 +186,14 @@ overseer_t::request(ev::io& watcher, int type) {
 	std::map<std::string, cocaine_node_list_t> parsed_responses;
 	parse_responces(responces, parsed_responses);
 
+	responces.clear();
+
 	// get update
 	routing_table_t routing_table_update;
 	reset_routing_table(routing_table_update);
 	routing_table_from_responces(parsed_responses, routing_table_update);
+
+	parsed_responses.clear();
 
 	// merge update with routing table, gen create/update handle events
 	update_main_routing_table(routing_table_update);

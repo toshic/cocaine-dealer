@@ -86,11 +86,13 @@ public:
 				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
 			}
 
+			root.clear();
+
 			return false;
 		}
 	
 		// parse apps
-		const Json::Value apps = root["apps"];
+		const Json::Value& apps = root["apps"];
 		if (!apps.isObject() || !apps.size()) {
 
 			if (log_enabled(PLOG_WARNING)) {
@@ -98,6 +100,7 @@ public:
 				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
 			}
 
+			root.clear();
 			return false;
 		}
 
@@ -116,7 +119,7 @@ public:
 	    }
 
 	    // parse remaining properties
-	    const Json::Value jobs_props = root["jobs"];
+	    const Json::Value& jobs_props = root["jobs"];
 	    if (!jobs_props.isObject()) {
 
 	    	if (log_enabled(PLOG_WARNING)) {
@@ -134,6 +137,8 @@ public:
 		node_info.ip_address = m_node_ip_address;
 		node_info.port = m_node_port;
 
+		root.clear();
+		
 		return true;
 	}
 
@@ -197,7 +202,7 @@ private:
 			app_info.status = APP_STATUS_UNKNOWN;
 		}
 
-		const Json::Value slaves_props = json_app_data["slaves"];
+		const Json::Value& slaves_props = json_app_data["slaves"];
 	    if (!slaves_props.isObject()) {
 
 	    	if (log_enabled(PLOG_WARNING)) {
