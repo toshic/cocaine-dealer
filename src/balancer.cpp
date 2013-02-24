@@ -124,9 +124,8 @@ void
 balancer_t::update_endpoints(const std::set<cocaine_endpoint_t>& updated_endpoints,
 							 std::set<cocaine_endpoint_t>& missing_endpoints)
 {
-	//static bool display_missing = true;
 	static const double delta = 0.00001;
-	//static bool display_new = true;
+	std::set<cocaine_endpoint_t> new_endpoints;
 
 	// get missing endpoints
 	std::set<cocaine_endpoint_t>::iterator curr_it = m_endpoints.begin();
@@ -136,45 +135,33 @@ balancer_t::update_endpoints(const std::set<cocaine_endpoint_t>& updated_endpoin
 		
 		if (upd_it != updated_endpoints.end()) {
 			if (curr_it->weight > delta && upd_it->weight < delta) {
-				std::string connection_str = upd_it->endpoint;
 				missing_endpoints.insert(*upd_it);
-
-				// if (display_missing) {
-				// 	log(PLOG_DEBUG, "disconnected %s from endpoints: ", m_socket_identity.c_str());
-				// 	display_missing = false;
-				// }
-
-				// log(PLOG_DEBUG, connection_str);
+			}
+		}
+		else {
+			if (curr_it->weight > delta) {
+				missing_endpoints.insert(*upd_it);
 			}
 		}
 	}
 
-	//display_missing = true;
-	
 	// get new endpoints
-	std::set<cocaine_endpoint_t> new_endpoints;
 	std::set<cocaine_endpoint_t>::iterator upd_it = updated_endpoints.begin();
 	for (; upd_it != updated_endpoints.end(); ++upd_it) {
-
+	
 		std::set<cocaine_endpoint_t>::iterator curr_it = m_endpoints.find(*upd_it);
-		std::string connection_str = upd_it->endpoint;
 
-		if (curr_it == m_endpoints.end()) {
-			new_endpoints.insert(*upd_it);
+		if (curr_it != m_endpoints.end()) {
+		 	if (curr_it->weight < delta && upd_it->weight > delta) {
+				new_endpoints.insert(*upd_it);
+			}
 		}
-		// else {
-		// 	if (curr_it->weight < delta && upd_it->weight > delta) {
-		// 		if (display_new) {
-		// 			log(PLOG_DEBUG, "connected %s to endpoints: ", m_socket_identity.c_str());
-		// 			display_new = false;
-		// 		}
-
-		// 		log(PLOG_DEBUG, connection_str);
-		// 	}
-		// }
+		else {
+			if (upd_it->weight > delta) {
+				new_endpoints.insert(*upd_it);
+			}	
+		}
 	}
-
-	//display_new = true;
 
 	// replace current endpoints data
 	m_endpoints.clear();

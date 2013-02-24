@@ -397,8 +397,6 @@ message_cache_t::log_stats() {
 		return;
 	}
 
-	log(PLOG_DEBUG, "new messages: %d", m_new_messages->size());
-
 	route_sent_messages_map_t::iterator it = m_sent_messages.begin();
 	for (; it != m_sent_messages.end(); ++it) {
 		sent_messages_map_t& msg_map = it->second;

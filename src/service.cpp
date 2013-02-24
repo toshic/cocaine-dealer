@@ -231,7 +231,6 @@ service_t::append_to_unhandled(const std::string& handle_name,
 	assert(handle_queue);
 
 	if (handle_queue->empty()) {
-		log_debug("handle_queue->empty()");
 		return;
 	}
 
@@ -364,17 +363,13 @@ service_t::destroy_handle(const handle_info_t& info) {
 
 	boost::shared_ptr<message_cache_t> mcache = handle->messages_cache();
 	
-	log_debug("messages cache - start");
 	//mcache->log_stats();
 
 	mcache->make_all_messages_new();
 
-	log_debug("messages cache - end");
 	mcache->log_stats();
 
 	const shared_messages_deque_t& handle_queue = mcache->new_messages();
-	
-	log_debug("handle_queue size: %d", handle_queue->size());
 
 	append_to_unhandled(info.name, handle_queue);
 
