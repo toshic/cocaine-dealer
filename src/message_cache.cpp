@@ -330,7 +330,7 @@ message_cache_t::make_all_messages_new_for_route(const std::string& route) {
 
 		mit->second->mark_as_sent(false);
 		mit->second->set_ack_received(false);
-		m_new_messages->push_front(mit->second);
+		m_new_messages->push_back(mit->second);
 	}
 
 	msg_map.clear();
