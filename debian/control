@@ -29,8 +29,8 @@ Architecture: any
 Depends:
  ${shlibs:Depends},
  ${misc:Depends}
-Provides: libcocaine-dealer
-Replaces: libcocaine-dealer
+Provides: libcocaine-dealer1
+Replaces: libcocaine-dealer1
 Description: Cocaine - Dealer
  Cocaine scheduler and persistent transport.
 
@@ -38,6 +38,8 @@ Package: libcocaine-dealer-dev
 Architecture: any
 Section: libdevel
 Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
  cdbs,
  cmake,
  build-essential,
