@@ -55,12 +55,25 @@ public:
 		ip(nutils::str_to_ipv4(ip_)), hostname(hostname_) {
 	}
 
+	inetv4_host_t& operator = (const inetv4_host_t& rhs) {
+		if (*this != rhs) {
+			ip = rhs.ip;
+			hostname = rhs.hostname;
+		}
+
+		return *this;
+	}
+
 	bool operator == (const inetv4_host_t& rhs) const {
 		return (ip == rhs.ip);
 	}
 
 	bool operator != (const inetv4_host_t& rhs) const {
 		return (!(*this == rhs));
+	}
+
+	bool operator < (const inetv4_host_t& rhs) const {
+		return (ip < rhs.ip);
 	}
 
 	std::string as_string() const {

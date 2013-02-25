@@ -75,20 +75,14 @@ overseer_t::run() {
 	reset_routing_table(m_routing_table);
 
 	// init
-	create_sockets();
-
-	std::map<std::string, std::set<inetv4_endpoint_t> > new_hosts;
-	std::map<std::string, std::set<inetv4_endpoint_t> > missing_hosts;
-
-	fetch_hosts(new_hosts, missing_hosts);
-	connect_sockets(new_hosts);
+	create_socket();
 
 	// fetch endpoints every 15 secs
 	ev::dynamic_loop& loop = context()->event_loop();
 
 	m_fetcher_timer.reset(new ev::timer(loop));
 	m_fetcher_timer->set<overseer_t, &overseer_t::fetch_and_process_hosts>(this);
-	m_fetcher_timer->start(15, 15);
+	m_fetcher_timer->start(0, 15);
 
 	m_timeout_timer.reset(new ev::timer(loop));
 	m_timeout_timer->set<overseer_t, &overseer_t::check_for_timedout_hosts>(this);
@@ -108,12 +102,11 @@ overseer_t::stop() {
 		m_timeout_timer.reset();
 	}
 
-	for (size_t i = 0; i < m_watchers.size(); ++i) {
-		m_watchers[i]->stop();
-	}
-	m_watchers.clear();
+	
+	m_watcher->stop();
+	m_watcher.reset();
 
-	kill_sockets();
+	kill_socket();
 
 	for (size_t i = 0; i < m_hosts_fetchers.size(); ++i) {
 		m_hosts_fetchers[i].reset();
@@ -164,8 +157,17 @@ overseer_t::fetch_and_process_hosts(ev::timer& watcher, int type) {
 	std::map<std::string, std::set<inetv4_endpoint_t> > missing_hosts;
 	fetch_hosts(new_hosts, missing_hosts);
 
-	connect_sockets(new_hosts);
-	disconnect_sockets(missing_hosts);
+	// collect all hosts for all services
+	std::set<inetv4_endpoint_t> hosts;
+	std::map<std::string, std::set<inetv4_endpoint_t> >::iterator it;
+	it = new_hosts.begin();
+
+	for (; it != new_hosts.end(); ++it) {
+		hosts.insert(it->second.begin(), it->second.end());
+	}
+
+	connect_socket(hosts);
+	//disconnect_socket(missing_hosts);
 }
 
 void
@@ -175,17 +177,16 @@ overseer_t::request(ev::io& watcher, int type) {
 	}
 
 	progress_timer t;
-	std::map<std::string, std::vector<announce_t> > responces;
-	read_from_sockets(responces);
+	std::vector<announce_t> responces;
+	read_from_socket(responces);
 
 	if (responces.size() == 0) {
 		return;
 	}
 
 	// parse nodes responses
-	std::map<std::string, cocaine_node_list_t> parsed_responses;
+	std::map<inetv4_host_t, cocaine_node_info_t> parsed_responses;
 	parse_responces(responces, parsed_responses);
-
 	responces.clear();
 
 	// get update
@@ -398,16 +399,121 @@ overseer_t::endpoints_set_equal(const endpoints_set_t& lhs, const endpoints_set_
 }
 
 void
-overseer_t::routing_table_from_responces(const std::map<std::string, cocaine_node_list_t>& parsed_responses,
+overseer_t::routing_table_from_responces(const std::map<inetv4_host_t, cocaine_node_info_t>& parsed_responses,
 										 routing_table_t& routing_table)
 {
 	const std::map<std::string, service_info_t>& services_list = config()->services_list();
+	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
+
+	for (; it != services_list.end(); ++it) {
+		const std::string& service_name = it->first;
+		const service_info_t& service_info = it->second;
+
+		std::set<inetv4_endpoint_t> endpoints = get_cached_hosts_for_service(service_name);
+		std::set<inetv4_endpoint_t>::iterator ite = endpoints.begin();
+
+		for (; ite != endpoints.end(); ++ite) {
+			std::map<inetv4_host_t, cocaine_node_info_t>::const_iterator host_response_it;
+			host_response_it = parsed_responses.find(ite->host);
+
+			if (host_response_it != parsed_responses.end()) {
+				const cocaine_node_info_t& cocaine_host_info = host_response_it->second;
+				update_routing_table_from_host_info(service_name, service_info, cocaine_host_info, routing_table);
+			}
+		}
+	}
+}
+
+void
+overseer_t::update_routing_table_from_host_info(const std::string& service_name,
+												const service_info_t& service_info,
+												const cocaine_node_info_t& cocaine_host_info,
+												routing_table_t& routing_table)
+{
+	const std::string& app_name = service_info.app;
+	cocaine_node_app_info_t app;
+	if (!cocaine_host_info.app_by_name(app_name, app)) {
+		return;
+	}
+
+	// verify app tasks
+	std::string app_info_at_host = "overseer — service: " + service_name + ", app: ";
+	app_info_at_host += app_name + " at host: " + cocaine_host_info.host.as_string();
+
+	if (app.tasks.size() == 0) {
+		log_warning(app_info_at_host + " has no tasks!");
+		return;
+	}
+
+	int weight = 0;
+
+	// verify app status
+	switch (app.status) {
+		case APP_STATUS_UNKNOWN:
+			log_error(app_info_at_host + " has unknown status!");
+			return;
+
+		case APP_STATUS_RUNNING:
+			weight = 1;
+			break;
+
+		case APP_STATUS_STOPPING:
+			weight = 0;
+			break;
+
+		case APP_STATUS_STOPPED:
+			log_warning(app_info_at_host + " is stopped!");
+			return;
+
+		case APP_STATUS_BROKEN:
+			log_warning(app_info_at_host + " is broken!");
+			return;
+
+		default:
+			log_error(app_info_at_host + " has undefined status!");
+			return;
+	}
+
+	// insert endpoints into routing table
+	cocaine_node_app_info_t::application_tasks::const_iterator task_it;
+	task_it = app.tasks.begin();
+
+	for (; task_it != app.tasks.end(); ++task_it) {
+		std::string handle_name = task_it->second.name;
+
+		// create endpoint
+		cocaine_endpoint_t endpoint(task_it->second.endpoint,
+									task_it->second.route,
+									weight);
+
+		// find specific service->handle routing table:
+		// first, find service
+		routing_table_t::iterator rit;
+		if (!service_from_table(routing_table, service_name, rit)) {
+			continue;
+		}
+
+		// secondly find handle
+		handle_endpoints_t& handle_endpoints = rit->second;
+		handle_endpoints_t::iterator hit = handle_endpoints.find(handle_name);
+
+		if (hit == handle_endpoints.end()) {
+			endpoints_set_t endpoints_set;
+			endpoints_set.insert(endpoint);
+			handle_endpoints[handle_name] = endpoints_set;
+		}
+		else {
+			hit->second.insert(endpoint);
+		}
+	}
+
+	/*
 	std::map<std::string, cocaine_node_list_t>::const_iterator it = parsed_responses.begin();
 
 	// for each <service / nodes list>
 	for (; it != parsed_responses.end(); ++it) {
 		std::string 		service_name;
-		std::string			app_name;
+		
 		handle_endpoints_t	handle_endpoints;
 
 		{
@@ -433,7 +539,7 @@ overseer_t::routing_table_from_responces(const std::map<std::string, cocaine_nod
 
 			// verify app tasks
 			std::string app_info_at_host = "overseer — service: " + service_name + ", app: ";
-			app_info_at_host += app_name + " at host: " + service_node_list[i].hostname;
+			app_info_at_host += app_name + " at host: " + service_node_list[i].host.hostname;
 
 			if (app.tasks.size() == 0) {
 				log_warning(app_info_at_host + " has no tasks!");
@@ -506,6 +612,7 @@ overseer_t::routing_table_from_responces(const std::map<std::string, cocaine_nod
 			}
 		}
 	}
+	*/
 }
 
 void
@@ -531,189 +638,130 @@ overseer_t::print_routing_table() {
 }
 
 void
-overseer_t::parse_responces(const std::map<std::string, std::vector<announce_t> >& responces,
-							std::map<std::string, cocaine_node_list_t>& parsed_responses)
+overseer_t::parse_responces(const std::vector<announce_t>& responces,
+							std::map<inetv4_host_t, cocaine_node_info_t>& parsed_responses)
 {
-	std::map<std::string, std::vector<announce_t> >::const_iterator it = responces.begin();
+	for (size_t i = 0; i < responces.size(); ++i) {
+		cocaine_node_info_t node_info;
+		cocaine_node_info_parser_t parser(context());
 
-	for (; it != responces.end(); ++it) {
-		std::vector<cocaine_node_info_t> parsed_nodes_for_service;
-
-		for (size_t i = 0; i < it->second.size(); ++i) {
-			cocaine_node_info_t node_info;
-			cocaine_node_info_parser_t parser(context());
-
-			if (!parser.parse(it->second[i].info, node_info)) {
-				continue;
-			}
-
-			node_info.hostname = it->second[i].hostname;
-			parsed_nodes_for_service.push_back(node_info);
-		}
-
-		if (!parsed_nodes_for_service.empty()) {
-			parsed_responses[it->first] = parsed_nodes_for_service;
-		}
-	}
-}
-
-void
-overseer_t::read_from_sockets(std::map<std::string, std::vector<announce_t> >& responces) {
-	std::map<std::string, shared_socket_t>::iterator it = m_sockets.begin();
-	for (; it != m_sockets.end(); ++it) {
-		const std::string& service_name = it->first;
-		shared_socket_t& sock = m_sockets[it->first];
-
-		if (!sock) {
-			log_error("overseer is terribly broken! bad socket for service %s, can't read from socket",
-					  service_name.c_str());
+		if (!parser.parse(responces[i].info, node_info)) {
 			continue;
 		}
 
-		std::vector<announce_t> socket_responces;
+		parsed_responses[responces[i].host] = node_info;
+	}
+}
+
+void
+overseer_t::read_from_socket(std::vector<announce_t>& responces) {
+	if (!m_socket) {
+		log_error("overseer is terribly broken! can't read from bad socket");
+		return;
+	}
 		
-		while (true) {
-			announce_t		announce;
-			zmq::message_t	reply;
+	while (true) {
+		announce_t		announce;
+		std::string		host_str;
+		zmq::message_t	reply;
 
-			if (sock->recv(&reply, ZMQ_NOBLOCK)) {
-				announce.hostname = std::string(static_cast<char*>(reply.data()), reply.size());
-			}
-			else {
-				break;
-			}
-
-			if (sock->recv(&reply, ZMQ_NOBLOCK)) {
-				announce.info = std::string(static_cast<char*>(reply.data()), reply.size());
-			}
-			else {
-				break;
-			}
-
-			if (!announce.hostname.empty() && !announce.info.empty()) {
-				socket_responces.push_back(announce);
-			}
-
-			sock->drop();
+		if (m_socket->recv(&reply, ZMQ_NOBLOCK)) {
+			host_str = std::string(static_cast<char*>(reply.data()), reply.size());
+		}
+		else {
+			break;
 		}
 
-		if (!socket_responces.empty()) {
-			responces[service_name] = socket_responces;
+		if (m_socket->recv(&reply, ZMQ_NOBLOCK)) {
+			announce.info = std::string(static_cast<char*>(reply.data()), reply.size());
 		}
+		else {
+			break;
+		}
+
+		if (!host_str.empty() && !announce.info.empty()) {
+			inetv4_endpoint_t endpoint(host_str);
+			announce.host = endpoint.host;
+			responces.push_back(announce);
+		}
+
+		m_socket->drop();
 	}
 }
 
 void
-overseer_t::create_sockets() {
-	const std::map<std::string, service_info_t>& services_list = config()->services_list();
-	std::map<std::string, service_info_t>::const_iterator it = services_list.begin();
-	
-	ev::dynamic_loop& loop = context()->event_loop();
+overseer_t::create_socket() {
+	m_socket.reset(new socket_t(context(), ZMQ_SUB));
+	m_socket->set_linger(0);
+	m_socket->set_identity("overseer_", true);
+	m_socket->subscribe();
 
-	for (; it != services_list.end(); ++it) {
-		const std::string& service_name = it->second.name;
-
-		shared_socket_t sock(new socket_t(context(), ZMQ_SUB));
-		sock->set_linger(0);
-		sock->set_identity("[" + service_name + "]_overseer_", true);
-		sock->subscribe();
-
-		m_sockets[service_name] = sock;
-
-		//create watcher
-		if (sock->fd()) {
-			overseer_t::shared_ev_io_t watcher(new ev::io(loop));
-			watcher->set<overseer_t, &overseer_t::request>(this);
-			watcher->start(sock->fd(), ev::READ);
-			m_watchers.push_back(watcher);
-		}
+	if (m_socket->fd()) {
+		ev::dynamic_loop& loop = context()->event_loop();
+		m_watcher.reset(new ev::io(loop));
+		m_watcher->set<overseer_t, &overseer_t::request>(this);
+		m_watcher->start(m_socket->fd(), ev::READ);
+	}
+	else {
+		log_error("overseer - could create socket");
 	}
 }
 
 void
-overseer_t::kill_sockets() {
-	//std::cout << "kill_sockets\n";
-	std::map<std::string, shared_socket_t>::iterator it = m_sockets.begin();
-	
-	// create sockets
-	for (; it != m_sockets.end(); ++it) {
-		it->second.reset();
-	}
-
-	m_sockets.clear();
-
-	for (size_t i = 0; i < m_watchers.size(); ++i) {
-		m_watchers[i]->stop();
-	}
-
-	m_watchers.clear();
+overseer_t::kill_socket() {
+	m_socket.reset();
+	m_watcher->stop();
+	m_watcher.reset();
 }
 
 void
-overseer_t::connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& hosts) {
+overseer_t::connect_socket(std::set<inetv4_endpoint_t>& hosts) {
 	if (hosts.empty()) {
 		return;
 	}
 
-	std::map<std::string, std::set<inetv4_endpoint_t> >::iterator it;
-	it = hosts.begin();
+	std::set<inetv4_endpoint_t>::iterator it = hosts.begin();
 
 	for (; it != hosts.end(); ++it) {
-		const std::string& service_name = it->first;
-
-		std::set<inetv4_endpoint_t> service_hosts = it->second;
-		shared_socket_t sock = m_sockets[service_name];
-
-		if (sock) {
-			std::set<inetv4_endpoint_t>::iterator host_it = service_hosts.begin();
-			for (; host_it != service_hosts.end(); ++host_it) {
-				try {
-					sock->connect(*host_it);
-				}
-				catch (const std::exception& ex) {
-					log_error("overseer - could not connect socket for service %s, details: %s",
-							  service_name.c_str(),
-							  ex.what());
-				}
+		if (m_socket) {
+			try {
+				//std::cout << "connect host: " << host_it->as_string() << std::endl;
+				m_socket->connect(*it);
+			}
+			catch (const std::exception& ex) {
+				log_error("overseer - could not connect socket to host %s, details: %s",
+						  it->as_string().c_str(),
+						  ex.what());
 			}
 		}
 		else {
-			log_error("overseer - invalid socket for service %s",
-					  it->first.c_str());
+			log_error("overseer - invalid socket");
 		}
 	}
 }
 
 void
-overseer_t::disconnect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& hosts) {
+overseer_t::disconnect_socket(std::set<inetv4_endpoint_t>& hosts) {
 	if (hosts.empty()) {
 		return;
 	}
 
-	std::map<std::string, std::set<inetv4_endpoint_t> >::iterator it;
-	it = hosts.begin();
+	std::set<inetv4_endpoint_t>::iterator it = hosts.begin();
 
 	for (; it != hosts.end(); ++it) {
-		const std::string& service_name = it->first;
-		std::set<inetv4_endpoint_t> service_hosts = it->second;
-		shared_socket_t sock = m_sockets[service_name];
-
-		if (sock) {
-			std::set<inetv4_endpoint_t>::iterator host_it = service_hosts.begin();
-			for (; host_it != service_hosts.end(); ++host_it) {
-				try {
-					sock->disconnect(*host_it);
-				}
-				catch (const std::exception& ex) {
-					log_error("overseer - could not disconnect socket for service %s, details: %s",
-							  service_name.c_str(),
-							  ex.what());
-				}
+		if (m_socket) {
+			try {
+				//std::cout << "disconnect host: " << host_it->as_string() << std::endl;
+				m_socket->connect(*it);
+			}
+			catch (const std::exception& ex) {
+				log_error("overseer - could not disconnect socket from host %s, details: %s",
+						  it->as_string().c_str(),
+						  ex.what());
 			}
 		}
 		else {
-			log_error("overseer - invalid socket for service %s",
-					  it->first.c_str());
+			log_error("overseer - invalid socket");
 		}
 	}
 }

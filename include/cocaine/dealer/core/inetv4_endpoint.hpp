@@ -68,8 +68,7 @@ public:
 	inetv4_endpoint_t(const inetv4_endpoint_t& rhs) :
 		transport(rhs.transport),
 		host(rhs.host),
-		port(rhs.port),
-		pair_path(rhs.pair_path)
+		port(rhs.port)
 	{
 		init_transport_literals();
 	}
@@ -121,8 +120,7 @@ public:
 
 		return (host == rhs.host &&
 				port == rhs.port &&
-				transport == rhs.transport &&
-				pair_path == rhs.pair_path);
+				transport == rhs.transport);
 	}
 
 	bool operator != (const inetv4_endpoint_t& rhs) const {
@@ -144,13 +142,8 @@ public:
 	std::string as_connection_string() const {
 		std::string connection_string = transport_literals[transport] + "://";
 
-		if (transport == TRANSPORT_INPROC) {
-			connection_string += pair_path;
-		}
-		else {
-			connection_string += nutils::ipv4_to_str(host.ip);
-			connection_string += ":" + boost::lexical_cast<std::string>(port);
-		}
+		connection_string += nutils::ipv4_to_str(host.ip);
+		connection_string += ":" + boost::lexical_cast<std::string>(port);
 
 		return connection_string;
 	}
@@ -176,18 +169,8 @@ public:
 			str = str.substr(head_size, str.length() - head_size);
 		}
 
-		switch (transport) {
-			case TRANSPORT_UNDEFINED:
-				transport = TRANSPORT_TCP;
-				break;
-
-			case TRANSPORT_INPROC: {
-					inetv4_endpoint_t e;
-					e.transport = TRANSPORT_INPROC;
-					e.pair_path = str;
-					return e;
-				}
-				break;
+		if (transport == TRANSPORT_UNDEFINED) {
+			transport = TRANSPORT_TCP;
 		}
 
 		// look for ip/port parts
@@ -247,7 +230,6 @@ public:
 	enum transport_type transport;
 	inetv4_host_t		host;
 	unsigned short		port;
-	std::string			pair_path;
 
 private:
 	static std::map<enum transport_type, std::string> transport_literals;

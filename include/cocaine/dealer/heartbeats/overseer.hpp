@@ -51,7 +51,7 @@ namespace cocaine {
 namespace dealer {
 
 struct announce_t {
-	std::string hostname;
+	inetv4_host_t host;
 	std::string info;
 };
 
@@ -95,19 +95,24 @@ private:
 
 	std::set<inetv4_endpoint_t>& get_cached_hosts_for_service(const std::string& service_name);
 
-	void create_sockets();
-	void connect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& hosts);
-	void disconnect_sockets(std::map<std::string, std::set<inetv4_endpoint_t> >& hosts);
-	void kill_sockets();
+	void create_socket();
+	void connect_socket(std::set<inetv4_endpoint_t>& hosts);
+	void disconnect_socket(std::set<inetv4_endpoint_t>& hosts);
+	void kill_socket();
 
-	void read_from_sockets(std::map<std::string, std::vector<announce_t> >& responces);
+	void read_from_socket(std::vector<announce_t>& responces);
 
-	void parse_responces(const std::map<std::string, std::vector<announce_t> >& responces,
-						 std::map<std::string, std::vector<cocaine_node_info_t> >& parsed_responses);
+	void parse_responces(const std::vector<announce_t>& responces,
+						 std::map<inetv4_host_t, cocaine_node_info_t>& parsed_responses);
 
-	void routing_table_from_responces(const std::map<std::string, cocaine_node_list_t>& parsed_responses,
+	void routing_table_from_responces(const std::map<inetv4_host_t, cocaine_node_info_t>& parsed_responses,
 									  routing_table_t& routing_table);
 	
+	void update_routing_table_from_host_info(const std::string& service_name,
+											 const service_info_t& service_info,
+											 const cocaine_node_info_t& cocaine_host_info,
+											 routing_table_t& routing_table);
+
 	void update_main_routing_table(routing_table_t& routing_table_update);
 
 	bool handle_exists_for_service(routing_table_t& routing_table,
@@ -142,15 +147,14 @@ private:
 	std::map<std::string, inetv4_endpoints_t>	m_service_hosts;
 	std::vector<hosts_fetcher_ptr>				m_hosts_fetchers;
 
-	// <service, socket>
-	std::map<std::string, shared_socket_t>		m_sockets;
+	shared_socket_t				m_socket;
+	shared_ev_io_t				m_watcher;
 
 	std::unique_ptr<ev::timer>	m_fetcher_timer;
 	std::unique_ptr<ev::timer>	m_timeout_timer;
 	
 	routing_table_t				m_routing_table;
 	callback_t					m_callback;
-	std::vector<shared_ev_io_t>	m_watchers;
 	wuuid_t						m_uuid;
 };
 

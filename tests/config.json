@@ -1,41 +1,244 @@
 {
-	"version" : 1,
-	
-	"use_persistense" : false,
-	"endpoint_timeout" : 2,
+"version" : 1,
 
-	"logger" :
-	{
-		"type" : "STDOUT_LOGGER",
-		"flags" : "PLOG_INTRO | PLOG_INFO"
+"logger" :
+        {
+                "type" : "STDOUT_LOGGER",
+                "flags" : "PLOG_INTRO | PLOG_ALL"
+        },
 
-//		"type" : "FILE_LOGGER",
-//		"file" : "/home/rimz/dealer.log",
-//		"flags" : "PLOG_ALL | PLOG_INTRO"
-	},
+"endpoint_timeout" : 2,
 
-	"persistent_storage" :
-	{
-		"eblob_path" : "/var/tmp/eblobs",
-		"blob_size" : 2048,
-		"sync_interval" : 0,
-		"thread_pool_size" : 4,
-		"defrag_timeout" : 600
-	},
+"services" :
+        {
+        "dummy" :
+                {
+                "app": "dummy@1",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                                "ack_timeout" : 1.0
+                        }
+                },
+        "dummy1" :
+                {
+                "app": "dummy1",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                                "ack_timeout" : 1.0
+                        }
+                },
+        "dummy2" :
+                {
+                "app": "dummy2",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                                "ack_timeout" : 1.0
+                        }
+                },
+        "dummy3" :
+                {
+                "app": "dummy3",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                                "ack_timeout" : 1.0
+                        }
+                },
+        "dummy4" :
+                {
+                "app": "dummy4",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                                "ack_timeout" : 1.0
+                        }
+                },
+        "dummy5" :
+                {
+                "app": "dummy5",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                                "ack_timeout" : 1.0
+                        }
+                },
+        "dummy6" :
+                {
+                "app": "dummy6",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                                "ack_timeout" : 1.0
+                        }
+                },
+        "dummy7" :
+                {
+                "app": "dummy7",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                                "ack_timeout" : 1.0
+                        }
+                },
+        "dummy8" :
+                {
+                "app": "dummy8",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                                "ack_timeout" : 1.0
+                        }
+                },
+        "dummy9" :
+                {
+                "app": "dummy9",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                                "ack_timeout" : 1.0
+                        }
+                },
 
-	"services" :
-	{
-		"server_time" : {
-			"app" : "cocaine_test_2",
-			"autodiscovery" : {
-				"type" : "FILE",
-				"source" : "../tests/hosts"
-			},
-			"policy" : {
-				"deadline" : 1.0,
-				"max_retries" : 5,
-				"ack_timeout" : 1.0
-			}
-		}
-	}
+        "dashboard" : 
+                {
+                "app" : "browser:dashboard@1",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                        "deadline" : 3.0,
+                        "max_retries" : 20
+                        }
+                },
+        "dashboard-v2" :
+                {
+                "app" : "browser:dashboard@2",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" : 
+                        {
+                        "deadline" : 3.0,
+                        "max_retries" : 20
+                        }
+                },
+        "ntp" : 
+                {
+                "app" : "browser:ntp@1",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                        "deadline" : 3.0,
+                        "max_retries" : 20
+                        }
+                },
+        "crumbs" : 
+                {
+                "app" : "browser:crumbs@1",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                        "deadline" : 3.0,
+                        "max_retries" : 20
+                        }
+                },
+        "social" : 
+                {
+                "app" : "browser:social@1",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                        "deadline" : 10.0,
+                        "max_retries" : 20
+                        }
+                },
+        "sitelinks" : 
+                {
+                "app" : "browser:sitelinks@1",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                        "deadline" : 3.0,
+                        "max_retries" : 20
+                        }
+                },
+        "smartlinks" :
+                {
+                "app" : "browser:smartlinks@1",
+                "autodiscovery" :
+                        {
+                        "source" : "/etc/cocaine-dealer/hosts.conf",
+                        "type" : "FILE"
+                        },
+                "policy" :
+                        {
+                        "deadline" : 3.0,
+                        "max_retries" : 20
+                        }
+                }
+        }
 }

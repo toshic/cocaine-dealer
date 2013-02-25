@@ -263,6 +263,7 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
 
 			if (it == m_endpoints.end()) {
 				m_endpoints.insert(endpoint);
+
 				return true;
 			}
 			

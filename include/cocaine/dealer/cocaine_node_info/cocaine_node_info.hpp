@@ -29,6 +29,7 @@
 
 #include "cocaine/dealer/cocaine_node_info/cocaine_node_app_info.hpp"
 #include "cocaine/dealer/utils/networking.hpp"
+#include "cocaine/dealer/core/inetv4_host.hpp"
 
 namespace cocaine {
 namespace dealer {
@@ -63,10 +64,12 @@ struct cocaine_node_info_t {
 	applications	apps;
 	unsigned int	pending_jobs;
 	unsigned int	processed_jobs;
-	std::string		hostname;
+	inetv4_host_t	host;
 	double			uptime;
 	unsigned int	ip_address;
 	unsigned short	port;
+
+	
 
 	friend std::ostream& operator << (std::ostream& out, const cocaine_node_info_t& node_info);
 };

@@ -79,6 +79,7 @@ public:
 		Json::Value root;
 		Json::Reader reader;
 
+		//std::cout << "parse\n";
 		if (!reader.parse(json_string, root)) {
 			
 			if (log_enabled(PLOG_WARNING)) {
@@ -132,7 +133,9 @@ public:
 	    	node_info.processed_jobs = jobs_props.get("processed", 0).asInt();
 	    }
 
-	    node_info.hostname = root.get("hostname", "").asString();
+	    //node_info.hostname = root.get("route", "").asString();
+	    //std::cout << "node_info.hostname: " << node_info.hostname << std::endl;
+
 		node_info.uptime = root.get("uptime", 0.0f).asDouble();
 		node_info.ip_address = m_node_ip_address;
 		node_info.port = m_node_port;
