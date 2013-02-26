@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.19) lucid; urgency=low
+
+  * fixed crash on dealer destruction
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Tue, 26 Feb 2013 23:03:03 +0400
+
 cocaine-dealer (0.9.18) lucid; urgency=low
 
   * fixed memory leaks in libjson
