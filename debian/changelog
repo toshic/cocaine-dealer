@@ -1,3 +1,11 @@
+cocaine-dealer (0.9.18) lucid; urgency=low
+
+  * fixed memory leaks in libjson
+  * fixed logging
+  * overseer - instead of socket per service we now have one global overseer socket for all hosts/services
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Tue, 26 Feb 2013 20:27:48 +0400
+
 cocaine-dealer (0.9.17) lucid; urgency=low
 
   * memory leaks in overseer
