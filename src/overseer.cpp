@@ -611,8 +611,11 @@ overseer_t::create_socket() {
 void
 overseer_t::kill_socket() {
 	m_socket.reset();
-	m_watcher->stop();
-	m_watcher.reset();
+
+	if (m_watcher) {
+		m_watcher->stop();
+		m_watcher.reset();
+	}
 }
 
 void
