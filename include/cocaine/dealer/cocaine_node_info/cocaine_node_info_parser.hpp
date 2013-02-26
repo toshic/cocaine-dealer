@@ -79,7 +79,6 @@ public:
 		Json::Value root;
 		Json::Reader reader;
 
-		//std::cout << "parse\n";
 		if (!reader.parse(json_string, root)) {
 			
 			if (log_enabled(PLOG_WARNING)) {
@@ -87,11 +86,9 @@ public:
 				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
 			}
 
-			root.clear();
-
 			return false;
 		}
-	
+
 		// parse apps
 		const Json::Value& apps = root["apps"];
 		if (!apps.isObject() || !apps.size()) {
@@ -101,7 +98,6 @@ public:
 				log(PLOG_WARNING, log_str.c_str(), m_str_node_adress.c_str());
 			}
 
-			root.clear();
 			return false;
 		}
 
@@ -140,8 +136,6 @@ public:
 		node_info.ip_address = m_node_ip_address;
 		node_info.port = m_node_port;
 
-		root.clear();
-		
 		return true;
 	}
 

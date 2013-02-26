@@ -187,14 +187,11 @@ overseer_t::request(ev::io& watcher, int type) {
 	// parse nodes responses
 	std::map<inetv4_host_t, cocaine_node_info_t> parsed_responses;
 	parse_responces(responces, parsed_responses);
-	responces.clear();
 
 	// get update
 	routing_table_t routing_table_update;
 	reset_routing_table(routing_table_update);
 	routing_table_from_responces(parsed_responses, routing_table_update);
-
-	parsed_responses.clear();
 
 	// merge update with routing table, gen create/update handle events
 	update_main_routing_table(routing_table_update);
@@ -506,113 +503,6 @@ overseer_t::update_routing_table_from_host_info(const std::string& service_name,
 			hit->second.insert(endpoint);
 		}
 	}
-
-	/*
-	std::map<std::string, cocaine_node_list_t>::const_iterator it = parsed_responses.begin();
-
-	// for each <service / nodes list>
-	for (; it != parsed_responses.end(); ++it) {
-		std::string 		service_name;
-		
-		handle_endpoints_t	handle_endpoints;
-
-		{
-			// get app name from service info
-			service_name = it->first;
-			std::map<std::string, service_info_t>::const_iterator its = services_list.find(service_name);
-
-			if (its == services_list.end()) {
-				continue;
-			}
-
-			app_name = its->second.app;
-		}
-
-		// process service nodes
-		const cocaine_node_list_t& service_node_list = it->second;
-		for (size_t i = 0; i < service_node_list.size(); ++i) {
-			// find app in node
-			cocaine_node_app_info_t app;
-			if (!service_node_list[i].app_by_name(app_name, app)) {
-				continue;
-			}
-
-			// verify app tasks
-			std::string app_info_at_host = "overseer — service: " + service_name + ", app: ";
-			app_info_at_host += app_name + " at host: " + service_node_list[i].host.hostname;
-
-			if (app.tasks.size() == 0) {
-				log_warning(app_info_at_host + " has no tasks!");
-				continue;
-			}
-
-			int weight = 0;
-
-			// verify app status
-			switch (app.status) {
-				case APP_STATUS_UNKNOWN:
-					log_warning(app_info_at_host + " has unknown status!");
-					continue;
-					break;
-
-				case APP_STATUS_RUNNING:
-					weight = 1;
-					break;
-
-				case APP_STATUS_STOPPING:
-					weight = 0;
-					break;
-
-				case APP_STATUS_STOPPED:
-					log_warning(app_info_at_host + " is stopped!");
-					continue;
-					break;
-
-				case APP_STATUS_BROKEN:
-					log_warning(app_info_at_host + " is broken!");
-					continue;
-					break;
-
-				default:
-					continue;
-			}
-
-			// insert endpoints into routing table
-			cocaine_node_app_info_t::application_tasks::const_iterator task_it;
-			task_it = app.tasks.begin();
-
-			for (; task_it != app.tasks.end(); ++task_it) {
-				std::string handle_name = task_it->second.name;
-
-				// create endpoint
-				cocaine_endpoint_t endpoint(task_it->second.endpoint,
-											task_it->second.route,
-											weight);
-
-				// find specific service->handle routing table:
-				// first, find service
-				routing_table_t::iterator rit;
-				if (!service_from_table(routing_table, service_name, rit)) {
-					continue;
-				}
-
-				// secondly find handle
-				handle_endpoints_t& handle_endpoints = rit->second;
-				handle_endpoints_t::iterator hit = handle_endpoints.find(handle_name);
-
-				endpoints_set_t endpoints_set;
-				endpoints_set.insert(endpoint);
-
-				if (hit == handle_endpoints.end()) {
-					handle_endpoints[handle_name] = endpoints_set;
-				}
-				else {
-					hit->second.insert(endpoint);
-				}
-			}
-		}
-	}
-	*/
 }
 
 void
@@ -693,6 +583,16 @@ void
 overseer_t::create_socket() {
 	m_socket.reset(new socket_t(context(), ZMQ_SUB));
 	m_socket->set_linger(0);
+
+	#if ZMQ_VERSION_MAJOR < 3
+		int64_t hwm = 5;
+		m_socket->set_sockopt(ZMQ_HWM, &hwm, sizeof(hwm));
+	#else
+		int hwm = 5;
+		m_socket->set_sockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+		m_socket->set_sockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+	#endif
+
 	m_socket->set_identity("overseer_", true);
 	m_socket->subscribe();
 

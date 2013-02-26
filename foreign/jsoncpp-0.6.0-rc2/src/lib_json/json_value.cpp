@@ -280,6 +280,7 @@ Value::Value( ValueType type )
 #if defined(JSON_HAS_INT64)
 Value::Value( UInt value )
    : type_( uintValue )
+   , allocated_( 0 )
    , comments_( 0 )
 # ifdef JSON_VALUE_USE_INTERNAL_MAP
    , itemIsUsed_( 0 )
@@ -290,6 +291,7 @@ Value::Value( UInt value )
 
 Value::Value( Int value )
    : type_( intValue )
+   , allocated_( 0 )
    , comments_( 0 )
 # ifdef JSON_VALUE_USE_INTERNAL_MAP
    , itemIsUsed_( 0 )
@@ -303,6 +305,7 @@ Value::Value( Int value )
 
 Value::Value( Int64 value )
    : type_( intValue )
+   , allocated_( 0 )
    , comments_( 0 )
 # ifdef JSON_VALUE_USE_INTERNAL_MAP
    , itemIsUsed_( 0 )
@@ -314,6 +317,7 @@ Value::Value( Int64 value )
 
 Value::Value( UInt64 value )
    : type_( uintValue )
+   , allocated_( 0 )
    , comments_( 0 )
 # ifdef JSON_VALUE_USE_INTERNAL_MAP
    , itemIsUsed_( 0 )
@@ -324,6 +328,7 @@ Value::Value( UInt64 value )
 
 Value::Value( double value )
    : type_( realValue )
+   , allocated_( 0 )
    , comments_( 0 )
 # ifdef JSON_VALUE_USE_INTERNAL_MAP
    , itemIsUsed_( 0 )
@@ -334,12 +339,13 @@ Value::Value( double value )
 
 Value::Value( const char *value )
    : type_( stringValue )
-   //, allocated_( 1 )
    , comments_( NULL )
 # ifdef JSON_VALUE_USE_INTERNAL_MAP
    , itemIsUsed_( 0 )
 #endif
 {
+   int i = 1;
+   allocated_ = i;
    value_.string_ = duplicateStringValue( value );
 }
 
@@ -347,12 +353,13 @@ Value::Value( const char *value )
 Value::Value( const char *beginValue, 
               const char *endValue )
    : type_( stringValue )
-   //, allocated_( true )
    , comments_( 0 )
 # ifdef JSON_VALUE_USE_INTERNAL_MAP
    , itemIsUsed_( 0 )
 #endif
 {
+   int i = 1;
+   allocated_ = i;
    value_.string_ = duplicateStringValue( beginValue, 
                                           (unsigned int)(endValue - beginValue) );
 }
@@ -360,12 +367,14 @@ Value::Value( const char *beginValue,
 
 Value::Value( const std::string &value )
    : type_( stringValue )
-   //, allocated_( true )
    , comments_( 0 )
 # ifdef JSON_VALUE_USE_INTERNAL_MAP
    , itemIsUsed_( 0 )
 #endif
 {
+   int i = 1;
+   allocated_ = i;
+
    value_.string_ = duplicateStringValue( value.c_str(), 
                                           (unsigned int)value.length() );
 
@@ -373,7 +382,7 @@ Value::Value( const std::string &value )
 
 Value::Value( const StaticString &value )
    : type_( stringValue )
-   //, allocated_( false )
+   , allocated_( false )
    , comments_( 0 )
 # ifdef JSON_VALUE_USE_INTERNAL_MAP
    , itemIsUsed_( 0 )
@@ -398,6 +407,7 @@ Value::Value( const CppTL::ConstString &value )
 
 Value::Value( bool value )
    : type_( booleanValue )
+   , allocated_( 0 )
    , comments_( 0 )
 # ifdef JSON_VALUE_USE_INTERNAL_MAP
    , itemIsUsed_( 0 )
@@ -409,6 +419,7 @@ Value::Value( bool value )
 
 Value::Value( const Value &other )
    : type_( other.type_ )
+   , allocated_( 0 )
    , comments_( 0 )
 # ifdef JSON_VALUE_USE_INTERNAL_MAP
    , itemIsUsed_( 0 )

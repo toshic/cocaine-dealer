@@ -46,14 +46,12 @@ void socket_t::bind(const std::string& endpoint) {
 
 void socket_t::connect(const inetv4_endpoint_t& endpoint) {
 	if (can_connect(endpoint)) {
-		std::cout << "connected: " << endpoint.as_connection_string() << std::endl;
 		m_socket.connect(endpoint.as_connection_string().c_str());
 	}
 }
 
 void socket_t::connect(const std::string& endpoint) {
 	if (can_connect(endpoint)) {
-		std::cout << "connected: " << endpoint << std::endl;
 		m_socket.connect(endpoint.c_str());
 	}
 }
