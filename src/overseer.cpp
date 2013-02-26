@@ -539,6 +539,7 @@ overseer_t::parse_responces(const std::vector<announce_t>& responces,
 			continue;
 		}
 
+		node_info.host = responces[i].host;
 		parsed_responses[responces[i].host] = node_info;
 	}
 }
