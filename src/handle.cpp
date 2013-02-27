@@ -248,7 +248,7 @@ handle_t::dispatch_next_available_response() {
 			if (response->error_code == resource_error) {
 				if (m_message_cache->reshedule_message(response->route, response->uuid)) {
 					if (log_enabled(PLOG_WARNING)) {
-						std::string message_str = "resheduled message with uuid: ";
+						std::string message_str = "resсheduled message with uuid: ";
 						message_str += response->uuid.as_human_readable_string();
 						message_str += " from " + description() + ", reason: error received, error code: %d";
 						message_str += ", error message: " + response->error_message;
@@ -361,7 +361,7 @@ handle_t::process_deadlined_messages(ev::timer& watcher, int type) {
 				m_message_cache->enqueue_with_priority(expired_messages.at(i));
 
 				if (log_enabled(PLOG_WARNING)) {
-					std::string log_str = "no ACK, resheduled message %s, (enqued: %s, sent: %s, curr: %s)";
+					std::string log_str = "no ACK, resсheduled message %s, (enqued: %s, sent: %s, curr: %s)";
 
 					log(PLOG_WARNING, log_str,
 						expired_messages.at(i)->uuid().as_human_readable_string().c_str(),
