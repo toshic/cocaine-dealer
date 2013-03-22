@@ -75,7 +75,33 @@ overseer_t::run() {
 		m_endpoints_fetchers.push_back(fetcher);
 	}
 
-	reset_routing_table(m_routing_table);
+    reset_routing_table(m_routing_table);
+
+    m_event_loop.reset(new ev::dynamic_loop);
+
+    m_fetcher_timer.reset(new ev::timer(*m_event_loop));
+    m_fetcher_timer->set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
+    m_fetcher_timer->start(15, 15);
+
+    m_timeout_timer.reset(new ev::timer(*m_event_loop));
+    m_timeout_timer->set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
+    m_timeout_timer->start(0, 0.5);
+
+    m_terminate.reset(new ev::async(*m_event_loop));
+    m_terminate->set<overseer_t, &overseer_t::terminate>(this);
+    m_terminate->start();
+
+    //create prepare watcher
+    m_prepare.reset(new ev::prepare(*m_event_loop));
+    m_prepare->set<overseer_t, &overseer_t::prepare>(this);
+    m_prepare->start();
+
+    // init
+    create_sockets();
+
+    std::map<std::string, std::set<inetv4_endpoint_t> > new_endpoints;
+    fetch_endpoints(new_endpoints);
+    connect_sockets(new_endpoints);
 
 	// create main overseer loop
 	boost::function<void()> f = boost::bind(&overseer_t::main_loop, this);
@@ -85,7 +111,8 @@ overseer_t::run() {
 
 void
 overseer_t::stop() {
-	m_terminate->send();
+    assert(m_terminate);
+    m_terminate->send();
 	m_thread.join();
 
 	log(PLOG_DEBUG, "overseer — stopped");
@@ -94,52 +121,30 @@ overseer_t::stop() {
 void
 overseer_t::terminate(ev::async& as, int type) {
 	m_fetcher_timer->stop();
+    m_fetcher_timer.reset();
+
 	m_timeout_timer->stop();
-	m_terminate->stop();
+	m_timeout_timer.reset();
+
+    m_terminate->stop();
+    m_terminate.reset();
 
 	for (size_t i = 0; i < m_watchers.size(); ++i) {
 		m_watchers[i]->stop();
 	}
 	m_watchers.clear();
 
-	m_event_loop->unloop(ev::ALL);
-
 	kill_sockets();
 
 	for (size_t i = 0; i < m_endpoints_fetchers.size(); ++i) {
 		m_endpoints_fetchers[i].reset();
 	}
+
+    m_event_loop->unloop(ev::ALL);
 }
 
 void
 overseer_t::main_loop() {
-	m_event_loop.reset(new ev::dynamic_loop);
-	m_fetcher_timer.reset(new ev::timer(*m_event_loop));
-	m_timeout_timer.reset(new ev::timer(*m_event_loop));
-	m_terminate.reset(new ev::async(*m_event_loop));
-
-	// create prepare watcher
-	m_prepare.reset(new ev::prepare(*m_event_loop));
-	m_prepare->set<overseer_t, &overseer_t::prepare>(this);
-	m_prepare->start();
-
-	// init
-	create_sockets();
-
-	std::map<std::string, std::set<inetv4_endpoint_t> > new_endpoints;
-	fetch_endpoints(new_endpoints);
-	connect_sockets(new_endpoints);
-
-	// fetch endpoints every 15 secs
-	m_fetcher_timer->set<overseer_t, &overseer_t::fetch_and_process_endpoints>(this);
-	m_timeout_timer->set<overseer_t, &overseer_t::check_for_timedout_endpoints>(this);
-
-    m_fetcher_timer->start(15, 15);
-    m_timeout_timer->start(0, 0.5);
-
-	m_terminate->set<overseer_t, &overseer_t::terminate>(this);
-	m_terminate->start();
-
 	m_event_loop->loop();
 }
 
