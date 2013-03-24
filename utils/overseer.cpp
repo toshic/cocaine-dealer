@@ -160,7 +160,12 @@ overseer::receive_responces(const inetv4_endpoints_t& endpoints,
 	}
 
 	// poll for responce
-	int res = zmq_poll(&(poll_items[0]), poll_items.size(), timeout * 1000);
+	
+#if ZMQ_VERSION_MAJOR < 3
+    int res = zmq_poll(&(poll_items[0]), poll_items.size(), timeout * 1000); //microsec
+#else
+	int res = zmq_poll(&(poll_items[0]), poll_items.size(), timeout); // millisec
+#endif
 
 	if (res <= 0) {
 		return false;

@@ -471,8 +471,11 @@ handle_t::receive_control_messages(socket_ptr_t& control_socket, int poll_timeou
 	poll_items[0].fd = 0;
 	poll_items[0].events = ZMQ_POLLIN;
 	poll_items[0].revents = 0;
-
-	int socket_response = zmq_poll(poll_items, 1, poll_timeout);
+#if ZMQ_VERSION_MAJOR < 3
+	int socket_response = zmq_poll(poll_items, 1, poll_timeout); // microsec
+#else
+	int socket_response = zmq_poll(poll_items, 1, poll_timeout/1000); //millisec
+#endif
 
 	if (socket_response <= 0) {
 		return 0;
