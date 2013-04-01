@@ -1,0 +1,10 @@
+setup.py
+cocaine/__init__.py
+cocaine/client.py
+cocaine.egg-info/PKG-INFO
+cocaine.egg-info/SOURCES.txt
+cocaine.egg-info/dependency_links.txt
+cocaine.egg-info/top_level.txt
+src/client.cpp
+src/module.cpp
+src/response.cpp

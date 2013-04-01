@@ -1,0 +1,13 @@
+Metadata-Version: 1.1
+Name: cocaine
+Version: 0.10.0
+Summary: Cocaine Dealer Python Binding
+Home-page: https://github.com/cocaine/cocaine-framework-python
+Author: Andrey Sibiryov
+Author-email: me@kobology.ru
+License: BSD 2-Clause
+Description: A simple framework to ease the development of Cocaine apps
+Platform: Linux
+Platform: BSD
+Platform: MacOS
+Requires: msgpack

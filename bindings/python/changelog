@@ -1,0 +1,53 @@
+cocaine-framework-python (0.10.0-rc6) lucid; urgency=low
+
+  * async
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Wed, 27 Mar 2013 16:38:39 +0400
+
+cocaine-framework-python (0.10.0-rc0) lucid; urgency=low
+
+  * init 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 22 Mar 2013 21:26:37 +0400
+
+cocaine-framework-python (0.9.9) lucid; urgency=low
+
+  * Updated build dependencies
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Mon, 12 Nov 2012 15:15:22 +0400
+
+cocaine-framework-python (0.9.8) lucid; urgency=low
+
+  * Updated build dependencies
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Mon, 12 Nov 2012 14:57:53 +0400
+
+cocaine-framework-python (0.9.7) lucid; urgency=low
+
+  * Updated build dependencies
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Mon, 12 Nov 2012 14:53:01 +0400
+
+cocaine-framework-python (0.9.7) lucid; urgency=low
+
+  * Updated binary compatibility with libcocaine-dealer
+
+ -- Rim Zaidullin <rimz@yandex-team.ru>  Mon, 12 Nov 2012 14:49:10 +0400
+
+cocaine-framework-python (0.9.6) lucid; urgency=low
+
+  * Do not split iterable response into chunks in wrappers
+
+ -- Anton Kortunov <toshik@yandex-team.ru>  Wed, 31 Oct 2012 19:56:03 +0400
+
+cocaine-framework-python (0.9.5) lucid; urgency=low
+
+  * Sometimes even I do stupid mistakes.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Mon, 17 Sep 2012 22:01:26 +0400
+
+cocaine-framework-python (0.9.4) lucid; urgency=low
+
+  * Debianization is back.
+
+ -- Andrey Sibiryov <kobolog@yandex-team.ru>  Thu, 13 Sep 2012 15:09:54 +0400
