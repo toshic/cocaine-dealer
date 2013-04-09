@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.10006) lucid; urgency=low
+
+  * fixed dev-package depends
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Tue, 09 Apr 2013 16:08:01 +0400
+
 cocaine-dealer (0.9.10005) lucid; urgency=low
 
   * fixed overseer destruction

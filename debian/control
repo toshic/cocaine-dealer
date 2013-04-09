@@ -42,5 +42,9 @@ Depends:
  ${shlibs:Depends}
  ${misc:Depends},
  libcocaine-dealer1 (= ${Source-Version})
+ libzmq-dev (>= 2.2.0+yandex1),
+ libcocaine-dev,
+ uuid-dev,
+ libmsgpack-dev
 Description: Cocaine - Dealer Development Files
  Files needed to use Cocaine Dealer in development.
