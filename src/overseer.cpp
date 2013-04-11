@@ -30,7 +30,7 @@
 #include "cocaine/dealer/utils/progress_timer.hpp"
 
 #include <cocaine/traits.hpp>
-#include <cocaine/detail/traits/json.hpp>
+#include <cocaine/dealer/utils/json.hpp>
 
 namespace cocaine {
 namespace dealer {
