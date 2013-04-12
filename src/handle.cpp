@@ -225,6 +225,8 @@ handle_t::dispatch_next_available_response() {
 
 	boost::shared_ptr<message_iface> sent_msg;
 
+	
+
 	switch (response->rpc_code) {
 		case SERVER_RPC_MESSAGE_ACK:		
 			if (m_message_cache->get_sent_message(response->route, response->uuid, sent_msg)) {

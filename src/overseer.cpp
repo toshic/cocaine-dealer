@@ -30,6 +30,9 @@
 #include "cocaine/dealer/cocaine_node_info/cocaine_node_info_parser.hpp"
 #include "cocaine/dealer/utils/progress_timer.hpp"
 
+#include <cocaine/traits.hpp>
+#include <cocaine/dealer/utils/json.hpp>
+
 namespace cocaine {
 namespace dealer {
 
@@ -555,6 +558,7 @@ overseer_t::read_from_socket(std::vector<announce_t>& responces) {
 		announce_t		announce;
 		std::string		host_str;
 		zmq::message_t	reply;
+		bool data_ok;
 
 		if (m_socket->recv(&reply, ZMQ_NOBLOCK)) {
 			host_str = std::string(static_cast<char*>(reply.data()), reply.size());
@@ -564,7 +568,20 @@ overseer_t::read_from_socket(std::vector<announce_t>& responces) {
 		}
 
 		if (m_socket->recv(&reply, ZMQ_NOBLOCK)) {
-			announce.info = std::string(static_cast<char*>(reply.data()), reply.size());
+					msgpack::object obj;
+					msgpack::unpacked up;
+
+					if (0 == reply.size()) {
+						data_ok = false;
+					}
+
+					msgpack::unpack(&up, (char*)reply.data(), reply.size());
+					obj = up.get();
+
+					Json::Value val;
+					cocaine::io::type_traits<Json::Value>::unpack(obj, val);
+					announce.info = val;
+			//announce.info = std::string(static_cast<char*>(reply.data()), reply.size());
 		}
 		else {
 			break;

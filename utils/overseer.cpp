@@ -160,7 +160,7 @@ overseer::receive_responces(const inetv4_endpoints_t& endpoints,
 	}
 
 	// poll for responce
-	int res = zmq_poll(&(poll_items[0]), poll_items.size(), timeout * 1000);
+	int res = zmq_poll(&(poll_items[0]), poll_items.size(), timeout * 1000/1000);
 
 	if (res <= 0) {
 		return false;

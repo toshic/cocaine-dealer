@@ -245,7 +245,7 @@ balancer_t::check_for_responses(int poll_timeout) const {
 	poll_items[0].events = ZMQ_POLLIN;
 	poll_items[0].revents = 0;
 
-	int socket_response = zmq_poll(poll_items, 1, poll_timeout);
+	int socket_response = zmq_poll(poll_items, 1, poll_timeout/1000);
 
 	if (socket_response <= 0) {
 		return false;
