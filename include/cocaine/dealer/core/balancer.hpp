@@ -1,4 +1,4 @@
-/*
+ /*
     Copyright (c) 2011-2012 Rim Zaidullin <creator@bash.org.ru>
     Copyright (c) 2011-2012 Other contributors as noted in the AUTHORS file.
 

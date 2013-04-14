@@ -75,11 +75,11 @@ public:
 		set_host_info(nutils::str_to_ipv4(node_ip_address), node_port);
 	}
 
-	bool parse(const std::string& json_string, cocaine_node_info_t& node_info) {
+	bool parse(const Json::Value json_data, cocaine_node_info_t& node_info) {
 		Json::Value root;
 		Json::Reader reader;
 
-		if (!reader.parse(json_string, root)) {
+		/*if (!reader.parse(json_data, root)) {
 			
 			if (log_enabled(PLOG_WARNING)) {
 				std::string log_str = "cocaine node %s routing info could not be parsed";
@@ -87,10 +87,10 @@ public:
 			}
 
 			return false;
-		}
+		}*/
 
 		// parse apps
-		const Json::Value& apps = root["apps"];
+		const Json::Value& apps = json_data["apps"];
 		if (!apps.isObject() || !apps.size()) {
 
 			if (log_enabled(PLOG_WARNING)) {
@@ -116,7 +116,7 @@ public:
 	    }
 
 	    // parse remaining properties
-	    const Json::Value& jobs_props = root["jobs"];
+	    const Json::Value& jobs_props = json_data["jobs"];
 	    if (!jobs_props.isObject()) {
 
 	    	if (log_enabled(PLOG_WARNING)) {
@@ -132,7 +132,7 @@ public:
 	    //node_info.hostname = root.get("route", "").asString();
 	    //std::cout << "node_info.hostname: " << node_info.hostname << std::endl;
 
-		node_info.uptime = root.get("uptime", 0.0f).asDouble();
+		node_info.uptime = json_data.get("uptime", 0.0f).asDouble();
 		node_info.ip_address = m_node_ip_address;
 		node_info.port = m_node_port;
 
@@ -224,7 +224,7 @@ private:
 
     	task_info.backlog = json_app_data.get("backlog", 0).asInt();
 	    task_info.endpoint = json_app_data.get("endpoint", "").asString();
-	    task_info.route = json_app_data.get("route", "").asString();
+	    task_info.route = json_app_data.get("identity", "").asString();
 
 
 	    /*

@@ -52,7 +52,7 @@ namespace dealer {
 
 struct announce_t {
 	inetv4_host_t host;
-	std::string info;
+	Json::Value info;
 };
 
 enum e_overseer_event {

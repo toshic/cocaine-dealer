@@ -139,9 +139,11 @@ handle_t::kill() {
 
 void
 handle_t::process_io_messages(ev::io& watcher, int type) {
+
 	if (!m_is_running || type != ev::READ) {
 		return;
 	}
+
 
 	try {
 		while (m_balancer->socket()->pending()) {
@@ -223,7 +225,10 @@ handle_t::dispatch_next_available_response() {
 		return;
 	}
 
+
 	boost::shared_ptr<message_iface> sent_msg;
+
+	
 
 	switch (response->rpc_code) {
 		case SERVER_RPC_MESSAGE_ACK:		
