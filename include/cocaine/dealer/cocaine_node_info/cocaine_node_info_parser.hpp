@@ -224,7 +224,7 @@ private:
 
     	task_info.backlog = json_app_data.get("backlog", 0).asInt();
 	    task_info.endpoint = json_app_data.get("endpoint", "").asString();
-	    task_info.route = json_app_data.get("route", "").asString();
+	    task_info.route = json_app_data.get("identity", "").asString();
 
 
 	    /*

@@ -268,9 +268,19 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 		endpoint = get_next_endpoint();
 		message->set_destination_endpoint(endpoint.as_string());
 
-		if (true != m_socket->send(endpoint.route, ZMQ_SNDMORE)) {
+
+		std::string new_route = endpoint.route;
+
+		msgpack::sbuffer sbuf;
+        msgpack::pack(sbuf, new_route);
+
+        zmq::message_t ident_chunk(sbuf.size());
+        memcpy((void *)ident_chunk.data(), sbuf.data(), sbuf.size());
+
+		if (true != m_socket->send(ident_chunk, ZMQ_SNDMORE)) {
 			return false;
 		}
+
 
 		// send header
 		if (true != m_socket->send_empty(ZMQ_SNDMORE)) {
@@ -278,7 +288,12 @@ balancer_t::send(boost::shared_ptr<message_iface>& message, cocaine_endpoint_t& 
 		}
 
 		// send message uuid
-		if (true != m_socket->send_packed(message->uuid().as_string(), ZMQ_SNDMORE)) {
+		const std::string& uuid = message->uuid().as_string();
+
+		zmq::message_t uuid_chunk(uuid.size());
+		memcpy((void *)uuid_chunk.data(), uuid.data(), uuid.size());
+
+		if (true != m_socket->send(uuid_chunk, ZMQ_SNDMORE)) {
 			return false;
 		}
 
@@ -335,6 +350,43 @@ balancer_t::is_valid_rpc_code(int rpc_code) {
 	return false;
 }
 
+namespace {
+	template <typename T>
+	struct unpacked_response_t {
+		int code;
+		T data;
+
+		MSGPACK_DEFINE(code, data)
+	};
+
+	struct unpacked_chunk {
+		std::string uuid;
+		std::string data;
+
+		MSGPACK_DEFINE(uuid, data)
+	};
+
+	struct unpacked_error {
+		std::string uuid;
+		int			code;
+		std::string message;
+
+		MSGPACK_DEFINE(uuid, code, message)
+	};
+
+	struct unpacked_choke {
+		std::string uuid;
+
+		MSGPACK_DEFINE(uuid)
+	};
+
+	struct unpacked_ack {
+		std::string uuid;
+
+		MSGPACK_DEFINE(uuid)
+	};
+}
+
 bool
 balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 	std::string			route;
@@ -344,54 +396,79 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 	std::string 		error_message;
 
+	//-------------- MY
+	zmq::message_t chunk;
+	msgpack::unpacked unpacked;
+	
+	//--------------
+
 	// receive route
-	if (!m_socket->recv(route, ZMQ_NOBLOCK)) {
+	if (!m_socket->recv_zmq_message(chunk, unpacked)) {
 		return false;
 	}
 
-	// receive rpc code
-	if (!m_socket->recv_packed(rpc_code, ZMQ_NOBLOCK)) {
+    unpacked.get().convert(&route);
+	
+	if (route.empty()) {
+		if (log_enabled(PLOG_ERROR)) {
+			log_error("received empty message identity!");
+		}
+
 		return false;
 	}
+
+	// receive response
+	if (!m_socket->recv_zmq_message(chunk, unpacked)) {
+		return false;
+	}
+
+	rpc_code = unpacked.get().via.array.ptr[0].as<int>();
 
 	if (!is_valid_rpc_code(rpc_code)) {
 		m_socket->drop();
 		return false;
 	}
 
-	// receive uuid
-	if (!m_socket->recv_packed(uuid, ZMQ_NOBLOCK)) {
-		return false;
-	}
 
 	// init response
 	response.reset(new response_chunk_t);
-	response->uuid		= uuid;
+	//response->uuid		= uuid;
 	response->route		= route;
 	response->rpc_code	= rpc_code;
 
-	// receive all data
 	switch (rpc_code) {
 		case SERVER_RPC_MESSAGE_CHUNK: {
-			zmq::message_t chunk;
-			if (!m_socket->recv(&chunk, ZMQ_NOBLOCK)) {
-				return false;
-			}
+			unpacked_chunk chunk_resp;
+			unpacked.get().via.array.ptr[1].convert(&chunk_resp);
 
-			response->data = data_container(chunk.data(), chunk.size());
+			response->uuid = chunk_resp.uuid;
+			response->data = data_container(chunk_resp.data.data(), chunk_resp.data.size());
 		}
 		break;
 
 		case SERVER_RPC_MESSAGE_ERROR: {
-			// receive error code
-			if (!m_socket->recv_packed(response->error_code, ZMQ_NOBLOCK)) {
-				return false;
-			}
+			unpacked_error error_resp;
+			unpacked.get().via.array.ptr[1].convert(&error_resp);
 
-			// receive error message
-			if (!m_socket->recv_packed(response->error_message, ZMQ_NOBLOCK)) {
-				return false;
-			}
+			response->uuid = error_resp.uuid;
+			response->error_code = error_resp.code;
+			response->error_message = error_resp.message;
+		}
+		break;
+
+		case SERVER_RPC_MESSAGE_ACK: {
+			unpacked_ack ack_resp;
+			unpacked.get().via.array.ptr[1].convert(&ack_resp);
+
+			response->uuid = ack_resp.uuid;
+		}
+		break;
+
+		case SERVER_RPC_MESSAGE_CHOKE: {
+			unpacked_choke choke_resp;
+			unpacked.get().via.array.ptr[1].convert(&choke_resp);
+
+			response->uuid = choke_resp.uuid;
 		}
 		break;
 
@@ -399,7 +476,18 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 		break;
 	}
 
-	m_socket->drop();
+	// read all chunks
+	int64_t more = 1;
+	size_t more_size = sizeof(more);
+	m_socket->get_sockopt(ZMQ_RCVMORE, &more, &more_size);
+
+	while (more) {
+ 		zmq::message_t chunk;
+		if (!m_socket->recv(&chunk, ZMQ_NOBLOCK)) {
+			break;
+		}
+		m_socket->get_sockopt(ZMQ_RCVMORE, &more, &more_size);	
+	}
 
 	// log the info we received
 	std::string message = "response from: %s for msg with uuid: %s, type: ";
@@ -407,7 +495,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 	switch (rpc_code) {
 		case SERVER_RPC_MESSAGE_ACK: {
 			if (log_enabled(PLOG_DEBUG)) {
-				wuuid_t id(uuid);
+				wuuid_t id(response->uuid);
 				std::string readable_uuid = id.as_human_readable_string();
 				
 				std::string times = time_value::get_current_time().as_string();
@@ -424,7 +512,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 		case SERVER_RPC_MESSAGE_CHUNK: {
 			if (log_enabled(PLOG_DEBUG)) {
-				wuuid_t id(uuid);
+				wuuid_t id(response->uuid);
 				std::string readable_uuid = id.as_human_readable_string();
 
 				std::string times = time_value::get_current_time().as_string();
@@ -441,7 +529,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 		case SERVER_RPC_MESSAGE_CHOKE: {
 			if (log_enabled(PLOG_DEBUG)) {
-				wuuid_t id(uuid);
+				wuuid_t id(response->uuid);
 				std::string readable_uuid = id.as_human_readable_string();
 
 				std::string times = time_value::get_current_time().as_string();
@@ -458,7 +546,7 @@ balancer_t::receive(boost::shared_ptr<response_chunk_t>& response) {
 
 		case SERVER_RPC_MESSAGE_ERROR: {
 			if (log_enabled(PLOG_ERROR)) {
-				wuuid_t id(uuid);
+				wuuid_t id(response->uuid);
 				std::string readable_uuid = id.as_human_readable_string();
 
 				std::string times = time_value::get_current_time().as_string();

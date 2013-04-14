@@ -173,6 +173,31 @@ class socket_t : public boost::noncopyable, public birth_control<socket_t> {
 			return serialization_traits< typename boost::remove_const<T>::type >::unpack(message, result.value);
 		}
 
+		bool recv_zmq_message(zmq::message_t& msg,
+                              msgpack::unpacked& unpacked,
+                              int flags = ZMQ_NOBLOCK)
+		{
+			if (!m_socket.recv(&msg, flags)) {
+				return false;
+			}
+
+        	msgpack::unpack(&unpacked, reinterpret_cast<const char*>(msg.data()), msg.size());
+        	return true;
+    	}
+
+    	bool recv_zmq_message(zmq::message_t& msg,
+                              std::string& str,
+                              int flags = ZMQ_NOBLOCK)
+		{
+			if (!m_socket.recv(&msg, flags)) {
+				return false;
+			}
+
+        	str.clear();
+        	str.append(reinterpret_cast<char*>(msg.data()), msg.size());
+			return true;
+    	}
+
 		void get_sockopt(int name, void* value, size_t* size) {
 			m_socket.getsockopt(name, value, size);
 		}

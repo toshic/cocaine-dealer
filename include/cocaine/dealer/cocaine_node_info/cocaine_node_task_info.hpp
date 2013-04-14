@@ -27,7 +27,7 @@
 namespace cocaine {
 namespace dealer {
 
-class cocaine_node_task_info_t;
+struct cocaine_node_task_info_t;
 std::ostream& operator << (std::ostream& out, const cocaine_node_task_info_t& info);
 
 struct cocaine_node_task_info_t {
@@ -51,7 +51,7 @@ struct cocaine_node_task_info_t {
 	std::string		name;
 	unsigned int	backlog;
     std::string		endpoint;
-    std::string		route;
+    std::string		route; //ZMQ identity
 
 	double median_processing_time;
 	double median_wait_time;

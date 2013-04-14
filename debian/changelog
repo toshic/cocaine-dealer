@@ -1,3 +1,9 @@
+cocaine-dealer (0.10.0-rc10) lucid; urgency=low
+
+  * compatible with 0.10.1
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Sun, 14 Apr 2013 16:42:14 +0400
+
 cocaine-dealer (0.9.19) lucid; urgency=low
 
   * fixed crash on dealer destruction
