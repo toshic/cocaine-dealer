@@ -57,6 +57,7 @@ Depends:
  libboost-system-dev,
  libboost-regex-dev,
  libboost-program-options-dev,
+ libcocaine-dev (>= 0.10.1),
  libcocaine-dealer1 (= ${Source-Version})
 Description: Cocaine - Dealer Development Files
  Files needed to use Cocaine Dealer in development.
