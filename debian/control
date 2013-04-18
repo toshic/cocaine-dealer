@@ -24,6 +24,7 @@ Build-Depends:
 Standards-Version: 3.9.1
 Vcs-Git: git://github.com/cocaine/cocaine-dealer.git
 Vcs-Browser: https://github.com/cocaine/cocaine-dealer
+XS-Python-Version: >= 2.6
 
 Package: libcocaine-dealer1
 Architecture: any
@@ -62,4 +63,15 @@ Depends:
  libcocaine-dealer1 (= ${Source-Version})
 Description: Cocaine - Dealer Development Files
  Files needed to use Cocaine Dealer in development.
+
+Package: python-cocaine-dealer
+Architecture: any
+Depends:
+ ${misc:Depends},
+ ${python:Depends},
+ ${shlibs:Depends},
+ python-msgpack | msgpack-python
+Description: Python binding for Cocaine Dealer
+ A python binding for libcocaine-dealer library, allow to send messages to Cocaine from python
+XB-Python-Version: >= 2.6
 
