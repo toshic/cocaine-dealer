@@ -205,7 +205,7 @@ eblob_t::iteration_callback(eblob_disk_control* dc,
 							__attribute__ ((unused)) void* thread_priv)
 {
 	eblob_t* eb = reinterpret_cast<eblob_t*>(priv);
-	eb->iteration_callback_instance((char*)dc->key.id, data, rc->size, rc->type);
+	eb->iteration_callback_instance((char*)dc->key.id, data, rc->size, 0);
 
 	return 0;
 }
