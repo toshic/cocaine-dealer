@@ -1,3 +1,9 @@
+cocaine-dealer (0.10.1-1) lucid; urgency=low
+
+  *  Build with eblob 0.19
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Mon, 13 May 2013 19:03:39 +0400
+
 cocaine-dealer (0.10.1) lucid; urgency=low
 
   * Release 10.1.
