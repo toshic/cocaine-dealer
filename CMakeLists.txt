@@ -53,8 +53,10 @@ LINK_DIRECTORIES(
     ${LIBEBLOB_LIBRARY_DIRS}
     ${LIBEBLOB_CPP_LIBRARY_DIRS})
 
-INCLUDE_DIRECTORIES(BEFORE ${PROJECT_SOURCE_DIR}/foreign/jsoncpp-0.6.0-rc2/include)
-INCLUDE_DIRECTORIES(BEFORE ${PROJECT_SOURCE_DIR}/include)
+INCLUDE_DIRECTORIES(BEFORE
+    ${PROJECT_SOURCE_DIR}/foreign/jsoncpp-0.6.0-rc2/include
+    ${PROJECT_SOURCE_DIR}/foreign/cppzmq
+    ${PROJECT_SOURCE_DIR}/include)
 
 ADD_LIBRARY(json
     foreign/jsoncpp-0.6.0-rc2/src/lib_json/json_value
