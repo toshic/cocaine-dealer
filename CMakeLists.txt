@@ -25,7 +25,7 @@ LOCATE_LIBRARY(LIBEV "ev++.h" "ev" "libev")
 LOCATE_LIBRARY(LIBEBLOB_CPP "eblob/eblob.hpp" "eblob_cpp")
 LOCATE_LIBRARY(LIBEBLOB "eblob/blob.h" "eblob")
 LOCATE_LIBRARY(LIBMSGPACK "msgpack.hpp" "msgpack")
-LOCATE_LIBRARY(LIBZMQ "zmq.hpp" "zmq")
+LOCATE_LIBRARY(LIBZMQ "zmq.h" "zmq")
 
 IF(NOT APPLE)
     LOCATE_LIBRARY(LIBUUID "uuid/uuid.h" "uuid")
