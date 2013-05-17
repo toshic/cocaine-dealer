@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.19.1-1) lucid; urgency=low
+
+  * fix eblob depends 
+
+ -- Anton Tyurin <noxiouz@yandex-team.ru>  Fri, 17 May 2013 20:19:00 +0400
+
 cocaine-dealer (0.9.19) lucid; urgency=low
 
   * fixed crash on dealer destruction
