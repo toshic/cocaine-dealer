@@ -1,3 +1,9 @@
+cocaine-dealer (0.9.19.1-2) lucid; urgency=low
+
+  * Depend on eblob 0.18
+
+ -- Anton Kortunov <toshik@yandex-team.ru>  Mon, 20 May 2013 01:16:20 +0400
+
 cocaine-dealer (0.9.19.1-1) lucid; urgency=low
 
   * fix eblob depends 
