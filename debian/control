@@ -20,6 +20,7 @@ Build-Depends:
  libboost-system-dev,
  libboost-regex-dev,
  libboost-program-options-dev,
+ python-dev,
  libcocaine-dev (>= 0.10.1)
 Standards-Version: 3.9.1
 Vcs-Git: git://github.com/cocaine/cocaine-dealer.git
